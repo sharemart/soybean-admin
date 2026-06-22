@@ -46,10 +46,10 @@ const watermarkProps = computed<WatermarkProps>(() => {
     :theme-overrides="themeStore.naiveTheme"
     :locale="naiveLocale"
     :date-locale="naiveDateLocale"
-    class="h-full"
+    class="global-font h-full"
   >
     <AppProvider>
-      <RouterView class="bg-layout" />
+      <RouterView :key="$route.fullPath" class="bg-layout" />
       <NWatermark v-if="themeStore.watermark.visible" v-bind="watermarkProps" />
     </AppProvider>
   </NConfigProvider>

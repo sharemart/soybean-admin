@@ -1,0 +1,15 @@
+/* src/style/font.css */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-weight: 400;
+  src: url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+  font-display: swap;
+}
+
+.global-font {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif !important;
+  font-variation-settings: normal;
+  letter-spacing: 0.3px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

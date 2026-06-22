@@ -4,6 +4,14 @@ export default defineConfig(
   { vue: true, unocss: true },
   {
     rules: {
+      // ✅ 关键：解决 Delete ␍
+      'prettier/prettier': [
+        'warn',
+        {
+          endOfLine: 'auto'
+        }
+      ],
+
       'vue/multi-word-component-names': [
         'warn',
         {

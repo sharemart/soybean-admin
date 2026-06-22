@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
+import md5 from 'md5';
 import { loginModuleRecord } from '@/constants/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
@@ -20,8 +21,8 @@ interface FormModel {
 }
 
 const model: FormModel = reactive({
-  userName: 'Soybean',
-  password: '123456'
+  userName: '',
+  password: ''
 });
 
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
@@ -29,14 +30,24 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   const { formRules } = useFormRules();
 
   return {
-    userName: formRules.userName,
+    userName: [],
     password: formRules.pwd
   };
 });
 
+/**
+ * 对密码进行md5加密
+ * @param password 密码
+ * @returns 加密后的密码
+ */
+function encryptPassword(password: string) {
+  return md5(password);
+}
+
 async function handleSubmit() {
   await validate();
-  await authStore.login(model.userName, model.password);
+  const encryptedPassword = encryptPassword(model.password);
+  await authStore.login(model.userName, encryptedPassword);
 }
 
 type AccountKey = 'super' | 'admin' | 'user';
@@ -97,20 +108,24 @@ async function handleAccountLogin(account: Account) {
       <NButton type="primary" size="large" round block :loading="authStore.loginLoading" @click="handleSubmit">
         {{ $t('common.confirm') }}
       </NButton>
-      <div class="flex-y-center justify-between gap-12px">
+      <!--
+ <div class="flex-y-center justify-between gap-12px">
         <NButton class="flex-1" block @click="toggleLoginModule('code-login')">
           {{ $t(loginModuleRecord['code-login']) }}
         </NButton>
         <NButton class="flex-1" block @click="toggleLoginModule('register')">
           {{ $t(loginModuleRecord.register) }}
         </NButton>
-      </div>
+      </div> 
+-->
       <NDivider class="text-14px text-#666 !m-0">{{ $t('page.login.pwdLogin.otherAccountLogin') }}</NDivider>
-      <div class="flex-center gap-12px">
+      <!--
+ <div class="flex-center gap-12px">
         <NButton v-for="item in accounts" :key="item.key" type="primary" @click="handleAccountLogin(item)">
           {{ item.label }}
         </NButton>
-      </div>
+      </div> 
+-->
     </NSpace>
   </NForm>
 </template>

@@ -8,6 +8,7 @@ import GlobalBreadcrumb from '../global-breadcrumb/index.vue';
 import GlobalSearch from '../global-search/index.vue';
 import ThemeButton from './components/theme-button.vue';
 import UserAvatar from './components/user-avatar.vue';
+import NotificationButton from './components/NotificationButton.vue';
 
 defineOptions({
   name: 'GlobalHeader'
@@ -52,6 +53,7 @@ const { isFullscreen, toggle } = useFullscreen();
         @switch="themeStore.toggleThemeScheme"
       />
       <ThemeButton />
+      <NotificationButton />
       <UserAvatar />
     </div>
   </DarkModeContainer>

@@ -19,7 +19,14 @@ const historyCreatorMap: Record<Env.RouterHistoryMode, (base?: string) => Router
 
 export const router = createRouter({
   history: historyCreatorMap[VITE_ROUTER_HISTORY_MODE](VITE_BASE_URL),
-  routes: createBuiltinVueRoutes()
+  routes: [
+    {
+      name: 'root',
+      path: '/',
+      redirect: '/workbench'
+    },
+    ...createBuiltinVueRoutes()
+  ]
 });
 
 /** Setup Vue Router */

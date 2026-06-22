@@ -228,7 +228,24 @@ const local: App.I18n.Schema = {
     404: 'Page Not Found',
     500: 'Server Error',
     'iframe-page': 'Iframe',
-    home: 'Home'
+    home: 'Home',
+    scheduling: 'Maintenance Scheduling',
+    monitoring: 'Monitoring Center',
+    management: 'Elevator Management',
+    management_organizational: 'Organizational Unit Management',
+    management_maintenancegroup: 'Maintenance Group Management',
+    management_knowledge: 'Maintenance Knowledge Management',
+    management_equipment: 'Elevator Equipment Management',
+    management_component: 'Elevator Component Management',
+    business_repair: 'Repair Management',
+    business_report: 'Report Management',
+    business_scheduling: 'Maintenance Scheduling',
+    system: 'System Configuration',
+    system_person: 'Personnel Management',
+    system_roles: 'Role Management',
+    system_operations: 'Maintenance Operation Standard',
+    workbench: 'Workbench',
+    historical: 'Historical Data'
   },
   page: {
     login: {

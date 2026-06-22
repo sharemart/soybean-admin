@@ -1,0 +1,302 @@
+<script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { Check, ChevronDown, Search } from 'lucide-vue-next';
+
+interface Option {
+  label: string;
+  value: string | number;
+}
+
+interface Props {
+  modelValue: string | number;
+  options: Array<{ label: string; value: string | number }>;
+  loading?: boolean;
+  placeholder?: string;
+  width?: string | number;
+  dropdownWidth?: string | number;
+  icon?: any;
+  iconSize?: number | string;
+  iconClass?: string;
+  disabled?: boolean;
+  pageSize?: number;
+  hasMore?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  placeholder: '请选择',
+  width: '100%',
+  dropdownWidth: 'trigger',
+  icon: null,
+  iconSize: 14,
+  iconClass: '',
+  disabled: false,
+  pageSize: 20,
+  hasMore: true
+});
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number];
+  change: [value: string | number];
+  'load-more': [page: number];
+  search: [keyword: string];
+}>();
+
+const showDropdown = ref(false);
+const triggerRef = ref<HTMLElement | null>(null);
+const inputRef = ref<HTMLInputElement | null>(null);
+const dropdownPanelRef = ref<HTMLDivElement | null>(null);
+
+const search = ref('');
+const activeIndex = ref(-1);
+const currentPage = ref(1);
+const loadingMore = ref(false);
+const allOptions = ref<Option[]>([]);
+
+// 监听外部选项合并
+watch(
+  () => props.options,
+  newList => {
+    if (currentPage.value === 1) {
+      allOptions.value = [...newList];
+    } else {
+      const existIds = new Set(allOptions.value.map(item => item.value));
+      const realNew = newList.filter(item => !existIds.has(item.value));
+      allOptions.value = [...allOptions.value, ...realNew];
+    }
+  },
+  { deep: true, immediate: true }
+);
+
+const resolvedWidth = computed(() => {
+  return typeof props.width === 'number' ? `${props.width}px` : props.width;
+});
+
+const dropdownStyle = ref<Record<string, string>>({});
+
+const selectedLabel = computed(() => {
+  const target = props.options.find(item => item.value === props.modelValue);
+  return target?.label || props.placeholder;
+});
+
+const filteredAllOptions = computed(() => allOptions.value);
+
+const displayOptions = computed(() => {
+  if (search.value) return filteredAllOptions.value;
+  return allOptions.value.slice(0, currentPage.value * props.pageSize);
+});
+
+// 显示「下滑加载更多」
+const showMoreTip = computed(() => {
+  return !search.value && props.hasMore;
+});
+
+// 显示「已加载全部数据」
+const showNoMore = computed(() => {
+  return !search.value && !props.hasMore && allOptions.value.length > 0;
+});
+
+const handleSelect = (val: string | number) => {
+  if (props.disabled) return;
+  emit('update:modelValue', val);
+  emit('change', val);
+  showDropdown.value = false;
+};
+
+const updatePosition = () => {
+  if (!triggerRef.value) return;
+  const rect = triggerRef.value.getBoundingClientRect();
+  dropdownStyle.value = {
+    position: 'fixed',
+    left: `${rect.left}px`,
+    top: `${rect.bottom + 8}px`,
+    width: props.dropdownWidth === 'trigger' ? `${rect.width}px` : props.dropdownWidth,
+    zIndex: '9999'
+  };
+};
+
+// ========== 重点修改：无数据直接终止加载 ==========
+const loadNextPage = async () => {
+  // 没有更多数据 / 搜索中 / 加载中 直接返回
+  if (!props.hasMore || search.value || loadingMore.value || props.disabled) return;
+
+  loadingMore.value = true;
+  currentPage.value += 1;
+  emit('load-more', currentPage.value);
+  loadingMore.value = false;
+};
+
+// ========== 优化滚动触底阈值（更小阈值，到底立刻触发） ==========
+const handleDropdownScroll = () => {
+  if (!dropdownPanelRef.value || search.value) return;
+  const { scrollTop, scrollHeight, clientHeight } = dropdownPanelRef.value;
+  // 距离底部 20px 就触发，提升体验
+  if (scrollTop + clientHeight + 20 >= scrollHeight) {
+    loadNextPage();
+  }
+};
+
+const openDropdown = async () => {
+  if (props.disabled) return;
+  showDropdown.value = true;
+  await nextTick();
+  updatePosition();
+  inputRef.value?.focus();
+};
+
+const toggleDropdown = () => {
+  if (props.disabled) return;
+  showDropdown.value ? (showDropdown.value = false) : openDropdown();
+};
+
+const handleClickOutside = (e: MouseEvent) => {
+  if (!triggerRef.value?.contains(e.target as Node)) {
+    showDropdown.value = false;
+  }
+};
+
+const handleScroll = () => {
+  if (showDropdown.value) updatePosition();
+};
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (!showDropdown.value || props.disabled) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeIndex.value = (activeIndex.value + 1) % displayOptions.value.length;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeIndex.value = (activeIndex.value - 1 + displayOptions.value.length) % displayOptions.value.length;
+  } else if (e.key === 'Enter') {
+    const item = displayOptions.value[activeIndex.value];
+    if (item) handleSelect(item.value);
+  } else if (e.key === 'Escape') {
+    showDropdown.value = false;
+  }
+};
+
+watch(search, val => {
+  currentPage.value = 1;
+  emit('search', val);
+});
+
+watch(showDropdown, val => {
+  if (val) {
+    search.value = '';
+    activeIndex.value = -1;
+    currentPage.value = 1;
+    emit('search', '');
+  }
+});
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+  window.addEventListener('scroll', handleScroll, true);
+  window.addEventListener('resize', handleScroll);
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('scroll', handleScroll, true);
+  window.removeEventListener('resize', handleScroll);
+  window.removeEventListener('keydown', handleKeydown);
+});
+</script>
+
+<template>
+  <div ref="triggerRef" :style="{ width: resolvedWidth }" class="relative">
+    <button
+      type="button"
+      class="w-full flex items-center justify-between border border-slate-200/70 rounded-xl bg-slate-50/80 px-4 py-2.5 text-left backdrop-blur-sm transition-all duration-300 dark:border-slate-700/70 hover:border-sky-400 dark:bg-slate-800/80 hover:bg-sky-50/40 hover:shadow-lg hover:shadow-sky-200/30 dark:hover:border-sky-500 dark:hover:bg-slate-800/90 dark:hover:shadow-sky-900/20"
+      :class="{ 'opacity-50 !cursor-not-allowed !pointer-events-none': disabled }"
+      @click.stop="toggleDropdown"
+    >
+      <div class="min-w-0 flex items-center gap-2">
+        <component
+          :is="icon"
+          v-if="icon"
+          :size="iconSize"
+          class="shrink-0 transition-all duration-300"
+          :class="[iconClass || 'text-slate-500 dark:text-slate-400']"
+        />
+        <span class="truncate text-xs text-slate-700 font-bold uppercase dark:text-slate-200">
+          {{ selectedLabel }}
+        </span>
+      </div>
+      <ChevronDown
+        :size="14"
+        class="ml-1 shrink-0 text-slate-500 transition-transform duration-300 dark:text-slate-400"
+        :class="{ 'rotate-180': showDropdown }"
+      />
+    </button>
+  </div>
+
+  <Teleport to="body">
+    <div
+      v-show="showDropdown && !disabled"
+      :style="dropdownStyle"
+      class="overflow-hidden border border-slate-200/60 rounded-xl bg-white/95 shadow-slate-300/20 shadow-xl backdrop-blur-md transition-all duration-300 dark:border-slate-700/60 dark:bg-slate-900/95 dark:shadow-slate-900/30"
+      @click.stop
+    >
+      <div class="border-b border-slate-100 p-2 dark:border-slate-700/50">
+        <div
+          class="flex items-center gap-2 rounded-lg bg-slate-100/60 px-2 py-1.5 transition-all dark:bg-slate-800/70 hover:bg-slate-200/70 dark:hover:bg-slate-700/70"
+        >
+          <Search :size="14" class="text-slate-400" />
+          <input
+            ref="inputRef"
+            v-model="search"
+            type="text"
+            placeholder="搜索..."
+            class="w-full bg-transparent text-xs text-slate-700 outline-none dark:text-slate-300 placeholder:text-slate-400"
+          />
+        </div>
+      </div>
+
+      <div ref="dropdownPanelRef" class="custom-scrollbar max-h-60 overflow-auto" @scroll="handleDropdownScroll">
+        <div v-if="!displayOptions.length" class="px-4 py-3 text-xs text-slate-400">无匹配结果</div>
+
+        <div
+          v-for="(item, index) in displayOptions"
+          :key="item.value"
+          class="relative mx-1 my-0.5 flex cursor-pointer items-center justify-between rounded-lg px-4 py-2.5 text-xs transition-all duration-200 ease-out hover:bg-sky-100/50 hover:pl-[18px] hover:text-sky-600 dark:hover:bg-sky-900/30 dark:hover:text-sky-400"
+          :class="[
+            modelValue === item.value
+              ? 'text-sky-600 dark:text-sky-400 font-bold'
+              : 'text-slate-700 dark:text-slate-300',
+            activeIndex === index && 'bg-sky-100/50 dark:bg-sky-900/30'
+          ]"
+          @click="handleSelect(item.value)"
+        >
+          <span>{{ item.label }}</span>
+          <Check v-if="modelValue === item.value" :size="14" class="text-sky-500" />
+        </div>
+
+        <!-- 加载更多提示 -->
+        <div v-if="showMoreTip" class="px-4 py-3 text-center text-xs text-slate-400">
+          <span v-if="loadingMore">加载中...</span>
+          <span v-else>下滑加载更多</span>
+        </div>
+
+        <!-- 无数据提示（核心：到底后固定展示） -->
+        <div v-if="showNoMore" class="px-4 py-3 text-center text-xs text-slate-400">已加载全部数据</div>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.5);
+}
+</style>

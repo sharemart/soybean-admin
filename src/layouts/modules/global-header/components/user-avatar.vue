@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { VNode } from 'vue';
+import { fetchLogout } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
 import { useSvgIcon } from '@/hooks/common/icon';
+import { localStg } from '@/utils/storage';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -43,14 +45,60 @@ const options = computed(() => {
   return opts;
 });
 
-function logout() {
+async function logout() {
   window.$dialog?.info({
     title: $t('common.tip'),
     content: $t('common.logoutConfirm'),
     positiveText: $t('common.confirm'),
     negativeText: $t('common.cancel'),
-    onPositiveClick: () => {
-      authStore.resetStore();
+    onPositiveClick: async () => {
+      try {
+        // 调用后端退出登录接口
+        const response = await fetchLogout();
+        console.log('退出登录响应:', response);
+
+        // 检查请求是否成功（没有错误）
+        if (!response.error) {
+          // 检查业务逻辑是否成功
+          if (response.response?.data?.code === 2000) {
+            // 退出成功，清除本地存储
+            localStg.remove('token');
+            console.log('退出登录成功:', response.data.message || '退出登录成功');
+
+            // 重置认证状态
+            authStore.resetStore();
+
+            // 显示成功消息
+            window.$notification?.success({
+              title: $t('common.updateSuccess'),
+              content: response.data.message || '退出登录成功',
+              duration: 3000
+            });
+          } else {
+            // 业务逻辑错误，但仍清除本地状态
+            console.error('退出登录失败:', response.data.message);
+            localStg.remove('token');
+            authStore.resetStore();
+          }
+        } else {
+          // 网络或系统错误，但仍清除本地状态
+          console.error('退出登录网络错误:', response.error);
+          localStg.remove('token');
+          authStore.resetStore();
+        }
+      } catch (error) {
+        // 异常情况，清除本地状态
+        console.error('退出登录异常:', error);
+        localStg.remove('token');
+        authStore.resetStore();
+
+        // 显示错误消息
+        window.$notification?.error({
+          title: $t('common.error'),
+          content: '退出登录时发生异常，已清除本地登录状态',
+          duration: 5000
+        });
+      }
     }
   });
 }

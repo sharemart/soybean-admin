@@ -4,6 +4,7 @@
 // Read more: https://github.com/soybeanjs/elegant-router
 
 import type { GeneratedRoute } from '@elegant-router/types';
+import { h } from 'vue';
 
 export const generatedRoutes: GeneratedRoute[] = [
   {
@@ -14,7 +15,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: '403',
       i18nKey: 'route.403',
       constant: true,
-      hideInMenu: true
+      hideInMenu: true,
+      keepAlive: false
     }
   },
   {
@@ -25,7 +27,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: '404',
       i18nKey: 'route.404',
       constant: true,
-      hideInMenu: true
+      hideInMenu: true,
+      keepAlive: false
     }
   },
   {
@@ -36,7 +39,90 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: '500',
       i18nKey: 'route.500',
       constant: true,
-      hideInMenu: true
+      hideInMenu: true,
+      keepAlive: false
+    }
+  },
+  {
+    name: 'business',
+    path: '/business',
+    component: 'layout.base',
+    meta: {
+      title: 'business',
+      i18nKey: 'route.business',
+      icon: 'mdi:briefcase',
+      order: 20,
+      keepAlive: true
+    },
+    children: [
+      {
+        name: 'business_repair',
+        path: '/business/repair',
+        component: 'view.business_repair',
+        meta: {
+          title: 'business_repair',
+          i18nKey: 'route.business_repair',
+          icon: 'mdi:wrench',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'business_report',
+        path: '/business/report',
+        component: 'view.business_report',
+        meta: {
+          title: 'business_report',
+          i18nKey: 'route.business_report',
+          icon: 'mdi:chart-bar',
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    name: 'custom',
+    path: '/custom',
+    component: 'layout.base',
+    meta: {
+      title: 'custom',
+      i18nKey: 'route.custom'
+    },
+    children: [
+      {
+        name: 'custom_workbench',
+        path: '/custom/workbench',
+        component: 'view.custom_workbench',
+        meta: {
+          title: 'custom_workbench',
+          i18nKey: 'route.custom_workbench'
+        }
+      }
+    ]
+  },
+  {
+    name: 'emergency',
+    path: '/emergency',
+    component: 'layout.base$view.emergency',
+    props: true,
+    meta: {
+      title: 'emergency',
+      i18nKey: 'route.emergency',
+      icon: 'mdi:alert-octagon',
+      order: 2,
+      keepAlive: true
+    }
+  },
+  {
+    name: 'historical',
+    path: '/historical',
+    component: 'layout.base$view.historical',
+    meta: {
+      title: 'historical',
+      i18nKey: 'route.historical',
+      icon: 'mdi:history',
+      order: 3,
+      hideInMenu: true,
+      keepAlive: true
     }
   },
   {
@@ -47,7 +133,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'home',
       i18nKey: 'route.home',
       icon: 'mdi:monitor-dashboard',
-      order: 1
+      order: 3,
+      keepAlive: true
     }
   },
   {
@@ -72,7 +159,291 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'login',
       i18nKey: 'route.login',
       constant: true,
-      hideInMenu: true
+      hideInMenu: true,
+      keepAlive: false
+    }
+  },
+  {
+    name: 'management',
+    path: '/management',
+    component: 'layout.base',
+    meta: {
+      title: 'management',
+      i18nKey: 'route.management',
+      icon: 'mdi:database-cog',
+      order: 10,
+      keepAlive: true
+    },
+    children: [
+      {
+        name: 'management_community',
+        path: '/management/community',
+        component: 'view.management_community',
+        meta: {
+          title: 'management_community',
+          i18nKey: 'route.management_community',
+          icon: 'mdi:city',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_component',
+        path: '/management/component',
+        component: 'view.management_component',
+        meta: {
+          title: 'management_component',
+          i18nKey: 'route.management_component',
+          icon: 'mdi:cube-scan',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_equipment',
+        path: '/management/equipment',
+        component: 'view.management_equipment',
+        meta: {
+          title: 'management_equipment',
+          i18nKey: 'route.management_equipment',
+          icon: 'mdi:elevator',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_knowledge',
+        path: '/management/knowledge',
+        component: 'view.management_knowledge',
+        meta: {
+          title: 'management_knowledge',
+          i18nKey: 'route.management_knowledge',
+          icon: 'mdi:book-open-variant',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_maintenancegroup',
+        path: '/management/maintenancegroup',
+        component: 'view.management_maintenancegroup',
+        meta: {
+          title: 'management_maintenancegroup',
+          i18nKey: 'route.management_maintenancegroup',
+          icon: 'mdi:account-group',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_organizational',
+        path: '/management/organizational',
+        component: 'view.management_organizational',
+        meta: {
+          title: 'management_organizational',
+          i18nKey: 'route.management_organizational',
+          icon: 'mdi:domain',
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    name: 'monitoring',
+    path: '/monitoring',
+    component: 'layout.base',
+    meta: {
+      title: 'monitoring',
+      i18nKey: 'route.monitoring',
+      icon: 'mdi:cctv',
+      order: 2,
+      keepAlive: true
+    },
+    children: [
+      {
+        name: 'monitoring_demo',
+        path: '/monitoring/demo',
+        component: 'view.monitoring_demo',
+        meta: {
+          title: 'monitoring_demo',
+          i18nKey: 'route.monitoring_demo',
+          icon: 'mdi:play-circle',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'monitoring_detail',
+        path: '/monitoring/detail',
+        component: 'view.monitoring_detail',
+        meta: {
+          title: 'monitoring_detail',
+          i18nKey: 'route.monitoring_detail',
+          icon: 'mdi:file-document',
+          hideInMenu: true,
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    name: 'safetysystem',
+    path: '/safetysystem',
+    component: 'layout.base',
+    meta: {
+      title: 'safetysystem',
+      i18nKey: 'route.safetysystem'
+    },
+    children: [
+      {
+        name: 'safetysystem_archive',
+        path: '/safetysystem/archive',
+        component: 'view.safetysystem_archive',
+        meta: {
+          title: 'safetysystem_archive',
+          i18nKey: 'route.safetysystem_archive'
+        }
+      },
+      {
+        name: 'safetysystem_checklist',
+        path: '/safetysystem/checklist',
+        component: 'view.safetysystem_checklist',
+        meta: {
+          title: 'safetysystem_checklist',
+          i18nKey: 'route.safetysystem_checklist'
+        }
+      },
+      {
+        name: 'safetysystem_daily',
+        path: '/safetysystem/daily',
+        component: 'view.safetysystem_daily',
+        meta: {
+          title: 'safetysystem_daily',
+          i18nKey: 'route.safetysystem_daily'
+        }
+      },
+      {
+        name: 'safetysystem_managementpersonnel',
+        path: '/safetysystem/managementpersonnel',
+        component: 'view.safetysystem_managementpersonnel',
+        meta: {
+          title: 'safetysystem_managementpersonnel',
+          i18nKey: 'route.safetysystem_managementpersonnel'
+        }
+      },
+      {
+        name: 'safetysystem_monthcontrol',
+        path: '/safetysystem/monthcontrol',
+        component: 'view.safetysystem_monthcontrol',
+        meta: {
+          title: 'safetysystem_monthcontrol',
+          i18nKey: 'route.safetysystem_monthcontrol'
+        }
+      },
+      {
+        name: 'safetysystem_training',
+        path: '/safetysystem/training',
+        component: 'view.safetysystem_training',
+        meta: {
+          title: 'safetysystem_training',
+          i18nKey: 'route.safetysystem_training'
+        }
+      },
+      {
+        name: 'safetysystem_weeklycontrol',
+        path: '/safetysystem/weeklycontrol',
+        component: 'view.safetysystem_weeklycontrol',
+        meta: {
+          title: 'safetysystem_weeklycontrol',
+          i18nKey: 'route.safetysystem_weeklycontrol'
+        }
+      }
+    ]
+  },
+  {
+    name: 'scheduling',
+    path: '/scheduling',
+    component: 'layout.base$view.scheduling',
+    meta: {
+      title: 'scheduling',
+      i18nKey: 'route.scheduling',
+      icon: 'mdi:calendar-check',
+      order: 3,
+      keepAlive: true
+    }
+  },
+  {
+    name: 'system',
+    path: '/system',
+    component: 'layout.base',
+    meta: {
+      title: 'system',
+      i18nKey: 'route.system',
+      icon: 'mdi:cog',
+      order: 30,
+      keepAlive: true
+    },
+    children: [
+      {
+        name: 'system_customworkbench',
+        path: '/system/customworkbench',
+        component: 'view.system_customworkbench',
+        meta: {
+          title: 'system_customworkbench',
+          i18nKey: 'route.system_customworkbench'
+        }
+      },
+      {
+        name: 'system_menu',
+        path: '/system/menu',
+        component: 'view.system_menu',
+        meta: {
+          title: 'system_menu',
+          i18nKey: 'route.system_menu',
+          icon: 'mdi:menu',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'system_operations',
+        path: '/system/operations',
+        component: 'view.system_operations',
+        meta: {
+          title: 'system_operations',
+          i18nKey: 'route.system_operations',
+          icon: 'mdi:history',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'system_person',
+        path: '/system/person',
+        component: 'view.system_person',
+        meta: {
+          title: 'system_person',
+          i18nKey: 'route.system_person',
+          icon: 'mdi:account',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'system_roles',
+        path: '/system/roles',
+        component: 'view.system_roles',
+        meta: {
+          title: 'system_roles',
+          i18nKey: 'route.system_roles',
+          icon: 'mdi:shield-account',
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    name: 'workbench',
+    path: '/workbench',
+    component: 'layout.base$view.workbench',
+    meta: {
+      title: 'workbench',
+      i18nKey: 'route.workbench',
+      icon: 'mdi:view-dashboard',
+      order: 1,
+      fullScreen: true,
+      keepAlive: true
     }
   }
 ];

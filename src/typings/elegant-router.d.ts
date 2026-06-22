@@ -20,9 +20,42 @@ declare module "@elegant-router/types" {
     "403": "/403";
     "404": "/404";
     "500": "/500";
+    "business": "/business";
+    "business_repair": "/business/repair";
+    "business_report": "/business/report";
+    "custom": "/custom";
+    "custom_workbench": "/custom/workbench";
+    "emergency": "/emergency";
+    "historical": "/historical";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
+    "management": "/management";
+    "management_community": "/management/community";
+    "management_component": "/management/component";
+    "management_equipment": "/management/equipment";
+    "management_knowledge": "/management/knowledge";
+    "management_maintenancegroup": "/management/maintenancegroup";
+    "management_organizational": "/management/organizational";
+    "monitoring": "/monitoring";
+    "monitoring_demo": "/monitoring/demo";
+    "monitoring_detail": "/monitoring/detail";
+    "safetysystem": "/safetysystem";
+    "safetysystem_archive": "/safetysystem/archive";
+    "safetysystem_checklist": "/safetysystem/checklist";
+    "safetysystem_daily": "/safetysystem/daily";
+    "safetysystem_managementpersonnel": "/safetysystem/managementpersonnel";
+    "safetysystem_monthcontrol": "/safetysystem/monthcontrol";
+    "safetysystem_training": "/safetysystem/training";
+    "safetysystem_weeklycontrol": "/safetysystem/weeklycontrol";
+    "scheduling": "/scheduling";
+    "system": "/system";
+    "system_customworkbench": "/system/customworkbench";
+    "system_menu": "/system/menu";
+    "system_operations": "/system/operations";
+    "system_person": "/system/person";
+    "system_roles": "/system/roles";
+    "workbench": "/workbench";
   };
 
   /**
@@ -57,9 +90,19 @@ declare module "@elegant-router/types" {
     | "403"
     | "404"
     | "500"
+    | "business"
+    | "custom"
+    | "emergency"
+    | "historical"
     | "home"
     | "iframe-page"
     | "login"
+    | "management"
+    | "monitoring"
+    | "safetysystem"
+    | "scheduling"
+    | "system"
+    | "workbench"
   >;
 
   /**
@@ -76,12 +119,41 @@ declare module "@elegant-router/types" {
    */
   export type LastLevelRouteKey = Extract<
     RouteKey,
+    | "workbench"
     | "403"
     | "404"
     | "500"
     | "iframe-page"
     | "login"
+    | "business_repair"
+    | "business_report"
+    | "custom_workbench"
+    | "emergency"
+    | "historical"
     | "home"
+    | "management_community"
+    | "management_component"
+    | "management_equipment"
+    | "management"
+    | "management_knowledge"
+    | "management_maintenancegroup"
+    | "management_organizational"
+    | "monitoring_demo"
+    | "monitoring_detail"
+    | "safetysystem_daily"
+    | "safetysystem_archive"
+    | "safetysystem_checklist"
+    | "safetysystem"
+    | "safetysystem_managementpersonnel"
+    | "safetysystem_monthcontrol"
+    | "safetysystem_training"
+    | "safetysystem_weeklycontrol"
+    | "scheduling"
+    | "system_customworkbench"
+    | "system_menu"
+    | "system_operations"
+    | "system_person"
+    | "system_roles"
   >;
 
   /**

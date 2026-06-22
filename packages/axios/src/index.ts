@@ -162,7 +162,10 @@ export function createFlatRequest<ResponseData, ApiData, State extends Record<st
 
       return { data: response.data as MappedType<R, T>, error: null, response };
     } catch (error) {
-      return { data: null, error, response: (error as AxiosError<ResponseData>).response };
+      const axiosError = error as AxiosError<ResponseData>;
+      // 失败时也保留后端返回的数据，统一通过 res.data 获取
+      const errorData = axiosError.response?.data || null;
+      return { data: errorData, error: axiosError, response: axiosError.response };
     }
   } as FlatRequestInstance<ResponseData, ApiData, State>;
 
