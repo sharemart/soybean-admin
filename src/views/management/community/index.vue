@@ -40,23 +40,11 @@ interface VillageItem {
   add_time: string;
 }
 
-interface GetVillageListResponse {
-  code: number;
-  message: string;
-  data: {
-    list: VillageItem[];
-    total: number;
-    page: number;
-    limit: number;
-  };
-}
-
 const villageList = ref<VillageItem[]>([]);
 const searchTerm = ref('');
 const addressSearch = ref('');
 const companyId = ref(0);
 
-const total = ref(0);
 const isSyncing = ref(false);
 const errorMsg = ref('');
 const message = useMessage();
@@ -102,6 +90,38 @@ const {
 const combinedLoading = computed(
   () => loading.value || areaLoading.provinceLoading || areaLoading.cityLoading || areaLoading.districtLoading
 );
+
+const fetchData = async () => {
+  try {
+    loading.value = true;
+    errorMsg.value = '';
+
+    const params = {
+      village_name: searchTerm.value,
+      address: addressSearch.value,
+      province: Number(filterForm.province) || 0,
+      city: Number(filterForm.city) || 0,
+      district: Number(filterForm.district) || 0,
+      company_id: companyId.value,
+      page: currentPage.value,
+      limit: pageSize.value
+    };
+
+    const response = await getVillageList(params);
+
+    if (response?.data?.code === 2000) {
+      villageList.value = response.data?.data.list || [];
+      totalCount.value = response.data?.data.total || 0;
+    } else {
+      errorMsg.value = response?.data?.message || '数据加载失败';
+    }
+  } catch (err) {
+    errorMsg.value = '数据加载失败，请重试';
+    console.error(err);
+  } finally {
+    loading.value = false;
+  }
+};
 
 // 👇 把函数定义移到 watch 前面
 const handleProvinceChange = async (val: string) => {
@@ -159,38 +179,6 @@ watch([searchTerm, addressSearch], () => {
   fetchData();
 });
 
-const fetchData = async () => {
-  try {
-    loading.value = true;
-    errorMsg.value = '';
-
-    const params = {
-      village_name: searchTerm.value,
-      address: addressSearch.value,
-      province: Number(filterForm.province) || 0,
-      city: Number(filterForm.city) || 0,
-      district: Number(filterForm.district) || 0,
-      company_id: companyId.value,
-      page: currentPage.value,
-      limit: pageSize.value
-    };
-
-    const response = await getVillageList(params);
-
-    if (response?.data?.code === 2000) {
-      villageList.value = response.data?.data.list || [];
-      totalCount.value = response.data?.data.total || 0;
-    } else {
-      errorMsg.value = response?.data?.message || '数据加载失败';
-    }
-  } catch (err) {
-    errorMsg.value = '数据加载失败，请重试';
-    console.error(err);
-  } finally {
-    loading.value = false;
-  }
-};
-
 onMounted(() => {
   fetchData();
   fetchProvinceList();
@@ -228,10 +216,10 @@ const handleDelete = async (villageId: number) => {
           message.success('删除成功');
           fetchData();
         } else {
-          message.error(res?.data?.message || '删除失败');
+          message.error(res?.data?.msg || '删除失败');
         }
       } catch (error) {
-        message.error('删除失败，请重试');
+        message.error(`删除失败，请重试${error}`);
       } finally {
         loading.value = false;
       }
@@ -253,7 +241,7 @@ const handleEdit = async (row: VillageItem) => {
       showModal.value = true;
     }
   } catch (error) {
-    message.error('获取详情失败');
+    message.error(`获取详情失败${error}`);
   } finally {
     loading.value = false;
   }

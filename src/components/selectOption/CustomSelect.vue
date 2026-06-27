@@ -2,11 +2,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Check, ChevronDown, Search } from 'lucide-vue-next';
 
-interface Option {
-  label: string;
-  value: string | number;
-}
-
 interface Props {
   modelValue: string | number;
   options: Array<{ label: string; value: string | number }>;
@@ -86,7 +81,7 @@ const updatePosition = () => {
     left: `${rect.left}px`,
     top: `${rect.bottom + 8}px`,
     width,
-    zIndex: '9999'
+    zIndex: '3000'
   };
 };
 

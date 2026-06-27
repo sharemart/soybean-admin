@@ -57,11 +57,11 @@ const handleSubmit = async () => {
   try {
     const res = await batchImportElevatorExcel({
       file: rawFile,
-      company_id: form.value.company_id
+      company_id: form.value.company_id || undefined
     });
 
-    if (res.data.code !== 2000) {
-      message.warning(res.message || '导入失败');
+    if (res.data?.code !== 2000) {
+      message.warning(res.data?.msg || '导入失败');
       return;
     }
 
@@ -70,8 +70,7 @@ const handleSubmit = async () => {
     emit('success');
     emit('close');
   } catch (err: any) {
-    message.error(err?.message || '导入失败，请检查文件格式');
-    console.error('导入异常：', err);
+    message.error(err?.msg || '导入失败，请检查文件格式');
   } finally {
     // 无论成功失败都关闭 loading
     importLoading.value = false;

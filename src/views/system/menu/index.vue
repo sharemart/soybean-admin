@@ -27,6 +27,7 @@ import {
   updateMenu,
   updateMenuSort
 } from '@/service/api/menu/menu';
+import type { CreateMenuParams, UpdateMenuParams } from '@/service/api/menu/menuApi.d';
 import { useRouteStore } from '@/store/modules/route';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 
@@ -229,8 +230,9 @@ const parentMenuOptions = computed(() => {
   const flatten = (
     menus: MenuInfo[],
     level: number = 0
-  ): Array<{ label: string; value: number | null; disabled?: boolean }> => {
-    const result: Array<{ label: string; value: number | null; disabled?: boolean }> = [];
+  ): Array<{ label: string; value: number; disabled?: boolean }> => {
+    // 去掉 | null
+    const result: Array<{ label: string; value: number; disabled?: boolean }> = []; // 去掉 | null
     menus.forEach(menu => {
       if (menu.menuType === 1 || menu.menuType === 2) {
         const prefix = level > 0 ? '  '.repeat(level) : '';
@@ -246,7 +248,7 @@ const parentMenuOptions = computed(() => {
     });
     return result;
   };
-  return [{ label: '根菜单', value: null }, ...flatten(menuTreeData.value)];
+  return [{ label: '根菜单', value: 0 }, ...flatten(menuTreeData.value)]; // null 改为 0
 });
 
 /** 获取菜单树 */
@@ -260,8 +262,9 @@ async function getMenuTree() {
     const res = await getMenuList(params);
 
     if (res?.data?.code === 2000) {
-      const backendTree = (res.data.data || []) as BackendMenuTree;
-      menuTreeData.value = convertBackendTreeToFrontendTree(backendTree);
+      const backendList = res.data.data || [];
+      const treeData = backendList as unknown as BackendMenuTree;
+      menuTreeData.value = convertBackendTreeToFrontendTree(treeData);
       expandedKeys.value = getAllKeys(menuTreeData.value);
       updateFlatMenuList();
     } else {
@@ -269,6 +272,7 @@ async function getMenuTree() {
     }
   } catch (err) {
     window.$message?.error('网络异常');
+    console.error('获取菜单失败', err);
   } finally {
     endTableLoading();
   }
@@ -353,7 +357,7 @@ function onDragMove(event: any) {
 
   if (menuItem) {
     const menuId = Number(menuItem.getAttribute('data-menu-id'));
-    if (menuId && !isNaN(menuId)) {
+    if (menuId && !Number.isNaN(menuId)) {
       dragOverItemId.value = menuId;
     }
   } else {
@@ -406,7 +410,7 @@ async function handleDragEnd(event: { oldIndex?: number; newIndex?: number }) {
       await getMenuTree();
     }
   } catch (error) {
-    window.$message?.error('排序失败，请重试');
+    window.$message?.error(`排序失败，请重试${error}`);
     await getMenuTree();
   } finally {
     draggingItem.value = null;
@@ -446,7 +450,8 @@ async function handleEdit(id: number) {
   const res = await getMenuDetail({ menu_id: id });
 
   if (res?.data?.code === 2000) {
-    const backendData = res.data.data as BackendMenuInfo;
+    const rawData = res.data.data;
+    const backendData = rawData as unknown as BackendMenuInfo;
     const menu = convertBackendToFrontend(backendData);
     editingData.value = menu;
     Object.assign(formData, menu);
@@ -456,50 +461,75 @@ async function handleEdit(id: number) {
   }
 }
 
-/** 提交 */
+// 抽离新增逻辑
+async function addMenuReq(params: CreateMenuParams) {
+  const res = await createMenu(params);
+  if (res?.data?.code !== 2000) {
+    throw new Error(res?.data?.msg || '创建失败');
+  }
+  window.$message?.success('创建成功');
+}
+
+// 抽离编辑逻辑
+async function editMenuReq(params: UpdateMenuParams) {
+  const res = await updateMenu(params);
+  if (res?.data?.code !== 2000) {
+    throw new Error(res?.data?.msg || '更新失败');
+  }
+  window.$message?.success('更新成功');
+}
+
 async function handleSubmit() {
   await validate();
   startSubmitLoading();
-
   try {
-    const params = convertFrontendToBackend(formData);
-    if (formData.menuType === 2 && formData.path) {
-      if (!formData.path.startsWith('/')) {
-        formData.path = `/${formData.path}`;
-      }
-    }
+    const rawParams = convertFrontendToBackend(formData);
+    const submitParams = {
+      ...rawParams,
+      menu_name: rawParams.menu_name ?? '',
+      menu_code: rawParams.menu_code ?? '',
+      route_path: rawParams.route_path ?? '',
+      component: rawParams.component ?? '',
+      menu_icon: rawParams.menu_icon ?? '',
+      local_icon: rawParams.local_icon ?? '',
+      href: rawParams.href ?? '',
+      active_menu: rawParams.active_menu ?? '',
+      i18n_key: rawParams.i18n_key ?? '',
+      menu_syn: rawParams.menu_syn ?? '',
+      is_show: rawParams.hideInMenu === 1 ? 0 : 1
+    };
+    fixRoutePath();
 
     if (operateType.value === 'add') {
-      const res = await createMenu(params);
-      if (res?.data?.code === 2000) {
-        window.$message?.success('创建成功');
-      } else {
-        window.$message?.error(`创建失败：${res?.data?.msg || '未知错误'}`);
-        return;
-      }
+      await addMenuReq(submitParams as CreateMenuParams);
     } else {
-      const res = await updateMenu({ ...params, menu_id: editingData.value!.id });
-      if (res?.data?.code === 2000) {
-        window.$message?.success('更新成功');
-      } else {
-        window.$message?.error(`更新失败：${res?.data?.msg || '未知错误'}`);
-        return;
-      }
+      await editMenuReq({ ...submitParams, menu_id: editingData.value!.id } as UpdateMenuParams);
     }
 
     drawerVisible.value = false;
     restoreValidation();
     await getMenuTree();
-    try {
-      await refreshRoutes();
-    } catch (e) {
-      console.warn('路由刷新警告（已忽略）', e);
-    }
+    safeRefreshRoute();
   } catch (err) {
     console.error('提交异常：', err);
-    window.$message.error(`操作失败：${(err as Error).message}`);
   } finally {
     endSubmitLoading();
+  }
+}
+
+// 拆分路径处理逻辑
+function fixRoutePath() {
+  if (formData.menuType === 2 && formData.path && !formData.path.startsWith('/')) {
+    formData.path = `/${formData.path}`;
+  }
+}
+
+// 拆分路由刷新 try catch
+async function safeRefreshRoute() {
+  try {
+    await refreshRoutes();
+  } catch (e) {
+    console.warn('路由刷新警告（已忽略）', e);
   }
 }
 

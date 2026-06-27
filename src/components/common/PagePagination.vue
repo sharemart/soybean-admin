@@ -34,7 +34,7 @@ const handlePageChange = (page: number) => {
 
 const handleJump = () => {
   let page = Number(jumpPage.value);
-  if (isNaN(page)) page = 1;
+  if (Number.isNaN(page)) page = 1;
   if (page < 1) page = 1;
   if (page > maxPage.value) page = maxPage.value;
   emit('change', page);

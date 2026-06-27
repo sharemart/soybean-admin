@@ -1,22 +1,19 @@
+import type { ApiResponse } from '@/service/api/types/common';
+
+// ====================== 维保排班列表 ======================
 export interface MaintenanceScheduleListParams {
   /** 开始时间 | 格式：Y-m-d */
   start: string;
-
   /** 结束时间 | 格式：Y-m-d */
   end: string;
-
   /** 维保单位ID（公司ID） */
   company_id?: number;
-
   /** 维保小组ID */
   group_id?: number;
-
   /** 维保状态 | PENDING | COMPLETED | IN_PROGRESS | OVERDUE */
   status?: 'PENDING' | 'COMPLETED' | 'IN_PROGRESS' | 'OVERDUE';
-
   /** 电梯名称（模糊搜索） */
   elevator_name?: string;
-
   /** 电梯编号（模糊搜索） */
   elevator_number?: string;
 }
@@ -37,17 +34,10 @@ export interface MaintenanceScheduleItem {
   groupId: number; // 维保组ID
 }
 
-/** 通用接口响应结构 */
-export interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T;
-}
-
 /** 维保排班列表响应 */
 export type MaintenanceScheduleListResponse = ApiResponse<MaintenanceScheduleItem[]>;
 
-/** -----------------------------维保详情请求参数----------------------------------------- */
+// ====================== 维保详情 ======================
 export interface MaintenanceDetailParams {
   /** 维保单ID */
   bill_id: number;
@@ -160,7 +150,7 @@ export interface MaintainInfo {
 }
 
 /** 维保详情响应数据 */
-interface MaintenanceDetailData {
+export interface MaintenanceDetailData {
   m_id: number | null;
   name: string;
   content: string;
@@ -169,19 +159,9 @@ interface MaintenanceDetailData {
   company_id: number | null;
   company_name: string;
 }
-/** 维保详情接口响应结构 */
-export interface MaintenanceDetailResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: MaintenanceDetailData;
-}
+export type MaintenanceDetailResponse = ApiResponse<MaintenanceDetailData>;
 
-/**
- * 修改排班计划日期 - 请求参数
- */
+// ====================== 修改排班计划日期 ======================
 export interface UpdateMaintenanceDateParams {
   /** 维保单ID */
   bill_id: number;
@@ -189,31 +169,15 @@ export interface UpdateMaintenanceDateParams {
   maint_time: string | number;
 }
 
-/**
- * 修改排班计划日期 - 响应数据
- */
 export interface UpdateMaintenanceDateResponseData {
   /** 维保单ID */
   bill_id: number;
   /** 新的计划维保时间 | 格式：Y-m-d H:i:s 或时间戳 */
   maint_time: string;
 }
+export type UpdateMaintenanceDateResponse = ApiResponse<UpdateMaintenanceDateResponseData>;
 
-/**
- * 修改排班计划日期 - 响应体
- */
-export interface UpdateMaintenanceDateResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: UpdateMaintenanceDateResponseData;
-}
-
-/**
- * 添加维保计划 - 请求参数
- */
+// ====================== 添加维保计划 ======================
 export interface CreateMaintenanceScheduleParams {
   /** 电梯ID */
   elevator_id: number;
@@ -231,9 +195,6 @@ export interface CreateMaintenanceScheduleParams {
   // 维保公司ID（可选，不传则从电梯信息中获取）
 }
 
-/**
- * 添加维保计划 - 响应数据
- */
 export interface CreateMaintenanceScheduleResponseData {
   /** 维保计划ID */
   maint_id: number;
@@ -242,23 +203,9 @@ export interface CreateMaintenanceScheduleResponseData {
   /** 提示信息 */
   message: string;
 }
+export type CreateMaintenanceScheduleResponse = ApiResponse<CreateMaintenanceScheduleResponseData>;
 
-/**
- * 添加维保计划 - 响应体
- */
-export interface CreateMaintenanceScheduleResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: CreateMaintenanceScheduleResponseData;
-}
-
-/**
- * 获取电梯列表（简易版）- 请求参数
- * 注意：接口为 GET 请求，参数实际通过 Query 传递
- */
+// ====================== 获取电梯简易列表 ======================
 export interface GetElevatorSimpleListParams {
   /** 电梯名称（模糊搜索） */
   elevator_name?: string;
@@ -272,9 +219,6 @@ export interface GetElevatorSimpleListParams {
   company_id?: number;
 }
 
-/**
- * 电梯简易信息项
- */
 export interface ElevatorSimpleItem {
   /** 电梯ID */
   elevator_id: number;
@@ -287,31 +231,14 @@ export interface ElevatorSimpleItem {
   /** 小区名称 */
   village_name: string;
 }
+export type GetElevatorSimpleListResponse = ApiResponse<ElevatorSimpleItem[]>;
 
-/**
- * 获取电梯列表（简易版）- 响应体
- */
-export interface GetElevatorSimpleListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 电梯列表 */
-  data: ElevatorSimpleItem[];
-}
-
-/**
- * 获取维保公司列表 - 请求参数
- * 注：接口为 GET 请求，参数通过 Query 传递
- */
+// ====================== 获取维保公司列表 ======================
 export interface GetMaintainCompanyListParams {
   /** 公司名称（模糊搜索） */
   company_name?: string;
 }
 
-/**
- * 维保公司信息项
- */
 export interface MaintainCompanyItem {
   /** 公司ID */
   company_id: number;
@@ -322,23 +249,9 @@ export interface MaintainCompanyItem {
   /** 联系电话 */
   phone: string;
 }
+export type GetMaintainCompanyListResponse = ApiResponse<MaintainCompanyItem[]>;
 
-/**
- * 获取维保公司列表 - 响应体
- */
-export interface GetMaintainCompanyListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 维保公司列表 */
-  data: MaintainCompanyItem[];
-}
-
-/**
- * 获取维保小组列表 - 请求参数
- * 注：接口为 GET 请求，参数通过 Query 传递
- */
+// ====================== 获取维保小组下拉列表（重命名避免冲突） ======================
 export interface GetMaintainGroupListParams {
   /** 公司ID（筛选指定公司的维保小组） */
   company_id?: number;
@@ -346,10 +259,7 @@ export interface GetMaintainGroupListParams {
   name?: string;
 }
 
-/**
- * 维保小组信息项
- */
-export interface MaintainGroupItem {
+export interface MaintainGroupSelectItem {
   /** 小组ID */
   group_id: number;
   /** 小组名称 */
@@ -359,23 +269,9 @@ export interface MaintainGroupItem {
   /** 所属公司名称 */
   company_name: string;
 }
+export type GetMaintainGroupListResponse = ApiResponse<MaintainGroupSelectItem[]>;
 
-/**
- * 获取维保小组列表 - 响应体
- */
-export interface GetMaintainGroupListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 维保小组列表 */
-  data: MaintainGroupItem[];
-}
-
-/**
- * 批量导入维保计划（Excel） - 请求参数
- * 注：接口为 POST 请求，参数通过 FormData 传递
- */
+// ====================== 批量导入维保计划Excel ======================
 export interface BatchImportPlanExcelParams {
   /** Excel（.xlsx），第3行起：B注册代码 S维保小组名称 T维保开始日期 U维保年限（年）；S列小组可在当前账号 bu_company 下属维保公司下匹配 */
   file: File;
@@ -387,60 +283,25 @@ export interface BatchImportPlanExcelParams {
   maintain_delay?: number;
 }
 
-/**
- * 批量导入维保计划（Excel） - 响应数据
- */
-export interface BatchImportPlanExcelResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: {
-    /** 成功写入条数 */
-    success_count: number;
-    /** 跳过（B列注册代码为空）的行数 */
-    skipped_empty_rows: number;
-    /** 扫描的数据行数（含空行） */
-    total_rows_scanned: number;
-  };
-}
-// ====================== 获取电梯未维保计划日期列表 ======================
-/**
- * 获取电梯未维保计划日期列表 - 请求参数
- * GET 请求，参数通过 Query 传递
- */
-export interface GetLatestRecordParams {
-  /** 电梯ID */
-  elevator_id: number;
-}
+export type BatchImportPlanExcelResponse = ApiResponse<{
+  /** 成功写入条数 */
+  success_count: number;
+  /** 跳过（B列注册代码为空）的行数 */
+  skipped_empty_rows: number;
+  /** 扫描的数据行数（含空行） */
+  total_rows_scanned: number;
+}>;
 
-/**
- * 未维保计划日期项
- */
+// ====================== 获取电梯未维保日期简易列表 ======================
 export interface UnMaintainedPlanDateItem {
   /** 维保计划ID */
   maint_id: number;
   /** 未维保计划日期列表 | 格式：Y-m-d，按日期升序 */
   list: string[];
 }
+export type GetUnMaintainedPlanDateResponse = ApiResponse<UnMaintainedPlanDateItem>;
 
-/**
- * 获取电梯未维保计划日期列表 - 响应体
- */
-export interface GetLatestRecordResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: UnMaintainedPlanDateItem;
-}
 // ====================== 删除维保计划 ======================
-/**
- * 删除维保计划 - 请求参数
- * POST 请求，参数通过 Body 传递
- */
 export interface DeletePlanParams {
   /** 维保计划ID（与 elevator_id 二选一） */
   maint_id?: number;
@@ -448,9 +309,6 @@ export interface DeletePlanParams {
   elevator_id?: number;
 }
 
-/**
- * 删除维保计划 - 响应数据
- */
 export interface DeletePlanData {
   /** 已删除的维保计划ID */
   maint_id: number;
@@ -459,15 +317,78 @@ export interface DeletePlanData {
   /** 删除的维保单数量 */
   deleted_bill_count: number;
 }
+export type DeletePlanResponse = ApiResponse<DeletePlanData>;
 
-/**
- * 删除维保计划 - 响应体
- */
-export interface DeletePlanResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: DeletePlanData;
+// ====================== 获取电梯完整未维保分组记录 ======================
+export interface GetLatestRecordParams {
+  /** 电梯ID */
+  elevator_id: number;
 }
+
+export interface MaintainListItem {
+  /** 维保单ID */
+  bill_id: number;
+  /** 维保日期 | 格式：Y-m-d */
+  date: string;
+  /** 维保人员 */
+  technician: string;
+  /** 维保类型 */
+  maintain_type: string;
+}
+
+export interface MaintainGroupItem {
+  /** 维保计划ID */
+  maint_id: number;
+  /** 维保单号 */
+  maint_sn: string;
+  /** 待维保记录列表 */
+  list: MaintainListItem[];
+}
+
+export interface GetLatestRecordData {
+  /** 按维保计划分组的未维保列表 */
+  maintain_list: MaintainGroupItem[];
+}
+export type GetLatestRecordResponse = ApiResponse<GetLatestRecordData>;
+
+// ====================== 单条维保单修改维保组 ======================
+export interface UpdateBillGroupParams {
+  /** 维保单ID */
+  bill_id: number;
+  /** 维保小组ID */
+  group_id: number;
+}
+
+export interface UpdateBillGroupData {
+  /** 维保单ID */
+  bill_id: number;
+  /** 修改后的维保小组ID */
+  group_id: number;
+  /** 修改前的维保小组ID */
+  old_group_id: number;
+  /** 提示信息 */
+  message: string;
+}
+export type UpdateBillGroupResponse = ApiResponse<UpdateBillGroupData>;
+
+// ====================== 整个维保计划批量修改维保组 ======================
+export interface UpdatePlanGroupParams {
+  /** 维保计划ID */
+  maint_id: number;
+  /** 维保小组ID */
+  group_id: number;
+}
+
+export interface UpdatePlanGroupData {
+  /** 维保计划ID */
+  maint_id: number;
+  /** 修改后的维保小组ID */
+  group_id: number;
+  /** 修改前的维保小组ID */
+  old_group_id: number;
+  /** 同步更新的待维保记录数量 */
+  updated_count: number;
+  /** 提示信息 */
+  message: string;
+}
+export type UpdatePlanGroupResponse = ApiResponse<UpdatePlanGroupData>;

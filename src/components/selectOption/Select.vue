@@ -106,12 +106,21 @@ const handleSelect = (val: string | number) => {
 const updatePosition = () => {
   if (!triggerRef.value) return;
   const rect = triggerRef.value.getBoundingClientRect();
+  let width: string;
+  if (props.dropdownWidth === 'trigger') {
+    width = `${rect.width}px`;
+  } else if (typeof props.dropdownWidth === 'number') {
+    width = `${props.dropdownWidth}px`;
+  } else {
+    width = props.dropdownWidth || 'auto';
+  }
+
   dropdownStyle.value = {
     position: 'fixed',
     left: `${rect.left}px`,
     top: `${rect.bottom + 8}px`,
-    width: props.dropdownWidth === 'trigger' ? `${rect.width}px` : props.dropdownWidth,
-    zIndex: '9999'
+    width,
+    zIndex: '3000'
   };
 };
 
@@ -146,9 +155,12 @@ const openDropdown = async () => {
 
 const toggleDropdown = () => {
   if (props.disabled) return;
-  showDropdown.value ? (showDropdown.value = false) : openDropdown();
+  if (showDropdown.value) {
+    showDropdown.value = false;
+  } else {
+    openDropdown();
+  }
 };
-
 const handleClickOutside = (e: MouseEvent) => {
   if (!triggerRef.value?.contains(e.target as Node)) {
     showDropdown.value = false;
@@ -230,60 +242,61 @@ onBeforeUnmount(() => {
         :class="{ 'rotate-180': showDropdown }"
       />
     </button>
+
+    <!-- 使用 Teleport 但放在同一个根元素内 -->
+    <Teleport to="body">
+      <div
+        v-show="showDropdown && !disabled"
+        :style="dropdownStyle"
+        class="overflow-hidden border border-slate-200/60 rounded-xl bg-white/95 shadow-slate-300/20 shadow-xl backdrop-blur-md transition-all duration-300 dark:border-slate-700/60 dark:bg-slate-900/95 dark:shadow-slate-900/30"
+        @click.stop
+      >
+        <div class="border-b border-slate-100 p-2 dark:border-slate-700/50">
+          <div
+            class="flex items-center gap-2 rounded-lg bg-slate-100/60 px-2 py-1.5 transition-all dark:bg-slate-800/70 hover:bg-slate-200/70 dark:hover:bg-slate-700/70"
+          >
+            <Search :size="14" class="text-slate-400" />
+            <input
+              ref="inputRef"
+              v-model="search"
+              type="text"
+              placeholder="搜索..."
+              class="w-full bg-transparent text-xs text-slate-700 outline-none dark:text-slate-300 placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+
+        <div ref="dropdownPanelRef" class="custom-scrollbar max-h-60 overflow-auto" @scroll="handleDropdownScroll">
+          <div v-if="!displayOptions.length" class="px-4 py-3 text-xs text-slate-400">无匹配结果</div>
+
+          <div
+            v-for="(item, index) in displayOptions"
+            :key="item.value"
+            class="relative mx-1 my-0.5 flex cursor-pointer items-center justify-between rounded-lg px-4 py-2.5 text-xs transition-all duration-200 ease-out hover:bg-sky-100/50 hover:pl-[18px] hover:text-sky-600 dark:hover:bg-sky-900/30 dark:hover:text-sky-400"
+            :class="[
+              modelValue === item.value
+                ? 'text-sky-600 dark:text-sky-400 font-bold'
+                : 'text-slate-700 dark:text-slate-300',
+              activeIndex === index && 'bg-sky-100/50 dark:bg-sky-900/30'
+            ]"
+            @click="handleSelect(item.value)"
+          >
+            <span>{{ item.label }}</span>
+            <Check v-if="modelValue === item.value" :size="14" class="text-sky-500" />
+          </div>
+
+          <!-- 加载更多提示 -->
+          <div v-if="showMoreTip" class="px-4 py-3 text-center text-xs text-slate-400">
+            <span v-if="loadingMore">加载中...</span>
+            <span v-else>下滑加载更多</span>
+          </div>
+
+          <!-- 无数据提示（核心：到底后固定展示） -->
+          <div v-if="showNoMore" class="px-4 py-3 text-center text-xs text-slate-400">已加载全部数据</div>
+        </div>
+      </div>
+    </Teleport>
   </div>
-
-  <Teleport to="body">
-    <div
-      v-show="showDropdown && !disabled"
-      :style="dropdownStyle"
-      class="overflow-hidden border border-slate-200/60 rounded-xl bg-white/95 shadow-slate-300/20 shadow-xl backdrop-blur-md transition-all duration-300 dark:border-slate-700/60 dark:bg-slate-900/95 dark:shadow-slate-900/30"
-      @click.stop
-    >
-      <div class="border-b border-slate-100 p-2 dark:border-slate-700/50">
-        <div
-          class="flex items-center gap-2 rounded-lg bg-slate-100/60 px-2 py-1.5 transition-all dark:bg-slate-800/70 hover:bg-slate-200/70 dark:hover:bg-slate-700/70"
-        >
-          <Search :size="14" class="text-slate-400" />
-          <input
-            ref="inputRef"
-            v-model="search"
-            type="text"
-            placeholder="搜索..."
-            class="w-full bg-transparent text-xs text-slate-700 outline-none dark:text-slate-300 placeholder:text-slate-400"
-          />
-        </div>
-      </div>
-
-      <div ref="dropdownPanelRef" class="custom-scrollbar max-h-60 overflow-auto" @scroll="handleDropdownScroll">
-        <div v-if="!displayOptions.length" class="px-4 py-3 text-xs text-slate-400">无匹配结果</div>
-
-        <div
-          v-for="(item, index) in displayOptions"
-          :key="item.value"
-          class="relative mx-1 my-0.5 flex cursor-pointer items-center justify-between rounded-lg px-4 py-2.5 text-xs transition-all duration-200 ease-out hover:bg-sky-100/50 hover:pl-[18px] hover:text-sky-600 dark:hover:bg-sky-900/30 dark:hover:text-sky-400"
-          :class="[
-            modelValue === item.value
-              ? 'text-sky-600 dark:text-sky-400 font-bold'
-              : 'text-slate-700 dark:text-slate-300',
-            activeIndex === index && 'bg-sky-100/50 dark:bg-sky-900/30'
-          ]"
-          @click="handleSelect(item.value)"
-        >
-          <span>{{ item.label }}</span>
-          <Check v-if="modelValue === item.value" :size="14" class="text-sky-500" />
-        </div>
-
-        <!-- 加载更多提示 -->
-        <div v-if="showMoreTip" class="px-4 py-3 text-center text-xs text-slate-400">
-          <span v-if="loadingMore">加载中...</span>
-          <span v-else>下滑加载更多</span>
-        </div>
-
-        <!-- 无数据提示（核心：到底后固定展示） -->
-        <div v-if="showNoMore" class="px-4 py-3 text-center text-xs text-slate-400">已加载全部数据</div>
-      </div>
-    </div>
-  </Teleport>
 </template>
 
 <style scoped>

@@ -18,6 +18,7 @@ import {
   User
 } from 'lucide-vue-next';
 import { getCompanyDetail, getCompanyList, removeCompany } from '@/service/api/organizational/organizational';
+import type { CompanyListItem } from '@/service/api/organizational/organizational.d';
 import AddOrganizational from '@/components/modal/organizational/addOrganizational.vue';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import PagePagination from '@/components/common/PagePagination.vue';
@@ -119,22 +120,16 @@ const fetchCompanyList = async () => {
   isLoading.value = true;
   try {
     const res = await getCompanyList();
-    let validData: Company[] = [];
+    let validData: CompanyListItem[] = [];
 
     if (res?.data?.code === 2000 && Array.isArray(res.data.data.list)) {
       validData = res.data.data.list;
-    } else if (Array.isArray(res)) {
-      validData = res;
-    } else if (res?.code === 2000 && Array.isArray(res.data?.list)) {
-      validData = res.data.list;
-    } else if (res?.code === 200 && Array.isArray(res.data)) {
-      validData = res.data;
     }
 
-    companies.value = Array.isArray(validData) ? validData : [];
+    companies.value = validData;
   } catch (error) {
+    console.error('获取单位列表失败:', error);
     companies.value = [];
-    message.error('数据加载失败，请刷新重试');
   } finally {
     isLoading.value = false;
   }
@@ -151,7 +146,7 @@ const handleDelete = async (id: string) => {
     positiveButtonProps: { type: 'error' },
     onPositiveClick: async () => {
       const companyId = Number(id);
-      if (!id || isNaN(companyId)) {
+      if (!id || Number.isNaN(companyId)) {
         message.error('单位 ID 无效');
         return;
       }
@@ -182,15 +177,15 @@ const handleEdit = async (company: Company) => {
 
   try {
     isEditingLoading.value = true;
-    const res = await getCompanyDetail({ company_id: company.id });
+    const res = await getCompanyDetail({ company_id: Number(company.id) });
     console.log(res);
 
     let detail = null;
 
     if (res?.data?.code === 2000) {
       detail = res.data.data;
-    } else if (res?.id) {
-      detail = res;
+    } else if (res?.data?.data.id) {
+      detail = res.data.data;
     } else {
       throw new Error('数据格式异常');
     }
@@ -202,6 +197,7 @@ const handleEdit = async (company: Company) => {
     };
     modalVisible.value = true;
   } catch (error) {
+    console.error('获取单位详情失败:', error);
     message.error('加载详情失败');
   } finally {
     isEditingLoading.value = false;
@@ -213,6 +209,31 @@ const openAddModal = () => {
   modalVisible.value = true;
 };
 
+const createNewCompany = (formData: Partial<Company>): Company => {
+  return {
+    id: `C${String(Date.now()).slice(-6)}`,
+    name: formData.name || '',
+    type: formData.type || '',
+    credit_code: formData.credit_code || '',
+    legal_name: formData.legal_name || '',
+    contact: formData.contact || '',
+    phone: formData.phone || '',
+    email: formData.email || '',
+    province: formData.province || '',
+    city: formData.city || '',
+    district: formData.district || '',
+    address: formData.address || '',
+    expiration: formData.expiration || '',
+    is_user: formData.is_user || false,
+    create_time: new Date().toISOString().split('T')[0],
+    qua_level: formData.qua_level || '',
+    brand: formData.brand || '',
+    company_syn: formData.company_syn || '',
+    cert_number: formData.cert_number || '',
+    licensing_time: formData.licensing_time || ''
+  };
+};
+
 const handleModalConfirm = async (formData: Partial<Company>) => {
   if (isSubmittingLoading.value) return;
 
@@ -220,49 +241,26 @@ const handleModalConfirm = async (formData: Partial<Company>) => {
     isSubmittingLoading.value = true;
 
     if (currentOrganizationalData.value) {
-      // 编辑模式：更新现有数据
+      // 编辑模式
       companies.value = companies.value.map(c =>
         c.id === currentOrganizationalData.value!.id ? { ...c, ...formData, id: c.id } : c
       );
     } else {
-      // 新增模式：创建新数据
-      const newCompany: Company = {
-        id: `C${String(Date.now()).slice(-6)}`, // 使用时间戳生成唯一ID
-        name: formData.name || '',
-        type: formData.type || '',
-        credit_code: formData.credit_code || '',
-        legal_name: formData.legal_name || '',
-        contact: formData.contact || '',
-        phone: formData.phone || '',
-        email: formData.email || '',
-        province: formData.province || '',
-        city: formData.city || '',
-        district: formData.district || '',
-        address: formData.address || '',
-        expiration: formData.expiration || '',
-        is_user: formData.is_user || false,
-        create_time: new Date().toISOString().split('T')[0],
-        qua_level: formData.qua_level || '',
-        brand: formData.brand || '',
-        company_syn: formData.company_syn || '',
-        cert_number: formData.cert_number || '',
-        licensing_time: formData.licensing_time || ''
-      };
-
+      // 新增模式，调用抽离函数
+      const newCompany = createNewCompany(formData);
       companies.value = [newCompany, ...companies.value];
-      message.success('新增成功');
     }
 
     modalVisible.value = false;
     currentOrganizationalData.value = null;
     await fetchCompanyList();
   } catch (error) {
+    console.error('数据同步失败:', error);
     message.error('数据同步失败');
   } finally {
     isSubmittingLoading.value = false;
   }
 };
-
 const handleModalClose = () => {
   modalVisible.value = false;
   currentOrganizationalData.value = null;
@@ -454,7 +452,6 @@ onMounted(() => {
             <PagePagination
               v-model:current="tempPage"
               :total="totalCount"
-              :current="currentPage"
               :page-size="pageSize"
               @change="handlePageChange"
             />

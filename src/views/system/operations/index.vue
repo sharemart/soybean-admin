@@ -2,11 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { NButton, NMessageProvider, useDialog, useMessage } from 'naive-ui';
 import {
-  Building2,
   CheckCircle2,
-  Clock,
   Edit,
-  Filter,
   Hammer,
   LayoutList,
   Plus,
@@ -156,7 +153,7 @@ const handleSync = async () => {
       message.error(response?.response?.data?.msg || '同步失败，请重试');
     }
   } catch (error) {
-    message.error('同步失败，请检查网络连接');
+    message.error(`同步失败，请检查网络连接${error}`);
   } finally {
     isSyncing.value = false;
   }
@@ -183,8 +180,7 @@ const loadMaintenanceTypes = async () => {
       message.error('维保类型数据格式异常');
     }
   } catch (error) {
-    console.error('加载维保类型失败:', error);
-    message.error('加载维保类型失败，请稍后重试');
+    message.error(`加载维保类型失败，请稍后重试${error}`);
     types.value = [];
   } finally {
     isLoading.value = false;
@@ -232,16 +228,10 @@ const handleDeleteType = (type: MaintenanceType) => {
           message.error(res?.data?.msg || '删除失败，请重试');
         }
       } catch (error) {
-        console.error('删除维保类型失败:', error);
-        message.error('删除出错，请重试');
+        message.error(`删除出错，请重试${error}`);
       }
     }
   });
-};
-
-const handleSaveType = () => {
-  loadMaintenanceTypes();
-  typeModalOpen.value = false;
 };
 
 const handleSaveProj = (data: any) => {
@@ -289,11 +279,6 @@ const handleDeleteProj = (proj: MaintenanceProjectItem) => {
 
 const handleAddType = () => {
   editingType.value = null;
-  typeModalOpen.value = true;
-};
-
-const handleEditType = (type: MaintenanceType) => {
-  editingType.value = type;
   typeModalOpen.value = true;
 };
 

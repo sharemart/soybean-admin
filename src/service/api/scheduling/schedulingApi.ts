@@ -18,8 +18,12 @@ import type {
   MaintenanceDetailResponse,
   MaintenanceScheduleListParams,
   MaintenanceScheduleListResponse,
+  UpdateBillGroupParams,
+  UpdateBillGroupResponse,
   UpdateMaintenanceDateParams,
-  UpdateMaintenanceDateResponse
+  UpdateMaintenanceDateResponse,
+  UpdatePlanGroupParams,
+  UpdatePlanGroupResponse
 } from './scheduling.d';
 
 /**
@@ -129,6 +133,19 @@ export function batchImportPlanExcel(data: BatchImportPlanExcelParams) {
     data
   });
 }
+
+/**
+ * 删除维保计划
+ * @param params - 维保计划ID / 电梯ID
+ * @returns 删除结果
+ */
+export function deletePlan(params: DeletePlanParams) {
+  return request<DeletePlanResponse>({
+    url: '/dashboard/schedule/deletePlan',
+    method: 'post',
+    data: params
+  });
+}
 /**
  * 获取电梯未维保计划日期列表
  * @param params - 电梯ID
@@ -142,14 +159,26 @@ export function getLatestRecord(params: GetLatestRecordParams) {
   });
 }
 /**
- * 删除维保计划
- * @param params - 维保计划ID / 电梯ID
- * @returns 删除结果
+ * 单条修改维保组
+ * @param data - 修改维保组请求体参数
+ * @returns 修改后维保组信息
  */
-export function deletePlan(params: DeletePlanParams) {
-  return request<DeletePlanResponse>({
-    url: '/dashboard/schedule/deletePlan',
-    method: 'post',
-    data: params
+export function updateBillGroup(data: UpdateBillGroupParams) {
+  return request<UpdateBillGroupResponse>({
+    url: '/dashboard/schedule/updateBillGroup',
+    method: 'POST',
+    data
+  });
+}
+/**
+ * 整体修改维保组
+ * @param data - 修改维保计划维保组请求体参数
+ * @returns 修改后维保组信息
+ */
+export function updatePlanGroup(data: UpdatePlanGroupParams) {
+  return request<UpdatePlanGroupResponse>({
+    url: '/dashboard/schedule/updatePlanGroup',
+    method: 'POST',
+    data
   });
 }

@@ -2,7 +2,6 @@
 import { ref, watch } from 'vue';
 import {
   Activity,
-  AlertTriangle,
   Camera,
   CheckCircle2,
   ExternalLink,
@@ -71,16 +70,12 @@ const emit = defineEmits(['close', 'update']);
 
 const detail = ref<EmergencyTask | null>(null);
 const logList = ref<LogItem[]>([]);
-const loading = ref(false);
-const logLoading = ref(false);
 
-// 直接使用父组件传入的 task 数据，不请求接口
 watch(
   () => props.isOpen,
   val => {
     if (val && props.task) {
       detail.value = props.task;
-      // 日志置空，不请求接口
       logList.value = [];
     }
   }

@@ -104,12 +104,6 @@ const handleAdd = () => {
   isEditModalOpen.value = true;
 };
 
-// 保存后刷新列表
-const handleSave = () => {
-  handleRefresh();
-  isEditModalOpen.value = false;
-};
-
 const handleDelete = async (id: string | number) => {
   dialog.error({
     title: '确认删除',
@@ -119,16 +113,15 @@ const handleDelete = async (id: string | number) => {
     onPositiveClick: async () => {
       try {
         const res = await fetchRoleDelete({ role_id: Number(id) });
-        if (res.data?.code === 2000 || res.data?.success) {
+        if (res.data?.code === 2000) {
           roles.value = roles.value.filter(r => r.role_id !== id);
           message.success('删除成功');
         } else {
           message.error(`删除失败：${res.data?.message}`);
         }
       } catch (err) {
-        message.error('删除失败');
+        message.error(`删除失败${err}`);
       }
-      2;
     }
   });
 };
@@ -152,6 +145,12 @@ const handleRefresh = async () => {
   setTimeout(() => {
     isSyncing.value = false;
   }, 800);
+};
+
+// 保存后刷新列表
+const handleSave = () => {
+  handleRefresh();
+  isEditModalOpen.value = false;
 };
 </script>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
-import { Activity, Building2, MoreHorizontal, RefreshCw, Search, Trash2, UserPlus, Users, Zap } from 'lucide-vue-next';
+import { Activity, Building2, MoreHorizontal, RefreshCw, Search, Trash2, UserPlus, Users } from 'lucide-vue-next';
 import { deleteMaintainGroup, getMaintainGroupDetail, getMaintainGroupList } from '@/service/api/company/company';
 import { useMaintainCompanySelector } from '@/hooks/selectOption/useMaintainCompanySelector';
 import MaintenanceTeamModal from '@/components/modal/TeamEditModal/TeamEditModal.vue';
@@ -61,7 +61,7 @@ interface MaintenanceTeam {
   leaderName: string;
   companyId: string;
   companyName: string;
-  members: string[] | Technician[];
+  members: Technician[];
   leaderIds: string[];
   clerkIds: string[];
   level4Ids: string[];
@@ -87,8 +87,6 @@ const dialog = useDialog();
 
 const isEditModalOpen = ref(false);
 const editingTeam = ref<MaintenanceTeam | null>(null);
-const isTrajectoryModalOpen = ref(false);
-const selectedTeamForTrajectory = ref<MaintenanceTeam | null>(null);
 const isLoadingDetail = ref(false);
 
 const message = useMessage();
@@ -107,6 +105,16 @@ const {
   handleSearch: handleCompanySearch
 } = useMaintainCompanySelector();
 
+// 筛选后列表
+const filteredTeams = computed(() => {
+  return teams.value.filter(t => {
+    const matchSearch = t.name.includes(searchTerm.value) || (t.leaderName || '').includes(searchTerm.value);
+    const matchStatus = statusFilter.value === 'ALL' || t.status === statusFilter.value;
+    const matchCompany = companyFilter.value === 'ALL' || t.companyId === String(companyFilter.value);
+    return matchSearch && matchStatus && matchCompany;
+  });
+});
+
 const refreshPagination = () => {
   const start = (currentPage.value - 1) * pageSize.value;
   const end = start + pageSize.value;
@@ -120,12 +128,13 @@ const handlePageChange = (page: number) => {
 };
 // ==================================================================
 
-const statusOptions = ref([
-  { label: '全部作业模式', value: 'ALL' },
-  { label: '常态化维保', value: 'ACTIVE' },
-  { label: '待命整备中', value: 'STANDBY' },
-  { label: '特级救援组', value: 'EMERGENCY_ONLY' }
-]);
+/**
+ * 过滤成员：剔除string，只返回Technician对象，解决TS属性不存在报错
+ */
+const getValidMemberList = (team: MaintenanceTeam): Technician[] => {
+  if (!team.members || team.members.length === 0) return [];
+  return team.members.filter((item): item is Technician => typeof item !== 'string');
+};
 
 const adaptApiData = (apiData: ApiMaintenanceTeam[]): MaintenanceTeam[] => {
   return apiData.map(item => {
@@ -184,6 +193,18 @@ const adaptSingleDetailData = (detailData: ApiMaintainGroupDetail): MaintenanceT
   const level5Ids = detailData.users.filter(u => u.level === 5).map(u => u.user_id.toString());
   const leaderUser = detailData.users.find(u => u.level === 2) || detailData.users[0];
 
+  // 修复：不再赋值纯string数组，转为Technician对象，规避TS报错
+  const members: Technician[] = level1Ids.map(
+    (uid): Technician => ({
+      id: uid,
+      name: '',
+      phone: '',
+      level: '',
+      status: 'OFFLINE',
+      companyId: detailData.company_id.toString()
+    })
+  );
+
   return {
     id: `G-${detailData.group_id}`,
     name: detailData.group_name,
@@ -191,7 +212,7 @@ const adaptSingleDetailData = (detailData: ApiMaintainGroupDetail): MaintenanceT
     leaderName: leaderUser?.realname || '无组长',
     companyId: detailData.company_id.toString(),
     companyName: detailData.company_name,
-    members: level1Ids,
+    members,
     leaderIds: level2Ids,
     clerkIds: level3Ids,
     level4Ids,
@@ -229,22 +250,6 @@ onMounted(() => {
   setTimeout(() => {
     refreshPagination();
   }, 0);
-});
-
-const companies = computed(() => {
-  const map = new Map();
-  teams.value.forEach(t => map.set(t.companyId, t.companyName));
-  return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-});
-
-// 筛选后列表
-const filteredTeams = computed(() => {
-  return teams.value.filter(t => {
-    const matchSearch = t.name.includes(searchTerm.value) || (t.leaderName || '').includes(searchTerm.value);
-    const matchStatus = statusFilter.value === 'ALL' || t.status === statusFilter.value;
-    const matchCompany = companyFilter.value === 'ALL' || t.companyId === String(companyFilter.value);
-    return matchSearch && matchStatus && matchCompany;
-  });
 });
 
 watch([searchTerm, statusFilter, companyFilter], () => {
@@ -287,7 +292,7 @@ const handleAdd = () => {
   isEditModalOpen.value = true;
 };
 
-const handleOpenTrajectory = (team: MaintenanceTeam) => {
+const handleOpenTrajectory = () => {
   message.info('目前功能正在开发中，敬请期待！');
 };
 
@@ -355,19 +360,6 @@ const handleSync = () => {
             @search="handleCompanySearch"
           />
         </div>
-
-        <!--
- <div class="w-56">
-          <CustomSelect
-            v-model="statusFilter"
-            :options="statusOptions"
-            :icon="Zap"
-            icon-class="text-amber-500"
-            placeholder="全部作业模式"
-            width="100%"
-          />
-        </div> 
--->
 
         <button
           class="btn-scale flex items-center gap-2 rounded-2xl bg-sky-500 px-8 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600"
@@ -458,8 +450,9 @@ const handleSync = () => {
               编制成员 ({{ team.members?.length || 0 }})
             </p>
             <div class="flex flex-wrap gap-2">
+              <!-- 关键修复：调用getValidMemberList过滤掉string，member一定是Technician -->
               <div
-                v-for="member in team.members"
+                v-for="member in getValidMemberList(team)"
                 :key="member.id"
                 class="group/member flex items-center gap-2 border border-slate-100 rounded-xl bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950/40"
               >
@@ -480,7 +473,7 @@ const handleSync = () => {
         <div class="mt-auto flex gap-2 p-6 pt-0">
           <button
             class="btn-scale flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3 text-[10px] text-white font-black tracking-widest uppercase shadow-lg transition-all dark:bg-slate-800 hover:bg-black"
-            @click="() => handleOpenTrajectory(team)"
+            @click="handleOpenTrajectory"
           >
             <Activity :size="14" />
             监控实时轨迹
@@ -528,7 +521,6 @@ const handleSync = () => {
       <div class="scale-90">
         <PagePagination
           v-model:current="tempPage"
-          :current="currentPage"
           :total="filteredTeams.length"
           :page-size="pageSize"
           @change="handlePageChange"

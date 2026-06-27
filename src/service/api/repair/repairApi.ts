@@ -18,7 +18,6 @@ import type {
   GetMaintainRepairFlowLogsResponse,
   LeaderAuditMaintainRepairFlowParams,
   LeaderAuditMaintainRepairFlowResponse,
-  MaintainRepairFlowApplyParams,
   MaintainRepairFlowApplyResponse,
   MaintainerCompleteInstallParams,
   MaintainerCompleteInstallResponse,
@@ -167,12 +166,14 @@ export function getMaintainRepairFlowLogs(data: GetMaintainRepairFlowLogsParams)
  * Method: POST
  * 接口：/dashboard/maintainRepairFlow/apply
  */
-export function maintainRepairFlowApply(data: MaintainRepairFlowApplyParams) {
+export function maintainRepairFlowApply(data: FormData) {
   return request<MaintainRepairFlowApplyResponse>({
     url: '/dashboard/maintainRepairFlow/apply',
     method: 'post',
     data,
-    headers: {}
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   });
 }
 /**

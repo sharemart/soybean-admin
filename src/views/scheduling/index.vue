@@ -60,9 +60,6 @@ const year = computed(() => currentViewDate.value.getFullYear());
 const month = computed(() => currentViewDate.value.getMonth());
 const startDayOfMonth = computed(() => new Date(year.value, month.value, 1).getDay());
 
-const companyList = computed(() => [{ value: 'all', label: '全部维保单位' }, ...maintainCompanyOptions.value]);
-const groupList = computed(() => [{ value: 'all', label: '全部维保小组' }, ...groupOptions.value]);
-
 const {
   maintainCompanyOptions,
   loading: companyLoading,
@@ -78,6 +75,20 @@ const {
   hasMore: groupHasMore,
   handleSearch: handleGroupSearch
 } = useMaintainGroupList();
+
+const companyList = computed(() => {
+  return [{ value: 'all', label: '全部维保单位' }, ...maintainCompanyOptions.value] as {
+    label: string;
+    value: string | number;
+  }[];
+});
+
+const groupList = computed(() => {
+  return [{ value: 'all', label: '全部维保小组' }, ...groupOptions.value] as {
+    label: string;
+    value: string | number;
+  }[];
+});
 
 enum TaskStatus {
   COMPLETED = 'COMPLETED',
@@ -97,13 +108,15 @@ interface MaintenanceTask {
   scheduledTime: string;
   companyId: string;
   groupId: string;
+  type: string;
+  description: string;
 }
 
 const calendarDays = computed(() => {
   const days: (Date | null)[] = [];
   const total = daysInMonth(month.value, year.value);
-  for (let i = 0; i < startDayOfMonth.value; i++) days.push(null);
-  for (let i = 1; i <= total; i++) days.push(new Date(year.value, month.value, i));
+  for (let i = 0; i < startDayOfMonth.value; i += 1) days.push(null);
+  for (let i = 1; i <= total; i += 1) days.push(new Date(year.value, month.value, i));
   return days;
 });
 
@@ -162,6 +175,8 @@ const fetchScheduleList = async () => {
         scheduledDate: item.scheduledDate,
         scheduledTime: item.scheduledTime,
         companyId: String(item.companyId),
+        type: item.type,
+        description: item.description || '无描述',
         groupId: String(item.groupId)
       }));
     } else {
@@ -200,12 +215,16 @@ const handleNextMonth = () => {
 };
 
 const handleYearChange = (e: Event) => {
-  currentViewDate.value = new Date(+(e.target as HTMLSelectElement).value, month.value, 1);
+  const target = e.target as HTMLSelectElement;
+  const yearVal = Number(target.value);
+  currentViewDate.value = new Date(yearVal, month.value, 1);
   selectedDate.value = null;
 };
 
 const handleMonthChange = (e: Event) => {
-  currentViewDate.value = new Date(year.value, +(e.target as HTMLSelectElement).value, 1);
+  const target = e.target as HTMLSelectElement;
+  const monthVal = Number(target.value);
+  currentViewDate.value = new Date(year.value, monthVal, 1);
   selectedDate.value = null;
 };
 
@@ -231,7 +250,7 @@ const executeReschedule = async () => {
   try {
     isSyncing.value = true;
     const res = await updateMaintenanceScheduleDate({
-      bill_id: +confirmReschedule.value.task.id,
+      bill_id: Number(confirmReschedule.value.task.id),
       maint_time: `${confirmReschedule.value.newDate} ${confirmReschedule.value.task.scheduledTime || '00:00'}`
     });
     if (res.data?.code === 2000) {
@@ -250,7 +269,7 @@ const openDetailModal = async (task: MaintenanceTask) => {
   try {
     isLoadingDetail.value = true;
     showDetail.value = task;
-    const res = await fetchMaintenanceScheduleDetail({ bill_id: +task.id });
+    const res = await fetchMaintenanceScheduleDetail({ bill_id: Number(task.id) });
     if (res.data?.code === 2000) detailData.value = res.data.data;
   } finally {
     isLoadingDetail.value = false;

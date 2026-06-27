@@ -135,6 +135,25 @@ const dialog = useDialog();
 const message = useMessage();
 const uploadMode = ref<'single' | 'batch'>('single');
 
+// ==================== 辅助函数 ====================
+
+const extractResponseData = (response: any): any[] => {
+  if (!response) return [];
+  return response?.data?.data || [];
+};
+
+const getResponseCode = (response: any): number | null => {
+  if (!response) return null;
+  return response?.data?.code || null;
+};
+
+const getResponseMsg = (response: any): string => {
+  if (!response) return '';
+  return response?.data?.msg || '';
+};
+
+// ==================== 加载函数 ====================
+
 const loadCategoryData = async () => {
   try {
     loading.value = true;
@@ -142,90 +161,62 @@ const loadCategoryData = async () => {
       parent_id: 0,
       status: 1
     });
-    const resData = response.data?.code ? response.data : response;
-    if (resData.code === 2000) {
-      brands.value = resData?.data?.map((item: ApiCategoryItem) => ({
-        id: item.id.toString(),
-        name: item.name,
-        docCount: item.document_count,
-        logo: item.logo_url,
-        parent_id: item.parent_id,
+
+    const data = extractResponseData(response);
+    const code = getResponseCode(response);
+
+    if (code === 2000) {
+      brands.value = data.map((item: any) => ({
+        id: item.id?.toString() || '',
+        name: item.name || '',
+        docCount: item.document_count || 0,
+        logo: item.logo_url || '',
+        parent_id: item.parent_id?.toString() || '0',
         categories: []
       }));
+    } else {
+      brands.value = [];
     }
   } catch (error) {
     console.error('加载品牌数据失败:', error);
+    brands.value = [];
   } finally {
     loading.value = false;
   }
 };
 
 const loadDocCategoryData = async (brandId: string) => {
+  if (!brandId || brandId === 'ALL') {
+    docCategories.value = [];
+    return;
+  }
+
   try {
     categoryLoading.value = true;
     const response = await getKnowledgeCategoryList({
       parent_id: Number(brandId)
     });
-    const resData = response.data?.code ? response.data : response;
-    if (resData.code === 2000) {
-      docCategories.value = resData.data.map((item: ApiCategoryItem) => ({
-        id: item.id.toString(),
-        label: item.name
+
+    const data = extractResponseData(response);
+    const code = getResponseCode(response);
+
+    if (code === 2000) {
+      docCategories.value = data.map((item: ApiCategoryItem) => ({
+        id: item.id?.toString() || '',
+        label: item.name || ''
       }));
+    } else {
+      docCategories.value = [];
     }
   } catch (error) {
     console.error('加载文档分类数据失败:', error);
+    docCategories.value = [];
   } finally {
     categoryLoading.value = false;
   }
 };
 
-const loadAllDocumentData = async () => {
-  try {
-    docLoading.value = true;
-    const params: any = {
-      keyword: docSearch.value || ''
-    };
-
-    if (selectedCategoryId.value !== 'ALL') {
-      params.category_id = Number(selectedCategoryId.value);
-    }
-
-    const response = await getKnowledgeDocumentList(params);
-    const resData = response.data?.code ? response.data : response;
-
-    if (resData.code === 2000) {
-      allOriginalDocs.value = resData.data.list.map((item: ApiDocumentItem) => {
-        const brand = brands.value.find(b => b.name === item.brand_name);
-        return {
-          id: item.id.toString(),
-          title: item.title,
-          brandId: brand?.id || '',
-          brandName: item.brand_name,
-          category_id: item.category_id?.toString(),
-          categoryName: item.category_name,
-          keyword: item.keyword,
-          filePath: item.file_path,
-          version: 'V1.0',
-          fileSize: '1MB',
-          uploadTime: item.created_time?.split(' ')[0],
-          downloads: 0
-        };
-      });
-      filterAllDocs();
-      handlePageChange(currentPage.value);
-    }
-  } catch (error) {
-    console.error('加载文档数据失败:', error);
-    allOriginalDocs.value = [];
-    filteredDocs.value = [];
-    currentPageDocs.value = [];
-    totalDocs.value = 0;
-    totalPages.value = 0;
-  } finally {
-    docLoading.value = false;
-  }
-};
+// ==================== 文档处理函数 ====================
 
 const filterAllDocs = () => {
   let result = [...allOriginalDocs.value];
@@ -261,12 +252,66 @@ const filterAllDocs = () => {
 };
 
 const handlePageChange = (page: number) => {
-  page = Math.max(1, Math.min(page, totalPages.value || 1));
-  currentPage.value = page;
-  const startIndex = (page - 1) * pageSize.value;
+  const validPage = Math.max(1, Math.min(page, totalPages.value || 1));
+  currentPage.value = validPage;
+  const startIndex = (validPage - 1) * pageSize.value;
   const endIndex = startIndex + pageSize.value;
   currentPageDocs.value = filteredDocs.value.slice(startIndex, endIndex);
 };
+
+const loadAllDocumentData = async () => {
+  try {
+    docLoading.value = true;
+    const params: any = {
+      keyword: docSearch.value || ''
+    };
+
+    if (selectedCategoryId.value !== 'ALL') {
+      params.category_id = Number(selectedCategoryId.value);
+    }
+
+    const response = await getKnowledgeDocumentList(params);
+    const data = extractResponseData(response);
+    const code = getResponseCode(response);
+
+    if (code === 2000) {
+      const list = data?.list || [];
+      allOriginalDocs.value = (Array.isArray(list) ? list : []).map((item: ApiDocumentItem) => {
+        const brand = brands.value.find(b => b.name === item.brand_name);
+        return {
+          id: item.id?.toString() || '',
+          title: item.title || '',
+          brandId: brand?.id || '',
+          brandName: item.brand_name || '',
+          category_id: item.category_id?.toString() || '',
+          categoryName: item.category_name || '',
+          keyword: item.keyword || '',
+          filePath: item.file_path || '',
+          version: 'V1.0',
+          fileSize: '1MB',
+          uploadTime: item.created_time?.split(' ')[0] || '',
+          downloads: 0
+        };
+      });
+    } else {
+      allOriginalDocs.value = [];
+    }
+
+    filterAllDocs();
+    handlePageChange(currentPage.value);
+  } catch (error) {
+    console.error('加载文档数据失败:', error);
+    allOriginalDocs.value = [];
+    filteredDocs.value = [];
+    currentPageDocs.value = [];
+    totalDocs.value = 0;
+    totalPages.value = 0;
+  } finally {
+    docLoading.value = false;
+  }
+};
+
+// ==================== UI 处理函数 ====================
 
 const handleBrandModalClose = () => {
   isBrandModalOpen.value = false;
@@ -284,45 +329,6 @@ const handlePreview = (filePath: string) => {
   }
   window.open(filePath, '_blank');
 };
-
-onMounted(() => {
-  loadCategoryData();
-  loadAllDocumentData();
-});
-
-watch(selectedBrandId, brandId => {
-  selectedCategoryId.value = 'ALL';
-  currentPage.value = 1;
-  if (brandId !== 'ALL') {
-    loadDocCategoryData(brandId);
-  } else {
-    docCategories.value = [];
-  }
-  loadAllDocumentData();
-});
-
-watch(selectedCategoryId, () => {
-  currentPage.value = 1;
-  filterAllDocs();
-  handlePageChange(1);
-});
-
-watch(docSearch, () => {
-  currentPage.value = 1;
-  filterAllDocs();
-  handlePageChange(1);
-});
-
-const filteredBrands = computed(() => {
-  if (loading.value) return [];
-  return brands.value.filter(b => {
-    const matchSearch = b.name.toLowerCase().includes(brandSearch.value.toLowerCase());
-    const matchLetter = activeLetter.value === 'ALL' || getFirstLetter(b.name) === activeLetter.value;
-    return matchSearch && matchLetter;
-  });
-});
-
-const currentBrandCategories = computed(() => docCategories.value);
 
 const handleEdit = (doc: KnowledgeDoc) => {
   editingDoc.value = doc;
@@ -364,12 +370,12 @@ const handleDelete = (id: string) => {
       try {
         docLoading.value = true;
         const res = await removeKnowledgeDocument({ id: Number(id) });
-        const resData = res?.data?.code ? res.data : res;
-        if (resData.code === 2000) {
+        const code = getResponseCode(res);
+        if (code === 2000) {
           message.success('删除成功');
           await loadAllDocumentData();
         } else {
-          message.error(resData?.msg || '删除失败');
+          message.error(getResponseMsg(res) || '删除失败');
         }
       } catch {
         message.error('删除出错，请重试');
@@ -379,6 +385,51 @@ const handleDelete = (id: string) => {
     }
   });
 };
+
+// ==================== 计算属性 ====================
+
+const filteredBrands = computed(() => {
+  if (loading.value) return [];
+  return brands.value.filter(b => {
+    const matchSearch = b.name.toLowerCase().includes(brandSearch.value.toLowerCase());
+    const matchLetter = activeLetter.value === 'ALL' || getFirstLetter(b.name) === activeLetter.value;
+    return matchSearch && matchLetter;
+  });
+});
+
+const currentBrandCategories = computed(() => docCategories.value);
+
+// ==================== 生命周期 ====================
+
+onMounted(() => {
+  loadCategoryData();
+  loadAllDocumentData();
+});
+
+// ==================== Watchers ====================
+
+watch(selectedBrandId, brandId => {
+  selectedCategoryId.value = 'ALL';
+  currentPage.value = 1;
+  if (brandId !== 'ALL') {
+    loadDocCategoryData(brandId);
+  } else {
+    docCategories.value = [];
+  }
+  loadAllDocumentData();
+});
+
+watch(selectedCategoryId, () => {
+  currentPage.value = 1;
+  filterAllDocs();
+  handlePageChange(1);
+});
+
+watch(docSearch, () => {
+  currentPage.value = 1;
+  filterAllDocs();
+  handlePageChange(1);
+});
 
 defineExpose({ ALPHABET, getFirstLetter });
 </script>
@@ -497,7 +548,7 @@ defineExpose({ ALPHABET, getFirstLetter });
         >
           <div class="flex flex-col items-center gap-4 lg:flex-row">
             <div class="relative w-full flex-1">
-              <Search class="absolute left-4 top-1/2 text-slate-400 -translate-y-1/2" size="16" />
+              <Search class="absolute left-4 top-1/2 text-slate-400 -translate-y-1/2" :size="16" />
               <input
                 v-model="docSearch"
                 type="text"
@@ -774,39 +825,5 @@ defineExpose({ ALPHABET, getFirstLetter });
 /* 按钮按压效果 */
 .btn-scale:active {
   transform: scale(0.95);
-}
-
-/* 分页样式穿透 */
-:deep(.pagination-custom) {
-  --n-font-size: 12px;
-  --n-height: 32px;
-}
-:deep(.pagination-custom .n-pagination-item) {
-  border-radius: 8px !important;
-  margin: 0 2px;
-  min-width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-}
-:deep(.pagination-custom .n-pagination-item--active) {
-  background-color: #6366f1 !important;
-  color: white !important;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-}
-:deep(.pagination-custom .n-pagination-prev, .pagination-custom .n-pagination-next) {
-  border-radius: 8px !important;
-  margin: 0 2px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-:deep(.pagination-custom .n-pagination-ellipsis) {
-  margin: 0 4px;
-  color: #64748b;
 }
 </style>

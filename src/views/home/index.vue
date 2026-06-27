@@ -27,11 +27,11 @@ import EmergencyDetailModal from '@/components/modal/emergency/detailReport.vue'
 const showEmergencyModal = ref(false);
 // 详情弹窗控制
 const showDetailModal = ref(false);
-const currentDetailTask = ref(null);
+const currentDetailTask = ref<any>(null);
 
 const selectedCompany = ref('ALL');
-const { maintainCompanyOptions, loading, fetchMaintainCompanyList } = useMaintainCompanySelector();
-const { loading: chartLoading, startLoading, endLoading } = useLoading();
+const { maintainCompanyOptions, fetchMaintainCompanyList } = useMaintainCompanySelector();
+const { startLoading, endLoading } = useLoading();
 
 const urgentList = ref<any[]>([]);
 const currentPage = ref(0);
@@ -59,7 +59,7 @@ const getUrgentList = async () => {
 // 上一页
 const prevPage = () => {
   if (currentPage.value > 0) {
-    currentPage.value--;
+    currentPage.value -= 1;
   }
 };
 
@@ -67,7 +67,7 @@ const prevPage = () => {
 const nextPage = () => {
   const totalPage = Math.ceil(urgentList.value.length / PAGE_SIZE);
   if (currentPage.value < totalPage - 1) {
-    currentPage.value++;
+    currentPage.value += 1;
   }
 };
 
@@ -122,7 +122,7 @@ const visiblePages = computed(() => {
 });
 
 // 打开详情弹窗
-const openDetailModal = item => {
+const openDetailModal = (item: any) => {
   currentDetailTask.value = {
     ...item,
     id: item.task_id,
@@ -251,18 +251,6 @@ const initBarChart = () => {
     // 获取对应的小组数据
     const groupData = filteredChartData.value[dataIndex];
 
-    if (groupData) {
-      console.log('========== 维保小组信息 ==========');
-      console.log('小组ID:', groupData.group_id);
-      console.log('小组名称:', groupData.group_name);
-      console.log('系列名称:', params.seriesName);
-      console.log('任务数量:', params.value);
-      console.log('维保公司:', groupData.company_id);
-      console.log('已完成:', groupData.completed);
-
-      console.log('完整数据:', groupData);
-      console.log('====================================');
-    }
     router.push({
       path: '/scheduling',
       query: {
@@ -276,11 +264,10 @@ const initBarChart = () => {
 const fetchTodayWork = async () => {
   startLoading();
   try {
-    const params = selectedCompany.value === 'ALL' ? {} : { company_id: selectedCompany.value };
+    const params = selectedCompany.value === 'ALL' ? {} : { company_id: Number(selectedCompany.value) };
     const res = await getTodayWork(params);
     if (res?.data?.code === 2000) {
       chartData.value = res.data.data.list || [];
-      console.log('API返回的小组数据:', chartData.value);
       updateChart();
     }
   } catch (err) {
@@ -311,17 +298,10 @@ onUnmounted(() => {
   if (autoPlayTimer) clearInterval(autoPlayTimer);
 });
 
-const handleBigScreenClick = () => console.log('大屏监控模式');
-const handleEmergencyClick = () => console.log('突发事件接警');
 const handleDeepAnalysisClick = () => console.log('展开深度分析报表');
-const handleDeployClick = () => console.log('执行林工一键调配');
-const handleHistoryItemClick = () => console.log('昨日遗留件处理');
-const handlePlanItemClick = () => console.log('机动计划生成');
-const handlePredictionClick = () => console.log('查看明日作业负载预测');
-const handleEmergencyRoomClick = item => {
+const handleEmergencyRoomClick = (item: any) => {
   openDetailModal(item);
 };
-const handleExportLogClick = () => console.log('导出全量作业日志报表');
 </script>
 
 <template>

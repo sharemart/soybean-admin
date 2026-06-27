@@ -87,7 +87,11 @@ const dialog = useDialog();
 
 // 通用提示方法
 const showMessage = (msg: string, type: 'success' | 'error' = 'success') => {
-  type === 'error' ? message.error(msg) : message.success(msg);
+  if (type === 'error') {
+    message.error(msg);
+  } else {
+    message.success(msg);
+  }
 };
 
 // 页面搜索状态

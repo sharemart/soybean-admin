@@ -129,7 +129,10 @@ const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL;
 
 // ====================== 计算属性 ======================
 const closedStatus = [1, 3, 5, 8];
-const isClosed = computed(() => Boolean(orderInfo.value) && closedStatus.includes(orderInfo.value.status));
+const isClosed = computed(() => {
+  if (!orderInfo.value) return false;
+  return closedStatus.includes(orderInfo.value.status);
+});
 
 const flowSteps = computed(() =>
   flowStatusList.value.map((item, idx) => ({
@@ -166,7 +169,9 @@ const getStatusLabel = (status: number) => {
 const loadFlowLogs = async (flowId: number) => {
   try {
     const { data } = await getMaintainRepairFlowLogs({ id: flowId });
-    if (data?.code === 2000) auditLogs.value = data.data.list;
+    if (data?.code === 2000) {
+      auditLogs.value = (data.data as { list: any[] }).list;
+    }
   } catch (err) {
     console.error('获取流转日志失败', err);
   }
@@ -198,7 +203,7 @@ const getDetail = async () => {
 
 const loadStatusMap = async () => {
   try {
-    const { data } = await getStatusMap({});
+    const { data } = await getStatusMap();
     if (data?.code === 2000) flowStatusList.value = data.data.list;
   } catch (err) {
     console.error('获取状态流程失败', err);
@@ -230,11 +235,22 @@ const handleLeaderAudit = async (pass: number) => {
       rejectReason.value = '';
     }
   } catch (err) {
-    window.$message?.error('操作失败');
-    console.error(err);
+    window.$message?.error(`操作失败${err}`);
   } finally {
     isSubmitting.value = false;
   }
+};
+
+// 状态推进
+const handleAction = (nextStatus: RepairStatus) => {
+  if (!orderInfo.value) return;
+  isSubmitting.value = true;
+  setTimeout(() => {
+    const newOrder = { ...orderInfo.value!, status: nextStatus };
+    emit('update', newOrder);
+    orderInfo.value = newOrder;
+    isSubmitting.value = false;
+  }, 600);
 };
 
 // 提交报价
@@ -311,8 +327,7 @@ const handleClerkReject = async () => {
       window.$message?.error(data?.msg || '驳回失败');
     }
   } catch (err) {
-    window.$message?.error('接口调用失败');
-    console.error(err);
+    window.$message?.error(`接口调用失败${err}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -341,8 +356,7 @@ const handleMaintainerDecision = async () => {
       window.$message?.error(data?.msg || '提交失败');
     }
   } catch (err) {
-    window.$message?.error('提交异常，请重试');
-    console.error(err);
+    window.$message?.error(`提交异常${err}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -363,8 +377,7 @@ const handlePartsArrived = async () => {
       window.$message?.error(data?.msg || '确认失败');
     }
   } catch (err) {
-    window.$message?.error('操作异常，请重试');
-    console.error(err);
+    window.$message?.error(`操作异常${err}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -390,8 +403,7 @@ const handleCompleteInstall = async () => {
       window.$message?.error(data?.msg || '操作失败');
     }
   } catch (err) {
-    window.$message?.error('接口调用异常，请重试');
-    console.error(err);
+    window.$message?.error(`接口调用异常${err}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -401,18 +413,6 @@ const handleCompleteInstall = async () => {
 const addPart = () => parts.value.push({ part_name: '', qty: 1, unit_price: 0 });
 const removePart = (index: number) => {
   if (parts.value.length > 1) parts.value.splice(index, 1);
-};
-
-// 状态推进
-const handleAction = (nextStatus: RepairStatus) => {
-  if (!orderInfo.value) return;
-  isSubmitting.value = true;
-  setTimeout(() => {
-    const newOrder = { ...orderInfo.value!, status: nextStatus };
-    emit('update', newOrder);
-    orderInfo.value = newOrder;
-    isSubmitting.value = false;
-  }, 600);
 };
 
 // 关闭弹窗
@@ -580,7 +580,7 @@ watch(
                 <div>
                   <p class="text-[9px] text-slate-400 font-black tracking-widest uppercase">申请日期</p>
                   <p class="truncate text-xs text-slate-700 font-black dark:text-slate-200">
-                    {{ formatTime(orderInfo?.create_time) }}
+                    {{ formatTime(orderInfo?.create_time || 0) || '-' }}
                   </p>
                 </div>
               </div>

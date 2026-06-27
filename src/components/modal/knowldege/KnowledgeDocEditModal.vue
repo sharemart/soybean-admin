@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
   Building2,
   CheckCircle2,
@@ -24,7 +24,7 @@ import {
 interface ElevatorBrand {
   id: string;
   name: string;
-  parent_id: string;
+  parent_id?: string;
   categories?: {
     id: string;
     label: string;
@@ -238,7 +238,7 @@ const handleSubmit = async () => {
         }
       });
 
-      response = await batchUploadDocuments(batchFormData);
+      response = await batchUploadDocuments(batchFormData as any);
     }
     // ✅ 单文件上传 or 编辑
     else {
@@ -255,9 +255,9 @@ const handleSubmit = async () => {
 
       if (props.initialData?.id) {
         singleFormData.append('id', props.initialData.id);
-        response = await updateKnowledgeDocument(singleFormData);
+        response = await updateKnowledgeDocument(singleFormData as any);
       } else {
-        response = await createKnowledgeDocument(singleFormData);
+        response = await createKnowledgeDocument(singleFormData as any);
       }
     }
 
@@ -274,12 +274,6 @@ const handleSubmit = async () => {
 const onClose = () => {
   emit('close');
 };
-
-// 计算属性 - 增加空值保护
-const currentBrand = computed(() => {
-  if (!formData.value.brandId) return null;
-  return props.brands.find(b => b.id === formData.value.brandId) || null;
-});
 </script>
 
 <template>

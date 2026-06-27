@@ -50,6 +50,24 @@ const emit = defineEmits<{
   success: [];
 }>();
 
+// 使用本地 ref 代理 isOpen
+const localOpen = ref(props.isOpen);
+
+// 同步 props.isOpen 到本地
+watch(
+  () => props.isOpen,
+  val => {
+    localOpen.value = val;
+  }
+);
+
+// 本地变化时通知父组件
+watch(localOpen, val => {
+  if (!val) {
+    emit('close');
+  }
+});
+
 const defaultFormData = {
   // 数字类型 (int)
   elevator_id: null as number | null,
@@ -70,13 +88,10 @@ const defaultFormData = {
   place_id: null as number | null,
   p_id: null as number | null,
   check_id: null as number | null,
-  real_user_id: null as number | null,
+  real_user: null as number | null,
+  area_man_id: null as number | null,
   maintenance_group: null as number | null,
-  maintenance_staff1: null as number | null,
-  maintenance_staff2: null as number | null,
-  place_type: null as number | null,
-  prevention_level: null as number | null,
-  // ⭐ 扶梯/人行道专用字段
+  // 扶梯/人行道专用字段
   nominal_speed: null as number | null,
   nominal_width: null as number | null,
   tilt_angle: null as number | null,
@@ -112,7 +127,6 @@ const defaultFormData = {
 };
 
 const formData = reactive({ ...defaultFormData });
-// ⭐ 记录批量修改时的初始值
 const initialFormData = reactive({ ...defaultFormData });
 
 const activeTab = ref('basic');
@@ -139,12 +153,10 @@ const resetForm = () => {
   Object.assign(initialFormData, structuredClone(defaultFormData));
 };
 
-// ⭐ 检查字段是否有变化（批量修改时使用）
 const hasFieldChanged = (field: keyof typeof defaultFormData): boolean => {
   return formData[field] !== initialFormData[field];
 };
 
-// ⭐ 获取有变化的字段值
 const getChangedFields = (): Record<string, any> => {
   const changed: Record<string, any> = {};
 
@@ -166,8 +178,9 @@ const getChangedFields = (): Record<string, any> => {
     'transform_company'
   ];
   stringFields.forEach(field => {
-    if (hasFieldChanged(field as keyof typeof defaultFormData) && formData[field]) {
-      changed[field] = formData[field];
+    const key = field as keyof typeof defaultFormData;
+    if (hasFieldChanged(key) && formData[key]) {
+      changed[key] = formData[key];
     }
   });
 
@@ -177,8 +190,6 @@ const getChangedFields = (): Record<string, any> => {
     'variety',
     'type',
     'system',
-    'place_type',
-    'prevention_level',
     'company_id1',
     'company_id2',
     'company_id3',
@@ -190,24 +201,26 @@ const getChangedFields = (): Record<string, any> => {
     'speed',
     'total_floor',
     'check_id',
-    'real_user_id',
-    // ⭐ 扶梯字段也加入变化检测
+    'real_user',
+    'area_man_id',
     'nominal_speed',
     'nominal_width',
     'tilt_angle',
     'lift_length'
   ];
   numberFields.forEach(field => {
-    if (hasFieldChanged(field as keyof typeof defaultFormData) && formData[field] !== null && formData[field] !== 0) {
-      changed[field] = Number(formData[field]);
+    const key = field as keyof typeof defaultFormData;
+    if (hasFieldChanged(key) && formData[key] !== null && formData[key] !== 0) {
+      changed[field] = Number(formData[key]);
     }
   });
 
   // 日期字段
   const dateFields = ['make_time', 'maintain_start_time', 'installs_time', 'contract_start_time'];
   dateFields.forEach(field => {
-    if (hasFieldChanged(field as keyof typeof defaultFormData) && formData[field]) {
-      changed[field] = dayjs(formData[field]).format('YYYY-MM-DD');
+    const key = field as keyof typeof defaultFormData;
+    if (hasFieldChanged(key) && formData[key]) {
+      changed[field] = dayjs(formData[key] as string).format('YYYY-MM-DD');
     }
   });
 
@@ -231,19 +244,18 @@ const loadElevatorDetail = async (id: number) => {
       const toInt = (v: any): number | null => {
         if (v === null || v === undefined || v === '') return null;
         const num = Number(v);
-        return isNaN(num) ? null : num;
+        return Number.isNaN(num) ? null : num;
       };
 
       const toNumber = (v: any): number => {
         if (v === null || v === undefined || v === '') return 0;
         const num = Number(v);
-        return isNaN(num) ? 0 : num;
+        return Number.isNaN(num) ? 0 : num;
       };
 
-      const toString = (v: any): string => (v == null ? '' : String(v));
+      const toString = (v: any): string => (v === null ? '' : String(v));
 
       const newData = {
-        // 数字字段
         elevator_id: toInt(data.elevator_id),
         village_id: toInt(data.village_id),
         group_id: toInt(data.group_id),
@@ -262,19 +274,14 @@ const loadElevatorDetail = async (id: number) => {
         place_id: toInt(data.place_id),
         p_id: toInt(data.p_id),
         check_id: toInt(data.check_id),
-        real_user_id: toInt(data.real_user_id),
+        real_user: toInt(data.real_user),
+        area_man_id: toInt(data.area_man_id),
         maintenance_group: toInt(data.group_id),
-        maintenance_staff1: data.maintenance_staff1,
-        maintenance_staff2: data.maintenance_staff2,
-        place_type: toInt(data.place_type),
-        prevention_level: toInt(data.prevention_level),
-        // ⭐ 扶梯字段
         nominal_speed: toInt(data.nominal_speed),
         nominal_width: toInt(data.nominal_width),
         tilt_angle: toInt(data.tilt_angle),
         lift_length: toInt(data.lift_length),
 
-        // 字符串字段
         elevator_name: toString(data.elevator_name),
         elevator_number: toString(data.elevator_number),
         register_code: toString(data.register_code),
@@ -296,11 +303,9 @@ const loadElevatorDetail = async (id: number) => {
         latitude: toString(data.latitude),
         certificate_code: toString(data.certificate_code),
         ce_img: toString(data.ce_img),
-        register_authority: toString(data.register_authority),
-
-        // 数组字段
-        parts: data.parts || [],
-        floors: data.floors || []
+        register_authority: toString((data as any).register_authority),
+        parts: (data as any).parts || [],
+        floors: (data as any).floors || []
       };
 
       Object.assign(formData, newData);
@@ -311,6 +316,185 @@ const loadElevatorDetail = async (id: number) => {
     message.error('获取电梯详情失败');
   }
 };
+
+// ==================== 工具函数 ====================
+
+const getNumberValue = (value: any): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
+};
+
+const getStringValue = (value: any): string => {
+  return value || '';
+};
+
+const formatDate = (date: any): string | null => {
+  if (!date) return null;
+  return dayjs(date).format('YYYY-MM-DD');
+};
+
+// ==================== 构建提交数据 ====================
+
+const buildBaseSubmitData = () => {
+  return {
+    elevator_name: getStringValue(formData.elevator_name),
+    register_code: getStringValue(formData.register_code),
+    devices_code: getStringValue(formData.devices_code),
+    variety: getNumberValue(formData.variety),
+    type: getNumberValue(formData.type),
+    system: getNumberValue(formData.system),
+    village_id: getNumberValue(formData.village_id),
+    company_id1: getNumberValue(formData.company_id1),
+    company_id2: getNumberValue(formData.company_id2),
+    company_id3: getNumberValue(formData.company_id3),
+    group_id: getNumberValue(formData.maintenance_group),
+    station: getStringValue(formData.station),
+    speed: getNumberValue(formData.speed) || 0,
+    load: getNumberValue(formData.load) || 0,
+    total_floor: getNumberValue(formData.total_floor) || 0,
+    elevator_phone: getNumberValue(formData.elevator_phone),
+    make_time: formatDate(formData.make_time),
+    maintain_type: getNumberValue(formData.maintain_type) || 0,
+    maintain_start_time: formatDate(formData.maintain_start_time),
+    maintain_year: getNumberValue(formData.maintain_year),
+    longitude: getStringValue(formData.longitude),
+    latitude: getStringValue(formData.latitude),
+    camera_id: getStringValue(formData.camera_id),
+    floors: formData.floors || [],
+    parts: formData.parts || [],
+    nominal_speed: getNumberValue(formData.nominal_speed),
+    nominal_width: getNumberValue(formData.nominal_width),
+    tilt_angle: getNumberValue(formData.tilt_angle),
+    lift_length: getNumberValue(formData.lift_length)
+  };
+};
+
+const buildUpdateSubmitData = () => {
+  const base = buildBaseSubmitData();
+  return {
+    elevator_id: formData.elevator_id,
+    ...base,
+    devices_id: getNumberValue(formData.devices_id),
+    model: getNumberValue(formData.model),
+    factory_code: getStringValue(formData.factory_code),
+    certificate_code: getStringValue(formData.certificate_code),
+    ce_img: getStringValue(formData.ce_img),
+    check_id: getNumberValue(formData.check_id),
+    install_company: getStringValue(formData.install_company),
+    transform_company: getStringValue(formData.transform_company)
+  };
+};
+
+const buildCreateSubmitData = () => {
+  const base = buildBaseSubmitData();
+  return {
+    ...base,
+    devices_id: getNumberValue(formData.devices_id),
+    model: getNumberValue(formData.model),
+    factory_code: getStringValue(formData.factory_code),
+    certificate_code: getStringValue(formData.certificate_code),
+    ce_img: getStringValue(formData.ce_img),
+    check_id: getNumberValue(formData.check_id),
+    install_company: getStringValue(formData.install_company),
+    transform_company: getStringValue(formData.transform_company),
+    real_user_id: getNumberValue(formData.real_user),
+    area_man_id: getNumberValue(formData.area_man_id),
+    place: getNumberValue(formData.place_id),
+    p: getNumberValue(formData.p_id)
+  };
+};
+
+// ==================== 提交处理 ====================
+
+const handleBatchSubmit = async () => {
+  const changedFields = getChangedFields();
+  if (Object.keys(changedFields).length === 0) {
+    message.warning('没有检测到任何修改');
+    return false;
+  }
+
+  const submitData = {
+    elevator_ids: props.selectedIds.join(','),
+    ...changedFields
+  };
+
+  const res = await batchUpdateElevators(submitData);
+  if (res?.data?.code === 2000) {
+    const successCount = res?.data?.data?.success_count || props.selectedIds.length;
+    message.success(`批量修改成功，共影响 ${successCount} 条数据`);
+    emit('confirm');
+    emit('success');
+    return true;
+  }
+  message.error(res?.data?.msg || '操作失败');
+  return false;
+};
+
+const handleUpdateSubmit = async () => {
+  const submitData = buildUpdateSubmitData();
+  const res = await updateElevator(submitData as any);
+  if (res?.data?.code === 2000) {
+    message.success('编辑成功');
+    emit('confirm');
+    emit('success');
+    return true;
+  }
+  message.error(res?.data?.msg || '操作失败');
+  return false;
+};
+
+const handleCreateSubmit = async () => {
+  const submitData = buildCreateSubmitData();
+  const res = await createElevator(submitData as any);
+  if (res?.data?.code === 2000) {
+    message.success('新增成功');
+    emit('confirm');
+    emit('success');
+    return true;
+  }
+  message.error(res?.data?.msg || '操作失败');
+  return false;
+};
+
+const handleClose = () => {
+  localOpen.value = false;
+};
+// ==================== 主提交函数 ====================
+
+const handleSave = async () => {
+  // 批量模式验证
+  if (props.isBatchMode) {
+    if (!props.selectedIds || props.selectedIds.length === 0) {
+      message.warning('请选择需要批量修改的电梯');
+      return;
+    }
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    let success = false;
+
+    if (props.isBatchMode) {
+      success = await handleBatchSubmit();
+    } else if (isEditMode.value) {
+      success = await handleUpdateSubmit();
+    } else {
+      success = await handleCreateSubmit();
+    }
+
+    if (success) {
+      handleClose();
+    }
+  } catch (error: any) {
+    message.error(error?.message || `保存失败，请稍后重试${error?.msg}`);
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// ==================== Watchers ====================
 
 watch(
   () => props.elevatorId,
@@ -335,168 +519,12 @@ watch(
   },
   { immediate: true }
 );
-
-const handleClose = () => {
-  emit('close');
-};
-
-const handleSave = async () => {
-  if (props.isBatchMode && (!props.selectedIds || props.selectedIds.length === 0)) {
-    message.warning('请选择需要批量修改的电梯');
-    return;
-  }
-
-  isSubmitting.value = true;
-
-  try {
-    // ⭐ 批量修改模式：只提交有变化的字段
-    if (props.isBatchMode) {
-      const changedFields = getChangedFields();
-
-      if (Object.keys(changedFields).length === 0) {
-        message.warning('没有检测到任何修改');
-        isSubmitting.value = false;
-        return;
-      }
-
-      const submitData = {
-        elevator_ids: props.selectedIds.join(','),
-        ...changedFields
-      };
-
-      console.log('批量提交数据:', submitData);
-
-      const res = await batchUpdateElevators(submitData);
-      if (res?.data?.code === 2000) {
-        const successCount = res?.data?.data?.success_count || props.selectedIds.length;
-        message.success(`批量修改成功，共影响 ${successCount} 条数据`);
-        emit('confirm');
-        emit('success');
-        handleClose();
-      } else {
-        message.error(res?.data?.msg || '操作失败');
-      }
-    }
-    // ⭐ 编辑模式
-    else if (isEditMode.value) {
-      const submitData = {
-        elevator_id: formData.elevator_id,
-        elevator_name: formData.elevator_name || '',
-        register_code: formData.register_code || '',
-        devices_id: formData.devices_id,
-        devices_code: formData.devices_code || '',
-        variety: formData.variety ? Number(formData.variety) : null,
-        type: formData.type ? Number(formData.type) : null,
-        model: formData.model ? Number(formData.model) : null,
-        system: formData.system ? Number(formData.system) : null,
-        village_id: formData.village_id ? Number(formData.village_id) : null,
-        company_id1: formData.company_id1 ? Number(formData.company_id1) : null,
-        company_id2: formData.company_id2 ? Number(formData.company_id2) : null,
-        company_id3: formData.company_id3 ? Number(formData.company_id3) : null,
-        group_id: formData.maintenance_group ? Number(formData.maintenance_group) : null,
-        station: formData.station || '',
-        speed: formData.speed ? Number(formData.speed) : 0,
-        load: formData.load ? Number(formData.load) : 0,
-        total_floor: formData.total_floor ? Number(formData.total_floor) : 0,
-        elevator_phone: formData.elevator_phone ? Number(formData.elevator_phone) : null,
-        make_time: formData.make_time ? dayjs(formData.make_time).format('YYYY-MM-DD') : null,
-        maintain_type: formData.maintain_type ? Number(formData.maintain_type) : 0,
-        maintain_start_time: formData.maintain_start_time
-          ? dayjs(formData.maintain_start_time).format('YYYY-MM-DD')
-          : null,
-        maintain_year: formData.maintain_year ? Number(formData.maintain_year) : null,
-        longitude: formData.longitude || '',
-        latitude: formData.latitude || '',
-        maintenance_staff1: formData.maintenance_staff1,
-        maintenance_staff2: formData.maintenance_staff2,
-        camera_id: formData.camera_id || '',
-        check_id: formData.check_id ? Number(formData.check_id) : null,
-        factory_code: formData.factory_code || '',
-        certificate_code: formData.certificate_code || '',
-        ce_img: formData.ce_img || '',
-        place_type: formData.place_type ? Number(formData.place_type) : null,
-        prevention_level: formData.prevention_level ? Number(formData.prevention_level) : null,
-        install_company: formData.install_company || '',
-        transform_company: formData.transform_company || '',
-        floors: formData.floors || [],
-        parts: formData.parts || [],
-        // ⭐ 扶梯字段
-        nominal_speed: formData.nominal_speed ? Number(formData.nominal_speed) : null,
-        nominal_width: formData.nominal_width ? Number(formData.nominal_width) : null,
-        tilt_angle: formData.tilt_angle ? Number(formData.tilt_angle) : null,
-        lift_length: formData.lift_length ? Number(formData.lift_length) : null
-      };
-
-      const res = await updateElevator(submitData);
-      if (res?.data?.code === 2000) {
-        message.success('编辑成功');
-        emit('confirm');
-        emit('success');
-        handleClose();
-      } else {
-        message.error(res?.data?.msg || '操作失败');
-      }
-    }
-    // ⭐ 新增模式
-    else {
-      const submitData = {
-        elevator_name: formData.elevator_name || '',
-        register_code: formData.register_code || '',
-        devices_code: formData.devices_code || '',
-        variety: formData.variety ? Number(formData.variety) : null,
-        type: formData.type ? Number(formData.type) : null,
-        system: formData.system ? Number(formData.system) : null,
-        village_id: formData.village_id ? Number(formData.village_id) : null,
-        company_id1: formData.company_id1 ? Number(formData.company_id1) : null,
-        company_id2: formData.company_id2 ? Number(formData.company_id2) : null,
-        company_id3: formData.company_id3 ? Number(formData.company_id3) : null,
-        group_id: formData.maintenance_group ? Number(formData.maintenance_group) : null,
-        station: formData.station || '',
-        speed: formData.speed ? Number(formData.speed) : 0,
-        load: formData.load ? Number(formData.load) : 0,
-        total_floor: formData.total_floor ? Number(formData.total_floor) : 0,
-        elevator_phone: formData.elevator_phone ? Number(formData.elevator_phone) : null,
-        make_time: formData.make_time ? dayjs(formData.make_time).format('YYYY-MM-DD') : null,
-        maintain_type: formData.maintain_type ? Number(formData.maintain_type) : 0,
-        maintain_start_time: formData.maintain_start_time
-          ? dayjs(formData.maintain_start_time).format('YYYY-MM-DD')
-          : null,
-        maintain_year: formData.maintain_year ? Number(formData.maintain_year) : null,
-        longitude: formData.longitude || '',
-        latitude: formData.latitude || '',
-        camera_id: formData.camera_id || '',
-        floors: formData.floors || [],
-        parts: formData.parts || [],
-        // ⭐ 扶梯字段
-        nominal_speed: formData.nominal_speed ? Number(formData.nominal_speed) : null,
-        nominal_width: formData.nominal_width ? Number(formData.nominal_width) : null,
-        tilt_angle: formData.tilt_angle ? Number(formData.tilt_angle) : null,
-        lift_length: formData.lift_length ? Number(formData.lift_length) : null
-      };
-
-      const res = await createElevator(submitData);
-      if (res?.data?.code === 2000) {
-        message.success('新增成功');
-        emit('confirm');
-        emit('success');
-        handleClose();
-      } else {
-        message.error(res?.data?.msg || '操作失败');
-      }
-    }
-  } catch (error: any) {
-    console.error('保存失败:', error);
-    message.error(error?.message || '保存失败，请稍后重试');
-  } finally {
-    isSubmitting.value = false;
-  }
-};
 </script>
 
 <template>
   <NMessageProvider>
     <NModal
-      v-model:show="props.isOpen"
+      v-model:show="localOpen"
       :mask-closable="true"
       :close-on-esc="true"
       class="elevator-edit-modal"

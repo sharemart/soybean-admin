@@ -83,7 +83,7 @@ const { companyOptions, companyLoading, fetchCompanyListData } = useCompanySelec
 const isSubmitting = ref(false);
 const mapContainer = ref<HTMLDivElement | null>(null);
 const message = useMessage();
-const isInitializing = ref(false); // ✅ 新增：初始化标志
+const isInitializing = ref(false);
 
 let map: any = null;
 let markers: any = null;
@@ -97,7 +97,7 @@ const convertAddressSsToLatLng = (addressSs: string) => {
     return;
   }
   const [latStr, lngStr] = addressSs.split(',');
-  if (latStr && lngStr && !isNaN(Number.parseFloat(latStr)) && !isNaN(Number.parseFloat(lngStr))) {
+  if (latStr && lngStr && !Number.isNaN(Number.parseFloat(latStr)) && !Number.isNaN(Number.parseFloat(lngStr))) {
     formData.latitude = latStr.trim();
     formData.longitude = lngStr.trim();
   }
@@ -214,6 +214,14 @@ const loadTMapScript = () => {
   });
 };
 
+const updateMapMarker = (point: any) => {
+  map.setCenter(point);
+  markers.updateGeometries([{ id: 'main', position: point, draggable: true }]);
+  formData.latitude = point.getLat().toFixed(6);
+  formData.longitude = point.getLng().toFixed(6);
+  formData.address_ss = `${formData.latitude},${formData.longitude}`;
+};
+
 const resolveAddress = async (address: string | string[]) => {
   if (!geocoder || !address || loading.addressResolve) return;
   loading.addressResolve = true;
@@ -224,19 +232,11 @@ const resolveAddress = async (address: string | string[]) => {
       const res = await geocoder.getLocation({ address: addr });
       if (res?.result?.location) updateMapMarker(res.result.location);
     }
-  } catch (e) {
-    message.error('地址解析失败');
+  } catch (error) {
+    message.error(`地址解析失败${error}`);
   } finally {
     loading.addressResolve = false;
   }
-};
-
-const updateMapMarker = (point: any) => {
-  map.setCenter(point);
-  markers.updateGeometries([{ id: 'main', position: point, draggable: true }]);
-  formData.latitude = point.getLat().toFixed(6);
-  formData.longitude = point.getLng().toFixed(6);
-  formData.address_ss = `${formData.latitude},${formData.longitude}`;
 };
 
 const fetchProvinces = async () => {
@@ -326,8 +326,8 @@ const handleSubmit = async () => {
     } else {
       message.error(res?.response?.data?.msg || '操作失败');
     }
-  } catch (e) {
-    message.error('提交失败');
+  } catch (error) {
+    message.error(`提交失败${error}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -375,68 +375,91 @@ const locateByCoordinates = () => {
   try {
     const TMap = window.TMap || window.qq.maps;
     updateMapMarker(new TMap.LatLng(Number(formData.latitude), Number(formData.longitude)));
-  } catch (e) {
-    message.error('坐标格式错误');
+  } catch (error) {
+    message.error(`坐标格式错误${error}`);
   }
 };
 
+// 1. 加载公司列表
+const loadCompanyList = async () => {
+  await fetchCompanyListData({
+    type: '2',
+    search: ''
+  });
+};
+
+// 2. 设置默认公司
+const setDefaultCompany = () => {
+  if (!props.initialData && companyOptions.value.length > 0) {
+    formData.company_id = Number(companyOptions.value[0].value);
+  }
+};
+
+// 3. 加载初始数据
+const loadInitialData = () => {
+  if (props.initialData) {
+    convertAddressSsToLatLng(props.initialData.address_ss || '');
+    Object.assign(formData, {
+      village_id: Number(props.initialData.village_id) || 0,
+      village_name: props.initialData.village_name || '',
+      company_id: Number(props.initialData.company_id) || 0,
+      province: Number(props.initialData.province) || 0,
+      provinceName: props.initialData.province_name || '',
+      city: Number(props.initialData.city) || 0,
+      cityName: props.initialData.city_name || '',
+      district: Number(props.initialData.district) || 0,
+      districtName: props.initialData.district_name || '',
+      address: props.initialData.address || '',
+      latitude: props.initialData.latitude || '',
+      longitude: props.initialData.longitude || '',
+      building: Number(props.initialData.building) || 0,
+      remark: props.initialData.remark || '',
+      address_ss: props.initialData.address_ss || ''
+    });
+  } else {
+    resetForm();
+  }
+};
+
+// 4. 加载省市数据
+const loadRegionData = async () => {
+  await fetchProvinces();
+  if (props.initialData && formData.province) {
+    await fetchCities(formData.province);
+    if (formData.city) {
+      await fetchDistricts(formData.city);
+    }
+  }
+};
+
+// 5. 初始化地图
+const initializeMap = async () => {
+  await loadTMapScript();
+  await nextTick();
+  await initMap();
+};
+
+// 6. 主初始化函数
+const initializeDialog = async () => {
+  isInitializing.value = true;
+
+  await loadCompanyList();
+  await nextTick();
+  setDefaultCompany();
+  loadInitialData();
+
+  await loadRegionData();
+  isInitializing.value = false;
+
+  await initializeMap();
+};
+
+// ==================== 修改 watch ====================
 watch(
   () => props.isOpen,
   async isOpen => {
     if (isOpen) {
-      isInitializing.value = true; // ✅ 开始初始化
-
-      await fetchCompanyListData({
-        type: '2',
-        search: ''
-      });
-
-      await nextTick();
-      if (!props.initialData && companyOptions.value.length > 0) {
-        formData.company_id = companyOptions.value[0].value;
-      }
-
-      if (props.initialData) {
-        convertAddressSsToLatLng(props.initialData.address_ss || '');
-        Object.assign(formData, {
-          village_id: Number(props.initialData.village_id) || 0,
-          village_name: props.initialData.village_name || '',
-          company_id: Number(props.initialData.company_id) || 0,
-          province: Number(props.initialData.province) || 0,
-          provinceName: props.initialData.province_name || '',
-          city: Number(props.initialData.city) || 0,
-          cityName: props.initialData.city_name || '',
-          district: Number(props.initialData.district) || 0,
-          districtName: props.initialData.district_name || '',
-          address: props.initialData.address || '',
-          latitude: props.initialData.latitude || '',
-          longitude: props.initialData.longitude || '',
-          building: Number(props.initialData.building) || 0,
-          remark: props.initialData.remark || '',
-          address_ss: props.initialData.address_ss || ''
-        });
-      } else {
-        resetForm();
-        await nextTick();
-        if (companyOptions.value.length > 0) {
-          formData.company_id = companyOptions.value[0].value;
-        }
-      }
-
-      await fetchProvinces();
-
-      if (props.initialData && formData.province) {
-        await fetchCities(formData.province);
-        if (formData.city) {
-          await fetchDistricts(formData.city);
-        }
-      }
-
-      isInitializing.value = false; // ✅ 初始化完成
-
-      await loadTMapScript();
-      await nextTick();
-      await initMap();
+      await initializeDialog();
     }
   },
   { immediate: true, flush: 'post' }
@@ -447,7 +470,7 @@ watch(
   () => companyOptions.value,
   val => {
     if (val && val.length > 0 && !props.initialData && formData.company_id === 0) {
-      formData.company_id = val[0].value;
+      formData.company_id = Number(val[0].value);
     }
   },
   { deep: true, immediate: true }

@@ -1,17 +1,6 @@
-/**
- * 通用业务响应体接口（所有接口共用）
- * @template T - 响应数据 data 字段的类型
- */
-export interface CommonResponse<T = any> {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: T;
-}
+import type { ApiResponse } from '@/service/api/types/common';
 
-// ------------------------------ 分类相关（复用之前的定义） ------------------------------
+// ------------------------------ 分类相关 ------------------------------
 /**
  * 获取知识分类列表 - 请求参数类型（GET 请求，自动转为 Query 参数）
  */
@@ -47,11 +36,7 @@ export interface KnowledgeCategoryItem {
   /** 更新时间 */
   updated_time: string;
 }
-
-/**
- * 获取知识分类列表 - 响应数据类型
- */
-export type GetKnowledgeCategoryListResponse = CommonResponse<KnowledgeCategoryItem[]>;
+export type GetKnowledgeCategoryListResponse = ApiResponse<KnowledgeCategoryItem[]>;
 
 /**
  * 新增知识分类 - 请求参数类型
@@ -66,19 +51,7 @@ export interface CreateKnowledgeCategoryParams {
   /** 状态：0禁用，1启用，默认1 */
   status?: number;
 }
-
-/**
- * 新增分类响应的 data 类型
- */
-export interface CreateCategoryData {
-  /** 新增后的分类ID */
-  id: number;
-}
-
-/**
- * 新增知识分类 - 响应数据类型
- */
-export type CreateKnowledgeCategoryResponse = CommonResponse<CreateCategoryData>;
+export type CreateKnowledgeCategoryResponse = ApiResponse<{ id: number }>;
 
 /**
  * 更新知识分类 - 请求参数类型
@@ -95,11 +68,7 @@ export interface UpdateKnowledgeCategoryParams {
   /** 状态：0禁用，1启用 */
   status?: number;
 }
-
-/**
- * 更新知识分类 - 响应数据类型
- */
-export type UpdateKnowledgeCategoryResponse = CommonResponse<[]>;
+export type UpdateKnowledgeCategoryResponse = ApiResponse<[]>;
 
 /**
  * 删除知识分类 - 请求参数类型
@@ -108,11 +77,7 @@ export interface RemoveKnowledgeCategoryParams {
   /** 分类ID（必填） */
   id: number;
 }
-
-/**
- * 删除知识分类 - 响应数据类型
- */
-export type RemoveKnowledgeCategoryResponse = CommonResponse<[]>;
+export type RemoveKnowledgeCategoryResponse = ApiResponse<[]>;
 
 // ------------------------------ 文档列表相关 ------------------------------
 /**
@@ -140,7 +105,7 @@ export interface KnowledgeDocumentItem {
 }
 
 /**
- * 文档列表响应的 data 类型
+ * 文档列表分页数据
  */
 export interface DocumentListData {
   /** 文档列表 */
@@ -166,11 +131,7 @@ export interface GetKnowledgeDocumentListParams {
   /** 每页数量，默认20 */
   limit?: number;
 }
-
-/**
- * 获取文档列表 - 响应数据类型
- */
-export type GetKnowledgeDocumentListResponse = CommonResponse<DocumentListData>;
+export type GetKnowledgeDocumentListResponse = ApiResponse<DocumentListData>;
 
 // ------------------------------ 文档详情相关 ------------------------------
 /**
@@ -202,11 +163,7 @@ export interface GetKnowledgeDocumentDetailParams {
   /** 文档ID（必填） */
   id: number;
 }
-
-/**
- * 获取文档详情 - 响应数据类型
- */
-export type GetKnowledgeDocumentDetailResponse = CommonResponse<KnowledgeDocumentDetail>;
+export type GetKnowledgeDocumentDetailResponse = ApiResponse<KnowledgeDocumentDetail>;
 
 // ------------------------------ 新增文档相关 ------------------------------
 /**
@@ -222,19 +179,7 @@ export interface CreateKnowledgeDocumentParams {
   /** 文档地址（必填） */
   file_path: string;
 }
-
-/**
- * 新增文档响应的 data 类型
- */
-export interface CreateDocumentData {
-  /** 新增后的文档ID */
-  id: number;
-}
-
-/**
- * 新增文档 - 响应数据类型
- */
-export type CreateKnowledgeDocumentResponse = CommonResponse<CreateDocumentData>;
+export type CreateKnowledgeDocumentResponse = ApiResponse<{ id: number }>;
 
 // ------------------------------ 批量上传文档相关 ------------------------------
 /**
@@ -254,7 +199,7 @@ export interface BatchUploadDocumentItem {
 }
 
 /**
- * 批量上传文档响应的 data 类型
+ * 批量上传文档响应数据
  */
 export interface BatchUploadDocumentData {
   /** 成功数量 */
@@ -276,11 +221,7 @@ export interface BatchUploadDocumentsParams {
   /** 文件（支持单个或多个） */
   files: File | File[];
 }
-
-/**
- * 批量上传文档 - 响应数据类型
- */
-export type BatchUploadDocumentsResponse = CommonResponse<BatchUploadDocumentData>;
+export type BatchUploadDocumentsResponse = ApiResponse<BatchUploadDocumentData>;
 
 // ------------------------------ 更新文档相关 ------------------------------
 /**
@@ -298,11 +239,7 @@ export interface UpdateKnowledgeDocumentParams {
   /** 文档地址（必填） */
   file_path: string;
 }
-
-/**
- * 更新文档 - 响应数据类型
- */
-export type UpdateKnowledgeDocumentResponse = CommonResponse<[]>;
+export type UpdateKnowledgeDocumentResponse = ApiResponse<[]>;
 
 // ------------------------------ 删除文档相关 ------------------------------
 /**
@@ -312,14 +249,7 @@ export interface RemoveKnowledgeDocumentParams {
   /** 文档ID（必填） */
   id: number;
 }
-
-/**
- * 删除文档 - 响应数据类型
- */
-export type RemoveKnowledgeDocumentResponse = CommonResponse<[]>;
+export type RemoveKnowledgeDocumentResponse = ApiResponse<[]>;
 
 // ------------------------------ 通用错误响应 ------------------------------
-/**
- * 通用错误响应体类型
- */
-export type CommonErrorResponse = CommonResponse<object | null | [] | undefined>;
+export type CommonErrorResponse = ApiResponse<object | null | [] | undefined>;

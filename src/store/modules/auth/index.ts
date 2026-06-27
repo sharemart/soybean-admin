@@ -6,7 +6,6 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
-import { log } from 'echarts/types/src/util/log.js';
 import { fetchLogin } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
@@ -149,7 +148,6 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     if (!error) {
       // 通过token登录
       const pass = await loginByToken(loginResponse.data);
-      console.log('登录响应数据:', loginResponse.data);
 
       if (pass) {
         const user = {

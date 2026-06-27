@@ -147,20 +147,9 @@ const loading = ref(false);
 const errorMsg = ref('');
 const router = useRouter();
 
-const statusLabels = {
-  auto: '自动运行',
-  inspection: '检修模式',
-  fault: '故障报警',
-  fire: '消防模式',
-  lock: '锁梯状态'
-};
-
 const iconComponents = { Activity, Star, AlertTriangle, ShieldCheck };
 const getIconComponent = (iconName: string) => iconComponents[iconName as keyof typeof iconComponents];
 
-// ==========================================
-// 统计
-// ==========================================
 const stats = computed<StatItem[]>(() => {
   const totalNum = total.value;
   const online = allElevators.value.filter(e => e.is_online === '1').length;
@@ -195,27 +184,7 @@ const stats = computed<StatItem[]>(() => {
 const showSearchEmpty = computed(() => {
   return !loading.value && !errorMsg.value && allElevators.value.length === 0;
 });
-// ==========================================
-// 样式
-// ==========================================
-const getStatusModeStyle = (mode: string) => {
-  switch (mode) {
-    case 'auto':
-      return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-    case 'inspection':
-      return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-    case 'fault':
-      return 'bg-rose-500 text-white border-transparent animate-pulse shadow-lg shadow-rose-500/30';
-    case 'lock':
-      return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
-    default:
-      return 'bg-slate-100 text-slate-500';
-  }
-};
 
-// ==========================================
-// 操作
-// ==========================================
 const toggleFavorite = (id: string) => {
   allElevators.value = allElevators.value.map(el => (el.id === id ? { ...el, isFavorite: !el.isFavorite } : el));
 };
@@ -239,15 +208,35 @@ const createElevatorMqtt = (item: any) => {
   watch(
     runInfo,
     () => {
-      item.liveData = {
-        floor: runInfo.value.floor ?? item.station ?? 1,
-        direction:
-          runInfo.value.direction ||
-          (runInfo.value.status === 'up' ? 'up' : runInfo.value.status === 'down' ? 'down' : 'idle'),
-        isOnline: item.is_online === '1',
-        doorOpen: runInfo.value.doorStatus === 'open'
+      const info = runInfo.value;
+      // 类型断言，告知TS真实结构
+      const data = info as {
+        floor?: number;
+        direction?: string;
+        status?: string;
+        doorStatus?: string;
+        hasFault?: boolean;
       };
-      if (runInfo.value.hasFault) item.statusMode = 'fault';
+
+      let directionVal = data.direction;
+      if (!directionVal) {
+        if (data.status === 'up') {
+          directionVal = 'up';
+        } else if (data.status === 'down') {
+          directionVal = 'down';
+        } else {
+          directionVal = 'idle';
+        }
+      }
+
+      item.liveData = {
+        floor: data.floor ?? item.station ?? 1,
+        direction: directionVal,
+        isOnline: item.is_online === '1',
+        doorOpen: data.doorStatus === 'open'
+      };
+
+      if (data.hasFault) item.statusMode = 'fault';
     },
     { deep: true }
   );
@@ -270,11 +259,11 @@ const getVillageOptions = async () => {
   try {
     const res = await getVillageList({ page: 1, limit: 1000 });
     if (res.data?.code === 2000) {
-      villageList.value =
-        res.data.data.list?.map((item: any) => ({
-          label: item.village_name,
-          value: item.village_id?.toString() || ''
-        })) || [];
+      const rawList = res.data.data.list || [];
+      villageList.value = rawList.map((item: any) => ({
+        label: item.village_name,
+        value: item.village_id?.toString() || ''
+      }));
     }
   } catch (err) {
     console.error('获取小区失败', err);
@@ -342,12 +331,14 @@ const getAllElevatorData = async () => {
         isOnline: item.is_online === '1',
         doorOpen: false
       },
-
+      liftInfo: {},
+      runInfo: {},
       mqtt: null
     }));
 
     setTimeout(refreshPageMqtt, 200);
   } catch (err) {
+    console.error('获取电梯列表失败', err);
     errorMsg.value = '获取电梯列表失败';
   } finally {
     loading.value = false;
@@ -375,7 +366,6 @@ watch(selectedArea, fetchDataWithFilter);
 const setEmergencyTarget = (target: any) => (emergencyTarget.value = target);
 const handleEmergencyConfirm = () => {
   emergencyTarget.value = null;
-  alert('已下发紧急维修指令');
 };
 
 // ==========================================

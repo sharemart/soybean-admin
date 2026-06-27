@@ -96,7 +96,7 @@ const doConfirm = async () => {
   try {
     // 构造接口需要的字段
     const params = {
-      elevator_id: form.value.elevatorId, // 电梯ID
+      elevator_id: Number(form.value.elevatorId), // 电梯ID
       syn: form.value.description, // 故障描述
       is_tiring: form.value.priority === 'CRITICAL' ? 1 : 0 // 特级=困人=1
     };

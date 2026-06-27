@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineEmits, defineProps, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { NButton, NIcon, NInput, NUpload, NUploadDragger, useMessage } from 'naive-ui';
 import { AlertTriangle, Briefcase, FileText, ImagePlus, RefreshCw, Save, Wrench, X } from 'lucide-vue-next';
 import { maintainRepairFlowApply } from '@/service/api/repair/repairApi';
@@ -120,8 +120,7 @@ const handleSubmit = async () => {
       message.error(res.response.data.msg || '提交失败');
     }
   } catch (err) {
-    message.error('提交失败：接口异常');
-    console.error(err);
+    message.error(`提交失败：接口异常${err}`);
   } finally {
     isSubmitting.value = false;
   }

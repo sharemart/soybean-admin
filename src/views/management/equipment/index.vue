@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { Download, Edit, History, Layers, Plus, RefreshCw, Search, Settings, Timer, Trash2 } from 'lucide-vue-next';
 import { deleteElevatorPart, fetchElevatorPartDetail, fetchElevatorPartList } from '@/service/api/equipment/equipment';
 import PartEditModal from '@/components/modal/equipment/equipment.vue';
-import CustomSelect from '@/components/selectOption/Select.vue';
+import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import PagePagination from '@/components/common/PagePagination.vue';
 interface ApiElevatorPart {
   id: number;
@@ -19,17 +19,6 @@ interface ApiElevatorPart {
   useTime: number;
   company_id: number;
   add_time: string;
-}
-
-interface ApiResponse {
-  code: number;
-  message: string;
-  data: {
-    list: ApiElevatorPart[];
-    total: number;
-    page: number;
-    limit: number;
-  };
 }
 
 interface ElevatorPart {
@@ -57,7 +46,6 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const totalCount = ref(0);
-const faultList = ref<any[]>([]);
 const modalVisible = ref(false);
 const currentEditData = ref<ElevatorPart | null>(null);
 const editLoading = ref(false);
@@ -127,14 +115,15 @@ const getElevatorPartList = async () => {
     };
     fetchParams.value.part_place = placeMap[placeFilter.value] || 0;
 
-    const response = (await fetchElevatorPartList(fetchParams.value)) as ApiResponse;
+    const response = await fetchElevatorPartList(fetchParams.value);
     if (response?.data?.code === 2000) {
       parts.value = transformApiData(response.data.data?.list || []);
       totalCount.value = response?.data?.data?.total || 0;
     } else {
-      message.error(`获取数据失败：${response?.message || '未知错误'}`);
+      message.error(`获取数据失败：${response?.data?.msg || '未知错误'}`);
     }
   } catch (error) {
+    console.error('获取数据失败:', error);
     message.error('获取数据失败，请重试');
     parts.value = [
       {
@@ -178,23 +167,27 @@ const openAddModal = () => {
 const openEditModal = async (data: ElevatorPart) => {
   try {
     const originalId = data.original_id || Number(data.id.replace('P', ''));
-    if (!originalId || isNaN(originalId)) {
+    if (!originalId || Number.isNaN(originalId)) {
       message.error('部件ID格式错误，无法编辑');
       return;
     }
 
     editLoading.value = true;
     const response = await fetchElevatorPartDetail({ id: originalId });
-    const responseData = response?.data?.code === 2000 ? response.data.data : response?.data;
 
-    if (responseData && response?.data?.code === 2000) {
-      currentEditData.value = transformDetailData(responseData);
-      modalVisible.value = true;
+    if (response?.data?.code === 2000) {
+      const responseData = response.data.data;
+      if (responseData) {
+        currentEditData.value = transformDetailData(responseData);
+        modalVisible.value = true;
+      } else {
+        message.error('未查询到部件详情');
+      }
     } else {
-      message.error(response?.message || '获取详情失败');
+      message.error(response?.data?.msg || '获取详情失败');
     }
   } catch (error) {
-    message.error('获取部件详情失败，请重试');
+    message.error(`获取部件详情失败，请重试${error}`);
   } finally {
     editLoading.value = false;
   }
@@ -211,21 +204,21 @@ const handleDelete = async (part: ElevatorPart) => {
         deleteLoading.value = true;
         const realPartId = part.original_id || Number(part.id.replace('P', ''));
 
-        if (!realPartId || isNaN(realPartId)) {
+        if (!realPartId || Number.isNaN(realPartId)) {
           message.error('部件ID格式错误，无法删除');
           return;
         }
 
         const response = await deleteElevatorPart({ id: realPartId });
-        if (response?.code === 2000 || response?.data?.code === 2000) {
+        if (response?.data?.code === 2000) {
           parts.value = parts.value.filter(p => p.id !== part.id);
           message.success('部件删除成功');
           total.value -= 1;
         } else {
-          message.error(`删除失败：${response?.message || '未知错误'}`);
+          message.error(`删除失败：${response?.data?.msg || '未知错误'}`);
         }
       } catch (error) {
-        message.error('删除失败，请重试');
+        message.error(`删除失败，请重试${error}`);
       } finally {
         deleteLoading.value = false;
       }
@@ -254,17 +247,8 @@ const getLiftTypeLabel = (type: string) => {
   return labelMap[type] || '未知';
 };
 
-const setPlaceFilter = (value: string) => {
-  placeFilter.value = value;
-};
-
 const handlePageChange = (page: number) => {
   currentPage.value = page;
-  getElevatorPartList();
-};
-
-const handlePageSizeChange = (size: number) => {
-  pageSize.value = size;
   getElevatorPartList();
 };
 

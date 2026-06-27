@@ -1,26 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import {
-  NAlert,
-  NButton,
-  NCard,
-  NDivider,
-  NEmpty,
-  NForm,
-  NFormItem,
-  NIcon,
-  NInput,
-  NModal,
-  NPopconfirm,
-  NScrollbar,
-  NSpace,
-  NSpin,
-  NTag,
-  NTooltip,
-  NTree
-} from 'naive-ui';
-import { Check, Edit2, FolderTree, ListChecks, RefreshCw, RotateCcw, Save, Settings, X } from 'lucide-vue-next';
-// 引入接口
+import { NButton, NCard, NDivider, NEmpty, NIcon, NModal, NSpace, NSpin, NTag, NTooltip, NTree } from 'naive-ui';
+import { Check, Edit2, FolderTree, ListChecks, RotateCcw, Save, Settings, X } from 'lucide-vue-next';
 import { getWorkbenchSelectableMenus, resetMyWorkbench, saveMyWorkbench } from '@/service/api/menu/menu';
 
 // 菜单项类型定义（与后端接口字段完全对齐）
@@ -110,6 +91,18 @@ function updateSelectionStatus(items: WorkbenchMenuItem[], selectedIds: number[]
   }));
 }
 
+// 预处理树节点数据 - 只显示类型标签，不显示路径
+const processedTreeNodes = computed(() => {
+  const processNode = (node: TreeNode): any => {
+    return {
+      ...node,
+      label: node.label || '未命名', // 只保留原始名称
+      children: node.children?.map(processNode)
+    };
+  };
+
+  return treeNodes.value.map(processNode);
+});
 // 获取选中的菜单详情列表
 const selectedMenuDetails = computed(() => {
   const details: Array<{ id: number; name: string; type: string; path: string }> = [];
@@ -137,22 +130,17 @@ async function fetchSelectableMenus() {
   try {
     loading.value = true;
     const res = await getWorkbenchSelectableMenus();
-    // 接口成功判断（code=2000）
     if (res?.data?.code === 2000 && Array.isArray(res.data.data)) {
       menuTreeData.value = res.data.data;
-      // 默认展开全部节点
       expandedKeys.value = getAllMenuIds(menuTreeData.value);
-      // 根据接口返回 is_selected 初始化选中项
       selectedKeys.value = getSelectedMenuIds(menuTreeData.value);
       editSelectedKeys.value = [...selectedKeys.value];
-      // 转换为树组件数据
       treeNodes.value = convertToTreeNodes(menuTreeData.value);
     } else {
       window.$message?.warning('菜单数据为空或请求异常');
     }
   } catch (err) {
-    console.error('获取菜单失败：', err);
-    window.$message?.error('网络请求异常，请稍后重试');
+    window.$message?.error(`网络请求异常，请稍后重试+'${err}`);
   } finally {
     loading.value = false;
   }
@@ -187,8 +175,7 @@ async function saveChanges() {
       window.$message?.error(res.data?.message || '保存失败');
     }
   } catch (err) {
-    console.error('保存失败：', err);
-    window.$message?.error('网络请求异常，请稍后重试');
+    window.$message?.error(`网络请求异常，请稍后重试+'${err}`);
   } finally {
     saving.value = false;
   }
@@ -202,9 +189,7 @@ async function handleReset() {
     const res = await resetMyWorkbench();
     if (res?.data?.code === 2000) {
       window.$message?.success('重置成功，已恢复默认配置');
-      // 重新获取菜单数据
       await fetchSelectableMenus();
-      // 如果当前在编辑模式，退出编辑模式
       if (isEditMode.value) {
         isEditMode.value = false;
       }
@@ -212,16 +197,14 @@ async function handleReset() {
       window.$message?.error(res.data?.message || '重置失败');
     }
   } catch (err) {
-    console.error('重置失败：', err);
-    window.$message?.error('网络请求异常，请稍后重试');
+    window.$message?.error(`网络请求异常，请稍后重试+'${err}`);
   } finally {
     resetting.value = false;
   }
 }
 
 // 处理树节点选中状态变化
-function handleCheck(keys: number[], option: { node: TreeNode; checked: boolean; indeterminate: boolean }) {
-  // 直接更新选中的keys
+function handleCheck(keys: number[]) {
   editSelectedKeys.value = keys;
 }
 
@@ -276,7 +259,6 @@ onMounted(() => {
               编辑工作台菜单配置
             </NTooltip>
 
-            <!-- 重置按钮 - 蓝色渐变版 -->
             <NTooltip v-if="!isEditMode">
               <template #trigger>
                 <NButton strong :loading="resetting" class="reset-button" @click="showResetModal = true">
@@ -372,7 +354,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- 树形菜单 -->
+          <!-- 树形菜单 - 使用预处理数据，完全不需要插槽 -->
           <div class="menu-tree-container flex-1 overflow-auto border rounded-lg bg-white p-12px">
             <div v-if="treeNodes.length === 0" class="py-40px">
               <NEmpty description="暂无菜单数据">
@@ -383,7 +365,7 @@ onMounted(() => {
             </div>
             <NTree
               v-else
-              :data="treeNodes"
+              :data="processedTreeNodes"
               :expanded-keys="expandedKeys"
               :default-expanded-keys="expandedKeys"
               block-line
@@ -392,18 +374,7 @@ onMounted(() => {
               :checked-keys="isEditMode ? editSelectedKeys : selectedKeys"
               check-strategy="all"
               @update:checked-keys="handleCheck"
-            >
-              <template #default="{ option }">
-                <div class="flex items-center gap-8px">
-                  <span class="text-14px">{{ option.label }}</span>
-                  <NTag v-if="option.originalData.menu_type === 1" size="tiny" type="info">目录</NTag>
-                  <NTag v-else size="tiny" type="success">菜单</NTag>
-                  <span v-if="option.originalData.route_path" class="text-12px text-gray-400">
-                    {{ option.originalData.route_path }}
-                  </span>
-                </div>
-              </template>
-            </NTree>
+            />
           </div>
 
           <!-- 底部提示 -->
@@ -461,7 +432,7 @@ onMounted(() => {
   margin-right: 12px;
 }
 
-/* 重置按钮样式 - 浅黄色渐变 */
+/* 重置按钮样式 */
 .reset-button {
   min-width: 100px;
   background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);

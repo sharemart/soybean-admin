@@ -7,7 +7,7 @@ import {
   getKnowledgeCategoryList,
   removeKnowledgeCategory
 } from '@/service/api/knowledge/konwledge';
-import type { DocCategory, ElevatorBrand } from '../types';
+import type { KnowledgeCategoryItem } from '@/service/api/knowledge/knowledge';
 
 // 扩展接口返回的分类类型定义
 interface ApiCategoryItem {
@@ -20,6 +20,19 @@ interface ApiCategoryItem {
   document_count: number;
   created_time: string;
   updated_time: string;
+}
+
+// 定义 ElevatorBrand 类型（因为 KnowledgeCategoryItem 没有 logo 和 categories 字段）
+interface ElevatorBrand {
+  id: string;
+  name: string;
+  logo?: string;
+  parent_id?: string;
+  categories?: {
+    id: string;
+    label: string;
+  }[];
+  docCount?: number;
 }
 
 // 定义组件 Props
@@ -70,18 +83,18 @@ const filteredBrands = computed(() => {
   return props.brands
     .map(brand => ({
       ...brand,
-      logo: normalizeImageUrl(brand.logo)
+      logo: normalizeImageUrl(brand.logo || '')
     }))
     .filter(brand => brand.name.toLowerCase().includes(searchTerm.value.toLowerCase()));
 });
 
 // 计算属性：当前选中的品牌（标准化logo URL）
 const currentBrand = computed(() => {
-  const brand = props.brands.find(brand => brand.id === editingBrandId.value);
-  if (brand) {
+  const foundBrand = props.brands.find(b => b.id === editingBrandId.value);
+  if (foundBrand) {
     return {
-      ...brand,
-      logo: normalizeImageUrl(brand.logo)
+      ...foundBrand,
+      logo: normalizeImageUrl(foundBrand.logo || '')
     };
   }
   return null;
@@ -89,7 +102,6 @@ const currentBrand = computed(() => {
 
 // 关闭弹窗
 const handleClose = () => {
-  console.log('当前品牌矩阵数据:', props.brands);
   emit('close');
 };
 
@@ -144,10 +156,14 @@ const loadBrandCategories = async (brandId: string) => {
       status: 1
     });
 
-    const resData = response.data?.code ? response.data : response;
-    if (resData.code === 2000) {
+    // 使用类型断言
+    const resData = response?.data || response;
+    const code = (resData as any)?.code || 0;
+    const data = (resData as any)?.data || [];
+
+    if (code === 2000) {
       // 标准化分类logo URL
-      brandCategories.value = (resData.data || []).map((item: ApiCategoryItem) => ({
+      brandCategories.value = (Array.isArray(data) ? data : []).map((item: ApiCategoryItem) => ({
         ...item,
         logo_url: normalizeImageUrl(item.logo_url)
       }));
@@ -187,45 +203,36 @@ const handleAddBrand = async () => {
     createBrandLoading.value = true;
 
     // 核心修复：使用FormData传递数据（支持文件上传）
-    const formData = new FormData();
+    const formData: any = new FormData();
     formData.append('name', newBrandName.value.trim());
-    formData.append('parent_id', '0'); // 品牌作为一级分类
+    formData.append('parent_id', '0');
     formData.append('status', '1');
 
     // 关键：传递二进制文件对象，而非base64
     if (newBrandLogoFile.value) {
       formData.append('logo', newBrandLogoFile.value);
     }
-
-    console.log('创建品牌参数:', {
-      name: newBrandName.value.trim(),
-      parent_id: 0,
-      hasLogo: Boolean(newBrandLogoFile.value)
-    });
-
     // 调用创建分类接口
     const response = await createKnowledgeCategory(formData);
-    const resData = response.data || response;
+    const resData = response?.data || response;
 
-    if (resData.code === 2000) {
+    if ((resData as any)?.code === 2000) {
       // 创建成功
-      const newBrandId = resData.data?.id || Date.now().toString();
+      const newBrandId = resData.data?.id?.toString() || Date.now().toString();
 
       // 构造新品牌对象（标准化logo URL）
       const newBrand: ElevatorBrand = {
-        id: newBrandId.toString(),
+        id: newBrandId,
         name: newBrandName.value,
-        logo: normalizeImageUrl(resData.data?.logo_url || ''), // 标准化URL
+        logo: normalizeImageUrl((resData as any)?.data?.logo || ''),
         categories: []
       };
-
-      console.log('品牌创建成功:', newBrand);
 
       // 更新本地品牌列表
       emit('update-brands', [newBrand, ...props.brands]);
 
       // 核心修复：添加成功后重新加载当前品牌分类（触发重新渲染）
-      await loadBrandCategories(newBrandId.toString());
+      await loadBrandCategories(newBrandId);
 
       message.success('品牌创建成功');
 
@@ -235,9 +242,9 @@ const handleAddBrand = async () => {
       newBrandLogoFile.value = null;
 
       // 自动选中新建的品牌
-      editingBrandId.value = newBrandId.toString();
+      editingBrandId.value = newBrandId;
     } else {
-      const errorMsg = resData.msg || '创建品牌失败';
+      const errorMsg = (resData as any)?.msg || '创建品牌失败';
       console.error('创建品牌失败:', errorMsg);
       message.error(errorMsg);
     }
@@ -260,7 +267,7 @@ const handleAddCategory = async (brandId: string) => {
     createCategoryLoading.value = true;
 
     // 使用FormData传递数据
-    const formData = new FormData();
+    const formData: any = new FormData();
     formData.append('name', newCategoryName.value.trim());
     formData.append('parent_id', brandId);
     formData.append('status', '1');
@@ -271,13 +278,13 @@ const handleAddCategory = async (brandId: string) => {
     }
 
     const response = await createKnowledgeCategory(formData);
-    const resData = response.data || response;
+    const resData = response?.data || response;
 
-    if (resData.code === 2000) {
+    if ((resData as any)?.code === 2000) {
       // 标准化分类logo URL
       const category = {
         ...resData.data,
-        logo_url: normalizeImageUrl(resData.data?.logo_url || '')
+        logo_url: normalizeImageUrl((resData as any)?.data?.logo || '')
       };
 
       // 核心修复：添加成功后重新加载分类列表（确保数据同步）
@@ -292,19 +299,19 @@ const handleAddCategory = async (brandId: string) => {
 
       console.log('分类创建成功:', category);
     } else {
-      const errorMsg = resData.msg || '创建分类失败';
+      const errorMsg = (resData as any)?.msg || '创建分类失败';
       console.error('创建分类失败:', errorMsg);
       message.error(errorMsg);
     }
   } catch (error) {
-    console.error('调用createKnowledgeCategory失败:', error);
+    console.error('调用createKnowledgeCategory创建分类失败:', error);
     message.error('创建分类失败，请重试');
   } finally {
     createCategoryLoading.value = false;
   }
 };
 
-// 删除分类
+// 删除品牌
 const handleDeleteBrand = async (brandId: string) => {
   if (!brandId) return;
 
@@ -313,9 +320,9 @@ const handleDeleteBrand = async (brandId: string) => {
 
     // 调用删除品牌接口
     const response = await removeKnowledgeCategory({ id: Number(brandId) });
-    const resData = response.data || response;
+    const resData = response?.data || response;
 
-    if (resData.code === 2000) {
+    if ((resData as any)?.code === 2000) {
       // 删除成功
       message.success('品牌删除成功');
 
@@ -328,7 +335,7 @@ const handleDeleteBrand = async (brandId: string) => {
       // 清空当前编辑品牌
       editingBrandId.value = null;
     } else {
-      const errorMsg = resData.msg || '删除品牌失败';
+      const errorMsg = (resData as any)?.msg || '删除品牌失败';
       console.error('删除品牌失败:', errorMsg);
       message.error(errorMsg);
     }
@@ -347,15 +354,15 @@ const handleDeleteCategory = async (brandId: string, catId: string) => {
   try {
     // 调用删除分类接口
     const response = await removeKnowledgeCategory({ id: Number(catId) });
-    const resData = response.data || response;
+    const resData = response?.data || response;
 
-    if (resData.code === 2000) {
+    if ((resData as any)?.code === 2000) {
       // 重新加载分类列表
       await loadBrandCategories(brandId);
 
       message.success('分类删除成功');
     } else {
-      const errorMsg = resData.msg || '删除分类失败';
+      const errorMsg = (resData as any)?.msg || '删除分类失败';
       console.error('删除分类失败:', errorMsg);
       message.error(errorMsg);
     }
@@ -541,12 +548,9 @@ watch(
                   <button
                     class="rounded-xl p-2 text-rose-500 transition-all hover:bg-rose-500/10"
                     :disabled="createBrandLoading"
+                    @click="handleDeleteBrand(currentBrand?.id || '')"
                   >
-                    <Trash2
-                      :size="18"
-                      :class="{ 'opacity-50 cursor-not-allowed': createBrandLoading }"
-                      @click="handleDeleteBrand(currentBrand?.id)"
-                    />
+                    <Trash2 :size="18" :class="{ 'opacity-50 cursor-not-allowed': createBrandLoading }" />
                   </button>
                 </div>
 

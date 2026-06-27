@@ -39,7 +39,7 @@ export function useMaintainCompanySelector() {
         }));
       }
     } catch (error) {
-      message.error('获取维保公司失败');
+      message.error(`获取维保公司失败${error}`);
     } finally {
       loading.maintainLoading = false;
     }

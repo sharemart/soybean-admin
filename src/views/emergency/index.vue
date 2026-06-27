@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import {
   Activity,
-  CheckCircle2,
   Eye,
   MapPin,
   Navigation,
@@ -12,7 +11,6 @@ import {
   Search,
   ShieldAlert,
   Siren as SirenIcon,
-  Timer,
   User,
   UsersIcon
 } from 'lucide-vue-next';
@@ -66,15 +64,6 @@ const currentTask = ref<EmergencyTask | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(10);
 const paginatedTasks = ref<EmergencyTask[]>([]);
-const refreshPagination = () => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  paginatedTasks.value = filteredTasks.value.slice(start, end);
-};
-const handlePageChange = (page: number) => {
-  currentPage.value = page;
-  refreshPagination();
-};
 
 const pendingCount = computed(() => {
   return tasks.value.filter(t => t.status !== 'CLOSED').length;
@@ -95,6 +84,17 @@ const filteredTasks = computed(() => {
     });
 });
 
+const refreshPagination = () => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  paginatedTasks.value = filteredTasks.value.slice(start, end);
+};
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+  refreshPagination();
+};
+
 watch([searchTerm, severityFilter, statusFilter], () => {
   currentPage.value = 1;
   refreshPagination();
@@ -104,6 +104,11 @@ watch(filteredTasks, () => {
   refreshPagination();
 });
 // ==============================================================
+
+const severityMap: Record<string, EmergencySeverity> = {
+  故障告警: 'TRAPPED',
+  故障记录: 'FAULT'
+};
 
 const getList = async () => {
   try {
@@ -115,7 +120,7 @@ const getList = async () => {
         elevatorId: `${item.elevator_id}`,
         elevatorName: item.elevator_name || '未知电梯',
         villageName: '未知小区',
-        severity: item.fault_type === '故障告警' ? 'TRAPPED' : item.fault_type === '故障记录' ? 'FAULT' : 'WARNING',
+        severity: severityMap[item.fault_type] ?? 'WARNING',
         status: 'REPORTED',
         reportTime: item.fault_time,
         trappedCount: 0,
@@ -135,30 +140,11 @@ const getList = async () => {
   }
 };
 
-const convertStatus = (s: number): EmergencyStatus => {
-  if (s === 0) return 'REPORTED';
-  if (s === 1) return 'ASSIGNED';
-  if (s === 2) return 'EN_ROUTE';
-  if (s === 3) return 'CLOSED';
-  return 'REPORTED';
-};
-
 onMounted(() => {
   getList();
   setTimeout(() => {
     refreshPagination();
   }, 0);
-});
-
-const stats = computed(() => {
-  const trapped = tasks.value.filter(t => t.severity === 'TRAPPED' && t.status !== 'CLOSED').length;
-  const ongoing = tasks.value.filter(t => t.status !== 'CLOSED').length;
-  return [
-    { label: '待处理困人', value: trapped, icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-500/10' },
-    { label: '正在处理中', value: ongoing, icon: Activity, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    { label: '今日平均响应', value: '8.4m', icon: Timer, color: 'text-sky-500', bg: 'bg-sky-500/10' },
-    { label: '结案率 (今日)', value: '92%', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
-  ];
 });
 
 const getSeverityStyle = (severity: EmergencySeverity) => {

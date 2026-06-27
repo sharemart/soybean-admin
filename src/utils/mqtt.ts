@@ -13,9 +13,6 @@ let client: MqttClient | null = null;
  * @returns MQTT 客户端实例
  */
 const createMQTTClient = (deviceID: string, onMessage: (payload: any) => void) => {
-  // 新增：打印当前环境，方便排查
-  console.log('当前环境：', typeof window !== 'undefined' ? '浏览器' : '非浏览器（如小程序）');
-
   // 如果已有连接，先关闭旧连接
   if (client) {
     client.end(true);

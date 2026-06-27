@@ -8,7 +8,11 @@ import {
   getMaintainCompanyList,
   getMaintainGroupList
 } from '@/service/api/scheduling/schedulingApi';
-import type { ElevatorSimpleItem, MaintainCompanyItem, MaintainGroupItem } from '@/service/api/scheduling/scheduling.d';
+import type {
+  ElevatorSimpleItem,
+  MaintainCompanyItem,
+  MaintainGroupSelectItem
+} from '@/service/api/scheduling/scheduling.d';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 
 const message = useMessage();
@@ -31,7 +35,7 @@ const form = reactive({
 
 const elevatorList = ref<ElevatorSimpleItem[]>([]);
 const companyList = ref<MaintainCompanyItem[]>([]);
-const groupList = ref<MaintainGroupItem[]>([]);
+const groupList = ref<MaintainGroupSelectItem[]>([]);
 const submitting = ref(false);
 const groupLoading = ref(false);
 
@@ -49,10 +53,11 @@ const companyOptions = computed(() =>
   }))
 );
 
+// ✅ groupOptions 可以直接使用 group_id 和 group_name
 const groupOptions = computed(() =>
-  groupList.value.map(g => ({
+  groupList.value.map((g: MaintainGroupSelectItem) => ({
     label: g.group_name || '',
-    value: `${g.group_id}` || ''
+    value: String(g.group_id || '')
   }))
 );
 
@@ -77,10 +82,11 @@ const loadGroupByCompany = async (companyId: string | number) => {
   }
   groupLoading.value = true;
   try {
-    const res = await getMaintainGroupList({ company_id: companyId });
+    const res = await getMaintainGroupList({ company_id: Number(companyId) });
     groupList.value = res.data?.data || [];
     if (groupList.value.length > 0) {
-      form.groupId = `${groupList.value[0].group_id}`;
+      // ✅ 现在可以安全访问 group_id
+      form.groupId = String(groupList.value[0].group_id);
     }
   } catch (error) {
     console.error('获取维保小组失败', error);
@@ -126,20 +132,33 @@ watch(
 
 const handleConfirm = async () => {
   if (submitting.value) return;
-  if (!form.elevatorId) return alert('请选择电梯设备！');
-  if (!form.company_id) return alert('请选择维保单位！');
-  if (!form.groupId) return alert('请选择执行小组！');
-  if (!form.startDate) return alert('请选择计划开始日期！');
+
+  if (!form.elevatorId) {
+    message.warning('请选择电梯设备！');
+    return;
+  }
+  if (!form.company_id) {
+    message.warning('请选择维保单位！');
+    return;
+  }
+  if (!form.groupId) {
+    message.warning('请选择执行小组！');
+    return;
+  }
+  if (!form.startDate) {
+    message.warning('请选择计划开始日期！');
+    return;
+  }
 
   submitting.value = true;
 
   try {
     const submitData = {
-      elevator_id: form.elevatorId,
-      company_id: form.company_id,
+      elevator_id: Number(form.elevatorId),
+      company_id: Number(form.company_id),
       maintain_start_time: `${form.startDate} 00:00:00`,
       maintain_year: form.years,
-      group_id: form.groupId,
+      group_id: Number(form.groupId),
       intervals: form.interval,
       maintain_delay: form.delay
     };
@@ -163,6 +182,7 @@ const handleConfirm = async () => {
 </script>
 
 <template>
+  <!-- 模板部分保持不变 -->
   <Teleport to="body">
     <div v-if="props.isOpen" class="fixed inset-0 z-[1200] flex items-center justify-center p-4">
       <div class="animate-in fade-in absolute inset-0 bg-slate-950/70 backdrop-blur-md" @click="emit('close')"></div>

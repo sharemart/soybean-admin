@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineEmits, defineProps, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { NButton, NIcon, NInput, NModal, NSelect, NSkeleton, useMessage } from 'naive-ui';
 import {
   Activity,
@@ -21,11 +21,20 @@ import {
   updateMaintainGroup
 } from '@/service/api/company/company';
 
+interface Technician {
+  id: string;
+  name: string;
+  phone: string;
+  level: string;
+  status: string;
+  companyId: string;
+}
+
 interface MaintenanceTeam {
   id?: string;
   name: string;
   companyId: string;
-  members: string[];
+  members: Technician[] | string[];
   leaderIds?: string[];
   clerkIds?: string[];
   level4Ids?: string[];
@@ -40,6 +49,21 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'confirm', 'refresh']);
+
+const showModal = ref(false);
+
+// 同步 props.isOpen 到本地 showModal
+watch(
+  () => props.isOpen,
+  val => {
+    showModal.value = val;
+  }
+);
+
+// 弹窗关闭时 emit close 事件
+watch(showModal, val => {
+  if (!val) emit('close');
+});
 
 const message = useMessage();
 
@@ -58,8 +82,23 @@ const companyOptions = ref<{ label: string; value: string }[]>([]);
 const isSubmitting = ref(false);
 const sendLevel = ref(5);
 
-// ⭐ 新：用户选项
-const userOptions = ref({
+interface UserOption {
+  label: string;
+  value: string;
+  disabled: boolean;
+}
+
+// 定义 userOptions 的类型
+interface UserOptions {
+  wb: UserOption[];
+  level2: UserOption[];
+  level3: UserOption[];
+  level4: UserOption[];
+  level5: UserOption[];
+}
+
+// 使用明确的类型
+const userOptions = ref<UserOptions>({
   wb: [],
   level2: [],
   level3: [],
@@ -75,8 +114,17 @@ const mapToOptions = (list: any[] = []) => {
     disabled: u.disabled || false
   }));
 };
+// 将成员转换为 ID 数组
+const toMemberIds = (members: any[] | undefined): string[] => {
+  if (!members || !Array.isArray(members)) return [];
+  return members
+    .map(m => {
+      if (typeof m === 'string') return m;
+      return m.id?.toString() || m.user_id?.toString() || m.technician_id?.toString() || '';
+    })
+    .filter(id => id !== '');
+};
 
-// ⭐ 核心接口
 const fetchGroupUsers = async (companyId: string, groupId?: string) => {
   if (!companyId) return;
 
@@ -97,17 +145,38 @@ const fetchGroupUsers = async (companyId: string, groupId?: string) => {
         level5: mapToOptions(data.q_user5)
       };
 
+      // ✅ 关键修复：在设置表单数据时转换成员为 ID 数组
       if (props.team) {
-        formData.value.members = props.team.members || [];
-        formData.value.leaderIds = props.team.leaderIds || [];
-        formData.value.clerkIds = props.team.clerkIds || [];
-        formData.value.level4Ids = props.team.level4Ids || [];
-        formData.value.level5Ids = props.team.level5Ids || [];
+        formData.value.name = props.team.name;
+        formData.value.companyId = props.team.companyId;
+        formData.value.members = toMemberIds(props.team.members);
+        formData.value.leaderIds = toMemberIds(props.team.leaderIds);
+        formData.value.clerkIds = toMemberIds(props.team.clerkIds);
+        formData.value.level4Ids = toMemberIds(props.team.level4Ids);
+        formData.value.level5Ids = toMemberIds(props.team.level5Ids);
+
+        // 确保已选中的值在选项列表中（防止后端未返回已选中人员导致回显失败）
+        const ensureInOptions = (ids: string[], options: UserOption[], sourceList: any[]) => {
+          const missingIds = ids.filter(id => !options.some(o => o.value === id));
+          missingIds.forEach(id => {
+            const found = sourceList.find((u: any) => u.user_id?.toString() === id);
+            options.push({
+              label: found?.realname || `用户${id}`,
+              value: id,
+              disabled: false
+            });
+          });
+        };
+
+        ensureInOptions(formData.value.members, userOptions.value.wb, data.wb_user);
+        ensureInOptions(formData.value.leaderIds, userOptions.value.level2, data.q_user2);
+        ensureInOptions(formData.value.clerkIds, userOptions.value.level3, data.q_user3);
+        ensureInOptions(formData.value.level4Ids, userOptions.value.level4, data.q_user4);
+        ensureInOptions(formData.value.level5Ids, userOptions.value.level5, data.q_user5);
       }
     }
   } catch (err) {
-    console.error(err);
-    message.error('获取人员失败');
+    message.error(`获取人员失败${err}`);
   }
 };
 
@@ -126,7 +195,17 @@ const handleCompanyChange = async (value: string) => {
   await fetchGroupUsers(value);
 };
 
-// 监听弹窗
+// 公司
+const fetchCompanies = async () => {
+  const res = await getMaintainCompanyList();
+  companyOptions.value =
+    res.data?.data.map((i: any) => ({
+      label: i.company_name,
+      value: i.company_id.toString()
+    })) || [];
+};
+fetchCompanies();
+
 watch(
   () => props.isOpen,
   async open => {
@@ -137,9 +216,11 @@ watch(
     }
 
     if (props.team) {
+      // 先设置基本信息
       formData.value.name = props.team.name;
       formData.value.companyId = props.team.companyId;
 
+      // 获取用户列表并设置成员
       await fetchGroupUsers(props.team.companyId, props.team.id);
     } else {
       formData.value = {
@@ -200,28 +281,16 @@ const handleSubmit = async () => {
       message.error(res?.response?.data?.msg || '失败');
     }
   } catch (e) {
-    message.error('请求失败');
+    message.error(`请求失败${e}`);
   } finally {
     isSubmitting.value = false;
   }
 };
-
-// 公司
-const fetchCompanies = async () => {
-  const res = await getMaintainCompanyList();
-  companyOptions.value =
-    res.data?.data.map((i: any) => ({
-      label: i.company_name,
-      value: i.company_id.toString()
-    })) || [];
-};
-
-fetchCompanies();
 </script>
 
 <template>
   <NModal
-    v-model:show="props.isOpen"
+    v-model:show="showModal"
     class="team-edit-modal"
     :mask-closable="!props.loading"
     @mask-click="!props.loading && handleClose"

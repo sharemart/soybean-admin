@@ -1,3 +1,6 @@
+import type { ApiResponse } from '@/service/api/types/common';
+
+// ====================== 仪表盘核心统计指标 ======================
 /**
  * 仪表盘核心统计指标数据项
  */
@@ -21,18 +24,9 @@ export interface DashboardStatisticsItem {
   /** 平均响应趋势（如：-2.1m） */
   avg_response_trend: string;
 }
+export type GetDashboardStatisticsResponse = ApiResponse<DashboardStatisticsItem>;
 
-/**
- * 获取仪表盘核心统计指标 - 响应体
- */
-export interface GetDashboardStatisticsResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 仪表盘统计信息 */
-  data: DashboardStatisticsItem;
-}
+// ====================== 实时在线终端统计 ======================
 /**
  * 实时在线终端统计数据项
  */
@@ -52,18 +46,9 @@ export interface OnlineTerminalStatsItem {
   /** 是否来自快照表（仅 snapshot=1 时可能为 true） */
   from_snapshot: boolean;
 }
+export type GetOnlineTerminalStatsResponse = ApiResponse<OnlineTerminalStatsItem>;
 
-/**
- * 获取实时在线终端统计 - 响应体
- */
-export interface GetOnlineTerminalStatsResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 在线终端统计信息 */
-  data: OnlineTerminalStatsItem;
-}
+// ====================== 昨日遗留任务 ======================
 /**
  * 昨日遗留任务项
  */
@@ -80,25 +65,13 @@ export interface YesterdayPendingItem {
   level: string;
 }
 
-/**
- * 昨日遗留任务数据
- */
 export interface YesterdayPendingData {
   /** 遗留任务列表 */
   list: YesterdayPendingItem[];
 }
+export type GetYesterdayPendingResponse = ApiResponse<YesterdayPendingData>;
 
-/**
- * 获取昨日遗留任务 - 响应体
- */
-export interface GetYesterdayPendingResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 昨日遗留任务 */
-  data: YesterdayPendingData;
-}
+// ====================== AI部件失效预测 ======================
 /**
  * AI部件失效预测项
  */
@@ -109,25 +82,18 @@ export interface ComponentFailurePredictionItem {
   rate: number;
 }
 
-/**
- * AI部件失效预测数据
- */
 export interface ComponentFailurePredictionData {
   /** 部件预测列表 */
   list: ComponentFailurePredictionItem[];
 }
+export type GetComponentFailurePredictionResponse = ApiResponse<ComponentFailurePredictionData>;
 
-/**
- * 获取AI部件失效预测 - 响应体
- */
-export interface GetComponentFailurePredictionResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - AI部件失效预测 */
-  data: ComponentFailurePredictionData;
+// ====================== 作业负载实时轨迹 ======================
+export interface GetWorkloadTrendParams {
+  /** 日期 | 格式：Y-m-d，不传则默认为今天 */
+  date?: string;
 }
+
 /**
  * 作业负载实时轨迹项
  */
@@ -138,33 +104,18 @@ export interface WorkloadTrendItem {
   load: number;
 }
 
-/**
- * 作业负载实时轨迹数据
- */
 export interface WorkloadTrendData {
   /** 负载数据列表 */
   list: WorkloadTrendItem[];
 }
+export type GetWorkloadTrendResponse = ApiResponse<WorkloadTrendData>;
 
-/**
- * 获取作业负载实时轨迹 - 响应体
- */
-export interface GetWorkloadTrendResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 作业负载实时轨迹 */
-  data: WorkloadTrendData;
+// ====================== 今日维保小组作业饱和度 ======================
+export interface GetTodayWorkParams {
+  /** 维保公司ID（可选；会在你可访问范围内生效） */
+  company_id?: number;
 }
 
-/**
- * 获取作业负载实时轨迹请求参数
- */
-export interface GetWorkloadTrendParams {
-  /** 日期 | 格式：Y-m-d，不传则默认为今天 */
-  date?: string;
-}
 /**
  * 今日维保小组作业饱和度项
  */
@@ -185,35 +136,15 @@ export interface TodayWorkItem {
   saturation_rate: number;
 }
 
-/**
- * 今日维保小组作业饱和度数据
- */
 export interface TodayWorkData {
   /** 维保小组饱和度列表 */
   list: TodayWorkItem[];
   /** 维保小组数量 */
   total_groups: number;
 }
+export type GetTodayWorkResponse = ApiResponse<TodayWorkData>;
 
-/**
- * 获取今日维保小组作业饱和度 - 响应体
- */
-export interface GetTodayWorkResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 今日维保小组作业饱和度 */
-  data: TodayWorkData;
-}
-
-/**
- * 获取今日维保小组作业饱和度请求参数
- */
-export interface GetTodayWorkParams {
-  /** 维保公司ID（可选；会在你可访问范围内生效） */
-  company_id?: number;
-}
+// ====================== 今日目标达成率 ======================
 /**
  * 今日目标达成率数据项
  */
@@ -229,18 +160,14 @@ export interface TodayProgressItem {
   /** 达成率百分比（0-100） */
   efficiency: number;
 }
+export type GetTodayProgressResponse = ApiResponse<TodayProgressItem>;
 
-/**
- * 获取今日目标达成率 - 响应体
- */
-export interface GetTodayProgressResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 今日目标达成率 */
-  data: TodayProgressItem;
+// ====================== 实时处警流 ======================
+export interface GetRealtimeAlertsParams {
+  /** 返回数量限制，默认10 */
+  limit?: number;
 }
+
 /**
  * 实时处警流项
  */
@@ -255,30 +182,8 @@ export interface RealtimeAlertsItem {
   time: string;
 }
 
-/**
- * 实时处警流数据
- */
 export interface RealtimeAlertsData {
   /** 处警列表 */
   list: RealtimeAlertsItem[];
 }
-
-/**
- * 获取实时处警流 - 响应体
- */
-export interface GetRealtimeAlertsResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 实时处警流 */
-  data: RealtimeAlertsData;
-}
-
-/**
- * 获取实时处警流请求参数
- */
-export interface GetRealtimeAlertsParams {
-  /** 返回数量限制，默认10 */
-  limit?: number;
-}
+export type GetRealtimeAlertsResponse = ApiResponse<RealtimeAlertsData>;

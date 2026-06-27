@@ -163,7 +163,7 @@ const getTypeDisplay = (type: 'REPAIR' | 'REPLACE') => {
       class="flex flex-col items-center gap-4 border border-slate-200 rounded-[2rem] bg-white p-5 shadow-sm backdrop-blur-md lg:flex-row dark:border-slate-800 dark:bg-slate-900/40"
     >
       <div class="relative w-full flex-1">
-        <Search class="absolute left-4 top-1/2 text-slate-400 -translate-y-1/2" size="16" />
+        <Search class="absolute left-4 top-1/2 text-slate-400 -translate-y-1/2" :size="16" />
         <input
           v-model="searchTerm"
           type="text"
@@ -177,7 +177,7 @@ const getTypeDisplay = (type: 'REPAIR' | 'REPLACE') => {
           :class="isSyncing && 'animate-spin text-sky-500'"
           @click="handleSync"
         >
-          <RefreshCw size="18" />
+          <RefreshCw :size="18" />
         </button>
         <button
           class="flex-1 rounded-2xl bg-sky-500 px-8 py-2.5 text-xs text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all lg:flex-none active:scale-95 hover:bg-sky-600"
@@ -237,7 +237,7 @@ const getTypeDisplay = (type: 'REPAIR' | 'REPLACE') => {
                   class="rounded-xl bg-slate-100 p-2 shadow-sm transition-all dark:bg-slate-800 hover:bg-sky-500 hover:text-white"
                   @click="openDetailModal(order)"
                 >
-                  <Eye size="16" />
+                  <Eye :size="16" />
                 </button>
               </td>
             </tr>
@@ -252,7 +252,7 @@ const getTypeDisplay = (type: 'REPAIR' | 'REPLACE') => {
           <div class="mb-6 flex items-center justify-between">
             <h3 class="text-lg text-slate-800 font-bold dark:text-white">维修工单详情 - {{ selectedOrder?.id }}</h3>
             <button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" @click="closeDetailModal">
-              <XCircle size="20" />
+              <XCircle :size="20" />
             </button>
           </div>
 
@@ -429,10 +429,7 @@ const getTypeDisplay = (type: 'REPAIR' | 'REPLACE') => {
 .overflow-y-auto::-webkit-scrollbar {
   width: 6px;
 }
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: #f15f9;
-  border-radius: 8px;
-}
+
 .overflow-y-auto::-webkit-scrollbar-thumb {
   background: #94a3b8;
   border-radius: 8px;

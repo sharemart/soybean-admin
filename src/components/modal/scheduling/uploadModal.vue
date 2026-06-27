@@ -77,9 +77,9 @@ const handleSubmit = async () => {
   importLoading.value = true;
 
   try {
-    const res = await batchImportPlanExcel(formData);
+    const res = await batchImportPlanExcel(formData as any);
     if (res.data?.code !== 2000) {
-      message.warning(res.message || '导入失败');
+      message.warning(res.data?.msg || '导入失败');
       return;
     }
 
@@ -89,7 +89,6 @@ const handleSubmit = async () => {
     emit('close');
   } catch (err: any) {
     message.error(err?.message || '导入失败，请检查文件格式');
-    console.error('导入异常：', err);
   } finally {
     // 无论成功失败都关闭 loading
     importLoading.value = false;

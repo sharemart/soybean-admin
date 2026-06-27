@@ -143,7 +143,7 @@ const handleCheckAll = () => {
 // ==========================
 // 核心：完全接管勾选（无半选）
 // ==========================
-const handleChecked = (keys: string[], options: any, meta: any) => {
+const handleChecked = (keys: string[], meta: any) => {
   const currentKeys = new Set(keys);
   const clickedNode = meta.node;
   const nodeKeys = getNodeAndChildrenKeys(clickedNode);
@@ -207,30 +207,37 @@ const handleClose = () => {
   emit('close');
 };
 
-// ==========================
-// 提交：直接提交所有勾选的 key（包含父节点）
-// ==========================
 const handleSubmit = async () => {
   if (!formData.value.role_name) {
     message.warning('请输入角色名称');
     return;
   }
-  if (formData.value.company_id == null) {
+  if (formData.value.company_id === null) {
     message.warning('请选择所属组织单位');
     return;
   }
 
   try {
     isSubmitting.value = true;
-    const params = {
-      ...(formData.value.role_id && { role_id: formData.value.role_id }),
+
+    const baseParams = {
       role_name: formData.value.role_name,
       company_id: formData.value.company_id,
       role_syn: formData.value.role_syn,
-      menu_ids: checkedKeys.value.map(Number) // 直接提交所有勾选
+      menu_ids: checkedKeys.value.map(Number)
     };
 
-    const res = formData.value.role_id ? await fetchRoleSetMenus(params) : await fetchRoleCreate(params);
+    let res;
+    if (formData.value.role_id) {
+      const params = {
+        ...baseParams,
+        role_id: formData.value.role_id
+      };
+      res = await fetchRoleSetMenus(params);
+    } else {
+      res = await fetchRoleCreate(baseParams);
+    }
+
     if (res?.data?.code === 2000) {
       message.success('保存成功');
       emit('refresh-list');
@@ -240,7 +247,7 @@ const handleSubmit = async () => {
       message.error(res?.data?.msg ?? '操作失败');
     }
   } catch (err) {
-    message.error('请求失败，请稍后重试');
+    message.error(`请求失败，请稍后重试${err}`);
   } finally {
     isSubmitting.value = false;
   }

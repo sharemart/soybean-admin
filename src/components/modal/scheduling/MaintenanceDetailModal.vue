@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw } from 'vue';
+import { computed } from 'vue';
 import { NButton, NModal } from 'naive-ui';
 import { Camera, FileText, MapPin, PenTool, ShieldCheck } from 'lucide-vue-next';
 
@@ -55,13 +55,6 @@ const dimensionConfig = Object.freeze([
   { key: 'year', label: '年度维保', tagColor: 'bg-green-500' }
 ]);
 
-const colorMap = Object.freeze({
-  sky: 'border-sky-500',
-  indigo: 'border-indigo-500',
-  emerald: 'border-emerald-500',
-  amber: 'border-amber-500'
-});
-
 const statusClassMap = Object.freeze({
   COMPLETED: 'bg-emerald-500',
   IN_PROGRESS: 'bg-sky-500',
@@ -85,7 +78,9 @@ const formatImageUrl = (path?: string) => {
 const maintainInfo = computed(() => props.detailData?.maintainInfo ?? {});
 const showCheckResult = computed(() => maintainInfo.value.is_maintain === 2);
 const statusClass = computed(() => statusClassMap[props.task?.status ?? 'PENDING']);
-const maintainStatusText = computed(() => maintainStatusMap[maintainInfo.value.is_maintain] ?? '未知状态');
+const maintainStatusText = computed(
+  () => maintainStatusMap[maintainInfo.value.is_maintain as keyof typeof maintainStatusMap] ?? '未知状态'
+);
 
 const signatureImgOne = computed(() => formatImageUrl(maintainInfo.value.signature_img_one));
 const signatureImgTwo = computed(() => formatImageUrl(maintainInfo.value.signature_img_two));
@@ -100,7 +95,12 @@ const groupedProjects = computed<DimensionGroup[]>(() => {
     if (!Array.isArray(list) || !list.length) return res;
 
     const valid = list.filter(i => i?.project_name?.trim() && i?.project_syn?.trim());
-    if (valid.length) res.push({ ...config, projects: valid });
+    if (valid.length) {
+      res.push({
+        ...config,
+        projects: valid
+      } as DimensionGroup);
+    }
     return res;
   }, [] as DimensionGroup[]);
 });

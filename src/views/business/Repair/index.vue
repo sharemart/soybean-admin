@@ -43,12 +43,13 @@ const getRepairList = async () => {
     const res = await getMaintainRepairFlowList({
       page: page.value,
       limit: limit.value,
-      status: status.value
+      status: status.value ?? 0
     });
 
     if (res?.data?.code === 2000) {
-      orders.value = res.data.data.list || [];
-      total.value = res.data.data.total || 0;
+      const pageData = res.data.data as { list: any[]; total: number };
+      orders.value = pageData.list || [];
+      total.value = pageData.total || 0;
     }
   } catch (err) {
     console.error('获取维修单失败', err);
@@ -68,8 +69,8 @@ watch(searchTerm, () => {
   getRepairList();
 });
 
-const getStatusDisplay = (status: number) => {
-  switch (status) {
+const getStatusDisplay = (flowStatus: number) => {
+  switch (flowStatus) {
     case 0:
       return { color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
     case 1:
@@ -119,7 +120,7 @@ const handleUpdateOrder = (updatedOrder: RepairOrder) => {
   orders.value = orders.value.map(o => (o.id === updatedOrder.id ? updatedOrder : o));
 };
 
-const handleAddConfirm = async (data: any) => {
+const handleAddConfirm = async () => {
   message.success('维修申请提交成功');
   showAddModal.value = false;
   getRepairList();
@@ -243,7 +244,6 @@ const handlePageChange = (val: number) => {
           <PagePagination
             v-model:current="tempPage"
             :total="total"
-            :current="page"
             :page-size="limit"
             :disabled="isSyncing"
             @change="handlePageChange"

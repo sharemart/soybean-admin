@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from 'vue';
 import { useMessage } from 'naive-ui';
+import type { SelectOption } from 'naive-ui';
 import { getMaintainGroupList } from '@/service/api/company/company';
 
 // ====================== 类型定义 ======================
@@ -34,10 +35,8 @@ export interface GetMaintainGroupListResponse {
   data: MaintainGroupItem[];
 }
 
-/** Select 组件选项类型 */
-export interface MaintainGroupOption {
-  label: string;
-  value: number;
+/** Select 组件选项类型 - 使用 SelectOption */
+export interface MaintainGroupOption extends SelectOption {
   group_name: string;
   company_name: string;
 }
@@ -60,8 +59,13 @@ export function useMaintainGroupList() {
     try {
       loading.fetching = true;
 
-      // 保存当前公司
-      if (company_id !== undefined) {
+      // 当公司ID变化时，立即清空列表并强制从第一页开始
+      const isCompanyChanged = company_id !== undefined && company_id !== currentCompanyId.value;
+      if (isCompanyChanged) {
+        groupList.value = [];
+        currentCompanyId.value = company_id;
+        params.page = 1;
+      } else if (company_id !== undefined) {
         currentCompanyId.value = company_id;
       }
 
@@ -74,7 +78,7 @@ export function useMaintainGroupList() {
 
       if (res?.data?.code === 2000 && res.data.data) {
         const data = res.data.data;
-        if (params.page === 1) {
+        if (isCompanyChanged || params.page === 1) {
           groupList.value = data;
         } else {
           groupList.value = [...groupList.value, ...data];
@@ -93,7 +97,6 @@ export function useMaintainGroupList() {
     }
   };
 
-  // ====================== ✅ 关键修复：和电梯一样的搜索 ======================
   const handleSearch = (keyword: string) => {
     fetchMaintainGroupList(undefined, {
       name: keyword,

@@ -68,7 +68,7 @@ const loadingOptions = ref(false);
 // ========== 工具函数：安全转换数字（关键修复2） ==========
 const safeToNumber = (value: any, fallback = 0): number => {
   const num = Number(value);
-  return isNaN(num) ? fallback : num;
+  return Number.isNaN(num) ? fallback : num;
 };
 
 // ========== 获取下拉选项数据 ==========
@@ -90,10 +90,9 @@ const getPartOptions = async () => {
       }
     }
   } catch (error) {
-    console.error('获取部件选项失败:', error);
-    message.error('获取选项数据失败，请重试');
+    message.error(`获取选项数据失败，请重试${error}`);
     partOptions.value = {
-      part_place_options: [{ value: 0, label: '获取选项失败' }], // 修复：value改为数字0
+      part_place_options: [{ value: 0, label: '获取选项失败' }],
       part_code_options: [{ value: 0, label: '获取选项失败' }],
       part_lift_type_options: [{ value: 0, label: '获取选项失败' }]
     };
@@ -103,16 +102,19 @@ const getPartOptions = async () => {
 };
 
 // ========== ECharts 相关函数 ==========
+const resizeEchart = () => {
+  if (echartInstance) {
+    echartInstance.resize();
+  }
+};
+
+// ✅ 再定义 destroyEchart
 const destroyEchart = () => {
   if (echartInstance) {
     echartInstance.dispose();
     echartInstance = null;
   }
   window.removeEventListener('resize', resizeEchart);
-};
-
-const resizeEchart = () => {
-  echartInstance?.resize();
 };
 
 const initEchart = () => {
@@ -156,15 +158,16 @@ watch(
         getPartOptions();
       }
 
-      // 初始化表单（关键修复3：使用正确的字段名 + 安全类型转换）
       if (newInitialData) {
         formData.part_name = newInitialData.part_name || '';
-        // 父组件传递的是 part_place_id/part_type_id，不是 part_place/part_type
-        formData.part_place = safeToNumber(newInitialData.part_place_id || newInitialData.part_place, null);
-        formData.part_lift_type = safeToNumber(newInitialData.part_lift_type_id || newInitialData.part_lift_type, null);
+        formData.part_place = safeToNumber(newInitialData.part_place_id || newInitialData.part_place, undefined);
+        formData.part_lift_type = safeToNumber(
+          newInitialData.part_lift_type_id || newInitialData.part_lift_type,
+          undefined
+        );
         formData.part_lift = newInitialData.part_lift || '';
         formData.useTime = safeToNumber(newInitialData.useTime, 5);
-        formData.part_type = safeToNumber(newInitialData.part_type_id || newInitialData.part_type, null);
+        formData.part_type = safeToNumber(newInitialData.part_type_id || newInitialData.part_type, undefined);
       } else {
         // 重置表单
         formData.part_name = '';
@@ -196,17 +199,17 @@ const validateForm = (): boolean => {
     message.error('请输入部件名称');
     return false;
   }
-  if (formData.part_place === null || isNaN(formData.part_place)) {
+  if (formData.part_place === null || Number.isNaN(formData.part_place)) {
     // 修复：校验null/NaN
     message.error('请选择部件位置');
     return false;
   }
-  if (formData.part_type === null || isNaN(formData.part_type)) {
+  if (formData.part_type === null || Number.isNaN(formData.part_type)) {
     // 修复：校验null/NaN
     message.error('请选择部件编码');
     return false;
   }
-  if (formData.part_lift_type === null || isNaN(formData.part_lift_type)) {
+  if (formData.part_lift_type === null || Number.isNaN(formData.part_lift_type)) {
     message.error('请选择寿命计算方式');
     return false;
   }
@@ -235,10 +238,10 @@ const handleSubmit = async () => {
     // 最终提交数据：确保所有数字字段都是有效数字
     const baseData = {
       part_name: formData.part_name.trim(),
-      part_place: safeToNumber(formData.part_place), // 兜底转换
-      part_lift_type: safeToNumber(formData.part_lift_type),
+      part_place: safeToNumber(formData.part_place),
+      part_lift_type: safeToNumber(formData.part_lift_type) as 1 | 2 | 3,
       part_lift: formData.part_lift.trim(),
-      part_type: safeToNumber(formData.part_type), // 兜底转换
+      part_type: safeToNumber(formData.part_type),
       useTime: safeToNumber(formData.useTime, 5)
     };
 
@@ -249,7 +252,7 @@ const handleSubmit = async () => {
         id: safeToNumber(props.initialData.original_id || props.initialData.id),
         ...baseData
       };
-      response = await updateElevatorPart(updateData);
+      response = await updateElevatorPart(updateData as any);
 
       if (response?.data?.code === 2000) {
         message.success('部件修改成功');
@@ -258,7 +261,7 @@ const handleSubmit = async () => {
     // 新增模式
     else {
       const createData: CreatePartParams = baseData;
-      response = await createElevatorPart(createData);
+      response = await createElevatorPart(createData as any);
 
       if (response?.data?.code === 2000) {
         message.success('部件新增成功');
@@ -268,8 +271,7 @@ const handleSubmit = async () => {
     props.onConfirm(baseData);
     handleClose();
   } catch (error) {
-    console.error('提交失败:', error);
-    message.error('操作失败，请重试');
+    message.error(`操作失败，请重试${error}`);
   } finally {
     isSubmitting.value = false;
   }

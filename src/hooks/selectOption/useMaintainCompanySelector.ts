@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { getMaintainCompanyList } from '@/service/api/company/company';
 
@@ -56,7 +56,8 @@ export function useMaintainCompanySelector() {
         hasMore.value = false;
       }
     } catch (error) {
-      message.error('获取维保公司失败');
+      message.error(`获取维保公司失败${error}`);
+
       hasMore.value = false;
     } finally {
       loading.maintainLoading = false;

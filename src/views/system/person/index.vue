@@ -3,27 +3,13 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { format } from 'date-fns';
 import * as echarts from 'echarts';
-import {
-  Activity,
-  BadgeCheck,
-  Briefcase,
-  Edit,
-  Info,
-  Mail,
-  Phone,
-  Plus,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Trash2,
-  UserCheck,
-  Users
-} from 'lucide-vue-next';
-import { deleteUser, fetchUserDetail, fetchUserList, updateUser } from '@/service/api/person/personApi';
+import { BadgeCheck, Briefcase, Edit, Info, Mail, Phone, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next';
+import { deleteUser, fetchUserDetail, fetchUserList } from '@/service/api/person/personApi';
 import AddPersonModal from '@/components/modal/person/addPerson.vue';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import PagePagination from '@/components/common/PagePagination.vue';
 
+// ==================== 枚举常量 ====================
 enum UserSex {
   MALE = 1,
   FEMALE = 2
@@ -34,6 +20,18 @@ enum JobType {
   MANAGER = 2,
   GENERAL = 3
 }
+
+const JOB_BADGE_MAP: Record<JobType, { label: string; color: string }> = {
+  [JobType.MAINTENANCE]: { label: '维保人员', color: 'bg-indigo-500/10 text-indigo-500' },
+  [JobType.MANAGER]: { label: '管理人员', color: 'bg-amber-500/10 text-amber-500' },
+  [JobType.GENERAL]: { label: '普通人员', color: 'bg-slate-500/10 text-slate-400' }
+};
+
+const DEFAULT_COMPANY_MAP: Record<string, string> = {
+  C001: '通力维保服务中心'
+};
+const AVATAR_BASE = 'https://ui-avatars.com/api/';
+const DATE_FORMAT = 'yyyy-MM-dd';
 
 interface UserListParams {
   user_name?: string;
@@ -66,23 +64,17 @@ interface UserListItem {
 }
 
 interface UserListResponse {
-  code: number;
-  message: string;
   data: {
     code: number;
-    message: string;
-    list: UserListItem[];
-    total: number;
-    page: number;
-    limit: number;
+    data: {
+      list: UserListItem[];
+      total: number;
+      page: number;
+      limit: number;
+    };
+    msg: string;
   };
-  total?: number;
-}
-
-interface UserDetailResponse {
-  code: number;
-  msg: string;
-  data: UserListItem;
+  error: null | string;
 }
 
 interface SystemUser {
@@ -105,35 +97,65 @@ interface SystemUser {
   user_syn?: string;
 }
 
-const users = ref<SystemUser[]>([]);
-const searchTerm = ref('');
-const jobFilter = ref('0');
-const isSyncing = ref(false);
-const isEditModalOpen = ref(false);
-const editingUser = ref<SystemUser | null>(null);
-const chartRef = ref<HTMLDivElement | null>(null);
-const formRef = ref<{ validate: () => Promise<void>; clearValidate: () => void } | null>(null);
+// ==================== 工具方法 ====================
 const message = useMessage();
 const dialog = useDialog();
 
+const getAvatarUrl = (name: string) => `${AVATAR_BASE}?name=${encodeURIComponent(name || '用户')}&background=random`;
+const showErr = (msg: string) => message.error(msg || '操作失败，请稍后重试');
+const showSuc = (msg: string) => message.success(msg);
+
+const convertToSystemUser = (item: UserListItem): SystemUser => {
+  return {
+    id: item.user_id.toString(),
+    user_id: item.user_id,
+    user_name: item.user_name,
+    realname: item.realname,
+    phone: String(item.phone),
+    email: item.email,
+    sex: (item.sex as UserSex) || UserSex.MALE,
+    company_id: String(item.company_id),
+    company_name: item.company_name || DEFAULT_COMPANY_MAP[String(item.company_id)] || '其他公司',
+    role_id: String(item.role_id),
+    role_name: item.role_name || '',
+    jobs: (item.jobs as JobType) || JobType.MAINTENANCE,
+    head_img: getAvatarUrl(item.realname),
+    office_phone: item.office_phone || '',
+    add_time: item.add_time || '',
+    is_use: item.is_use,
+    user_syn: item.user_syn || ''
+  };
+};
+
+function debounce<T extends (...args: any[]) => void>(fn: T, delay = 100) {
+  let timer: number | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = window.setTimeout(() => fn(...args), delay);
+  };
+}
+
+// ==================== 全局状态 ====================
+const users = ref<SystemUser[]>([]);
+const totalCount = ref(0);
 const loading = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(20);
-const totalCount = ref(0);
+const searchTerm = ref('');
+const jobFilter = ref('0');
+// 加载状态
+const isSyncing = ref(false);
 const editLoading = ref(false);
 const deleteLoading = ref(false);
 const updateLoading = ref(false);
+const allBtnLoading = computed(() => editLoading.value || deleteLoading.value || updateLoading.value);
 
-let myChart: echarts.ECharts | null = null;
-
-const jobOptions = ref([
-  { label: '维保人员', value: JobType.MAINTENANCE },
-  { label: '管理人员', value: JobType.MANAGER },
-  { label: '普通人员', value: JobType.GENERAL }
-]);
-
-const pageSizeOptions = ref([10, 20, 50, 100]);
-
+// 弹窗表单
+const isEditModalOpen = ref(false);
+const editingUser = ref<SystemUser | null>(null);
+const formRef = ref<{ validate: () => Promise<void>; clearValidate: () => void } | null>(null);
 const formData = ref<Partial<SystemUser>>({
   id: '',
   user_id: 0,
@@ -151,83 +173,30 @@ const formData = ref<Partial<SystemUser>>({
   role_id: ''
 });
 
-const formRules = ref({
-  user_name: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  realname: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
-  phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的11位手机号', trigger: 'blur' }
-  ],
-  company_id: [{ required: true, message: '请输入公司ID', trigger: 'blur' }],
-  jobs: [{ required: true, message: '请选择职位类型', trigger: 'change' }],
-  role_name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }]
-});
+// 图表
+const chartRef = ref<HTMLDivElement | null>(null);
+let myChart: echarts.ECharts | null = null;
+const resizeChart = debounce(() => myChart?.resize());
 
-const stats = computed(() => {
-  if (!users.value) return [];
-  return [
-    { label: '总人员数', value: totalCount.value, icon: Users, color: 'text-sky-500' },
-    {
-      label: '维保技师',
-      value: users.value.filter(u => u.jobs === JobType.MAINTENANCE).length,
-      icon: UserCheck,
-      color: 'text-indigo-500'
-    },
-    {
-      label: '在线账号',
-      value: users.value.filter(u => u.is_use === 1).length,
-      icon: Activity,
-      color: 'text-emerald-500'
-    },
-    {
-      label: '活跃管理',
-      value: users.value.filter(u => u.jobs === JobType.MANAGER).length,
-      icon: ShieldCheck,
-      color: 'text-amber-500'
-    }
-  ];
-});
-
+// 图表数据
 const chartData = computed(() => {
-  if (!users.value) return { categories: [], data: [], colors: [] };
-  const maintenanceCount = users.value.filter(u => u.jobs === JobType.MAINTENANCE).length;
-  const managerCount = users.value.filter(u => u.jobs === JobType.MANAGER).length;
-  const generalCount = users.value.filter(u => u.jobs === JobType.GENERAL).length;
-
+  const list = users.value;
   return {
     categories: ['维保人员', '管理人员', '普通人员'],
-    data: [maintenanceCount, managerCount, generalCount],
+    data: [
+      list.filter(u => u.jobs === JobType.MAINTENANCE).length,
+      list.filter(u => u.jobs === JobType.MANAGER).length,
+      list.filter(u => u.jobs === JobType.GENERAL).length
+    ],
     colors: ['#6366f1', '#f59e0b', '#64748b']
   };
 });
 
-const convertToSystemUser = (item: UserListItem): SystemUser => {
-  return {
-    id: item.user_id.toString(),
-    user_id: item.user_id,
-    user_name: item.user_name,
-    realname: item.realname,
-    phone: item.phone ? item.phone.toString() : '',
-    email: item.email,
-    sex: (item.sex as UserSex) || UserSex.MALE,
-    company_id: item.company_id.toString(),
-    company_name: item.company_name || '',
-    role_id: item.role_id.toString(),
-    role_name: item.role_name || '',
-    jobs: (item.jobs as JobType) || JobType.MAINTENANCE,
-    head_img: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.realname || '用户')}&background=random`,
-    office_phone: item.office_phone || '',
-    add_time: item.add_time || '',
-    is_use: item.is_use,
-    user_syn: item.user_syn || ''
-  };
-};
-
+// ==================== 业务方法 ====================
 const getUserList = async () => {
+  loading.value = true;
+  isSyncing.value = true;
   try {
-    loading.value = true;
-    isSyncing.value = true;
-
     const params: UserListParams = {
       page: currentPage.value,
       limit: pageSize.value,
@@ -236,20 +205,22 @@ const getUserList = async () => {
       jobs: jobFilter.value === '0' ? undefined : Number(jobFilter.value),
       is_use: 1
     };
+    const rawRes = await fetchUserList(params);
+    const response = rawRes as unknown as UserListResponse;
+    console.log('人员列表响应:', response);
 
-    const response: UserListResponse = await fetchUserList(params);
     if (response.data.code === 2000) {
-      const userList = response?.data?.data?.list?.map((item: UserListItem) => convertToSystemUser(item)) || [];
-      users.value = userList;
+      const rawList = response.data.data.list ?? [];
+      users.value = rawList.map((item: UserListItem) => convertToSystemUser(item));
       totalCount.value = response.data.data.total;
     } else {
-      message.error(response.message || '获取人员列表失败');
+      showErr(response.data.msg);
       users.value = [];
       totalCount.value = 0;
     }
-  } catch (error) {
-    console.error('列表接口请求异常：', error);
-    message.error('网络异常，无法获取人员列表');
+  } catch (e) {
+    console.error('列表请求异常：', e);
+    showErr('网络异常，无法获取人员列表');
     users.value = [];
     totalCount.value = 0;
   } finally {
@@ -263,101 +234,62 @@ const handlePageChange = (page: number) => {
   getUserList();
 };
 
-const handlePageSizeChange = (size: number) => {
-  pageSize.value = size;
+const handleRefresh = () => {
   currentPage.value = 1;
   getUserList();
 };
 
-const getJobBadge = (job: JobType) => {
-  switch (job) {
-    case JobType.MAINTENANCE:
-      return { label: '维保人员', color: 'bg-indigo-500/10 text-indigo-500' };
-    case JobType.MANAGER:
-      return { label: '管理人员', color: 'bg-amber-500/10 text-amber-500' };
-    case JobType.GENERAL:
-      return { label: '普通人员', color: 'bg-slate-500/10 text-slate-500' };
-    default:
-      return { label: '未知', color: 'bg-slate-100 text-slate-400' };
-  }
-};
-
-const initECharts = () => {
-  if (!chartRef.value) return;
-  myChart = echarts.init(chartRef.value);
-  updateECharts();
-};
+const getJobBadge = (job: JobType) => JOB_BADGE_MAP[job] ?? { label: '未知', color: 'bg-slate-100 text-slate-400' };
 
 const updateECharts = () => {
   if (!myChart || !chartData.value.categories.length) return;
-
-  const option = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} 人 ({d}%)'
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: 0,
-      left: 'center'
-    },
+  const data = chartData.value;
+  myChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} 人 ({d}%)' },
+    legend: { orient: 'horizontal', bottom: 0, left: 'center' },
     series: [
       {
         name: '人员分布',
         type: 'pie',
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false,
-          position: 'center'
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 20,
-            fontWeight: 'bold'
-          }
-        },
-        labelLine: {
-          show: false
-        },
-        data: chartData.value.categories.map((name, index) => ({
+        itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false, position: 'center' },
+        emphasis: { label: { show: true, fontSize: 20, fontWeight: 'bold' } },
+        labelLine: { show: false },
+        data: data.categories.map((name, idx) => ({
           name,
-          value: chartData.value.data[index],
-          itemStyle: { color: chartData.value.colors[index] }
+          value: data.data[idx],
+          itemStyle: { color: data.colors[idx] }
         }))
       }
     ]
-  };
-
-  myChart.setOption(option);
+  });
 };
 
-const handleEdit = async (user: SystemUser) => {
-  try {
-    editLoading.value = true;
-    const userId = user.user_id;
-    const userDetailResponse: UserDetailResponse = await fetchUserDetail({ user_id: userId });
+// 图表初始化更新
+const initECharts = () => {
+  if (!chartRef.value) return;
+  myChart = echarts.init(chartRef.value);
+  updateECharts();
+};
 
-    if (userDetailResponse.data.code !== 2000) {
-      message.error(userDetailResponse.msg || '获取用户详细信息失败');
+// 编辑、新增、删除、提交
+const handleEdit = async (user: SystemUser) => {
+  editLoading.value = true;
+  try {
+    const res = (await fetchUserDetail({ user_id: user.user_id })) as any;
+    if (res.data.code !== 2000) {
+      showErr(res.msg);
       return;
     }
-
-    const userDetail = userDetailResponse.data.data;
-    const convertedUser = convertToSystemUser(userDetail);
-
-    editingUser.value = convertedUser;
-    formData.value = { ...convertedUser };
+    const converted = convertToSystemUser(res.data.data);
+    editingUser.value = converted;
+    formData.value = { ...converted };
     isEditModalOpen.value = true;
-  } catch (error) {
-    console.error('获取用户详细信息异常：', error);
-    message.error('网络异常，无法获取用户详细信息');
+  } catch (e) {
+    console.error('获取用户详情异常：', e);
+    showErr('网络异常，无法获取用户详细信息');
   } finally {
     editLoading.value = false;
   }
@@ -377,136 +309,53 @@ const handleAdd = () => {
     jobs: JobType.MAINTENANCE,
     sex: UserSex.MALE,
     is_use: 1,
-    add_time: format(new Date(), 'yyyy-MM-dd'),
+    add_time: format(new Date(), DATE_FORMAT),
     company_name: '',
     role_id: ''
   };
-  if (formRef.value) formRef.value.clearValidate();
+  formRef.value?.clearValidate();
   isEditModalOpen.value = true;
 };
 
 const closeModal = () => {
   isEditModalOpen.value = false;
-  if (formRef.value) formRef.value.clearValidate();
-};
-
-const handleRefresh = () => {
-  currentPage.value = 1;
-  getUserList();
+  formRef.value?.clearValidate();
 };
 
 const handleDelete = async (user: SystemUser) => {
-  if (!user || !user.user_id) {
+  if (!user.user_id) {
     message.warning('用户ID异常，无法删除');
     return;
   }
-
   dialog.warning({
     title: '删除确认',
     content: `确定要删除用户「${user.realname}」吗？此操作不可撤销，删除后无法恢复。`,
     positiveText: '确认删除',
     negativeText: '取消',
     maskClosable: false,
-    positiveButtonProps: {
-      type: 'warning'
-    },
+    positiveButtonProps: { type: 'warning' },
     onPositiveClick: async () => {
       if (deleteLoading.value) return;
-
+      deleteLoading.value = true;
       try {
-        deleteLoading.value = true;
-        const deleteResponse = await deleteUser({ user_id: user.user_id });
-
-        if (deleteResponse?.data?.code === 2000) {
+        const delRes = await deleteUser({ user_id: user.user_id });
+        if (delRes?.data?.code === 2000) {
           users.value = users.value.filter(u => u.user_id !== user.user_id);
           totalCount.value = Math.max(0, totalCount.value - 1);
-          message.success(`用户「${user.realname}」删除成功`);
+          showSuc(`用户「${user.realname}」删除成功`);
           handleRefresh();
         } else {
-          message.error(deleteResponse?.data?.message || deleteResponse?.data?.msg || '删除用户失败，请稍后重试');
+          const msg = delRes?.data?.message || delRes?.data?.msg || '删除失败，请稍后重试';
+          showErr(msg);
         }
-      } catch (error) {
-        console.error('删除用户接口请求异常：', error);
-        message.error('网络异常，无法完成删除操作');
+      } catch (e) {
+        console.error('删除用户异常：', e);
+        showErr('网络异常，无法完成删除操作');
       } finally {
         deleteLoading.value = false;
       }
-    },
-    onNegativeClick: () => {}
+    }
   });
-};
-
-const handleModalConfirm = async () => {
-  if (!formRef.value) {
-    return;
-  }
-
-  try {
-    await formRef.value.validate();
-
-    if (editingUser.value) {
-      updateLoading.value = true;
-
-      const updateParams = {
-        user_id: editingUser.value.user_id,
-        user_name: formData.value.user_name || '',
-        realname: formData.value.realname || '',
-        phone: formData.value.phone ? Number(formData.value.phone) : 0,
-        email: formData.value.email,
-        sex: (formData.value.sex as number) || UserSex.MALE,
-        company_id: formData.value.company_id ? Number(formData.value.company_id) : 0,
-        role_name: formData.value.role_name || '',
-        jobs: (formData.value.jobs as number) || JobType.MAINTENANCE,
-        is_use: formData.value.is_use || 1,
-        office_phone: formData.value.office_phone
-      };
-
-      const updateResponse = await updateUser(updateParams);
-
-      if (updateResponse?.data?.code === 2000) {
-        users.value = users.value.map(u =>
-          u.user_id === editingUser.value!.user_id
-            ? {
-                ...u,
-                ...formData.value,
-                company_name: formData.value.company_id === 'C001' ? '通力维保服务中心' : '其他公司'
-              }
-            : u
-        );
-
-        message.success('用户信息更新成功');
-        handleRefresh();
-      } else {
-        message.error(updateResponse?.data?.message || updateResponse?.message || '更新用户信息失败，请稍后重试');
-      }
-    } else {
-      const newUser: SystemUser = {
-        ...(formData.value as Omit<SystemUser, 'id' | 'user_id' | 'add_time' | 'company_name' | 'role_id'>),
-        id: String(Date.now()),
-        user_id: Date.now(),
-        add_time: format(new Date(), 'yyyy-MM-dd'),
-        company_name: formData.value.company_id === 'C001' ? '通力维保服务中心' : '其他公司',
-        role_id: `R${Date.now().toString().slice(-2)}`,
-        is_use: 1
-      } as SystemUser;
-
-      users.value = [newUser, ...users.value];
-      totalCount.value += 1;
-      message.success('新用户创建成功');
-    }
-
-    closeModal();
-  } catch (error) {
-    console.error('操作失败：', error);
-    const errorMsg = (error as Error).message;
-    if (errorMsg.includes('validate')) {
-      message.error('表单校验失败，请检查填写内容');
-    } else {
-      message.error('网络异常，无法完成当前操作');
-    }
-  } finally {
-    updateLoading.value = false;
-  }
 };
 
 const handleAddPersonConfirm = () => {
@@ -514,33 +363,27 @@ const handleAddPersonConfirm = () => {
   handleRefresh();
 };
 
+// 生命周期
 onMounted(() => {
   initECharts();
-  window.addEventListener('resize', () => myChart?.resize());
+  window.addEventListener('resize', resizeChart);
   getUserList();
 });
 
 onUnmounted(() => {
+  window.removeEventListener('resize', resizeChart);
   if (myChart) {
     myChart.dispose();
     myChart = null;
   }
-  window.removeEventListener('resize', () => myChart?.resize());
 });
 
-watch(
-  users,
-  () => {
-    updateECharts();
-  },
-  { deep: true }
-);
-
+// 监听
+watch(users, updateECharts, { deep: true });
 watch(searchTerm, () => {
   currentPage.value = 1;
   getUserList();
 });
-
 watch(jobFilter, () => {
   currentPage.value = 1;
   getUserList();
@@ -552,6 +395,7 @@ defineExpose({ UserSex });
 <template>
   <div class="relative min-h-screen bg-layout">
     <div class="animate-in fade-in px-6 pb-20 text-left duration-500 space-y-6 lg:px-16 md:px-10">
+      <!-- 顶部搜索筛选 -->
       <div
         class="flex flex-col items-center gap-4 border border-slate-200 rounded-[2rem] bg-white p-5 shadow-sm backdrop-blur-md md:flex-row dark:border-slate-800 dark:bg-slate-900/40"
       >
@@ -564,7 +408,6 @@ defineExpose({ UserSex });
             class="w-full border border-slate-200 rounded-2xl bg-slate-50 py-2.5 pl-12 pr-4 text-sm font-medium transition-all dark:border-slate-800 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           />
         </div>
-
         <div class="flex items-center gap-3">
           <CustomSelect
             v-model="jobFilter"
@@ -579,7 +422,6 @@ defineExpose({ UserSex });
             placeholder="全部职位类型"
             width="180px"
           />
-
           <button
             class="flex items-center gap-2 rounded-xl bg-sky-500 px-8 py-2.5 text-xs text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600"
             @click="handleAdd"
@@ -587,16 +429,15 @@ defineExpose({ UserSex });
             <Plus :size="16"></Plus>
             创建新人员
           </button>
-
           <AddPersonModal
             :is-open="isEditModalOpen"
             :initial-data="editingUser"
             @close="closeModal"
             @confirm="handleAddPersonConfirm"
-          ></AddPersonModal>
-
+          />
           <button
-            :class="`p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 rounded-xl transition-all ${isSyncing ? 'animate-spin text-sky-500' : ''}`"
+            class="border border-slate-200 rounded-xl bg-slate-50 p-2.5 text-slate-400 transition-all dark:border-slate-800 dark:bg-slate-900"
+            :class="[{ 'animate-spin text-sky-500': isSyncing }]"
             @click="handleRefresh"
           >
             <RefreshCw :size="18"></RefreshCw>
@@ -604,13 +445,11 @@ defineExpose({ UserSex });
         </div>
       </div>
 
+      <!-- 表格区域 -->
       <div
         class="overflow-hidden border border-slate-200 rounded-[2.5rem] bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900/50"
       >
-        <div v-if="loading" class="py-10 text-center">
-          <span class="text-slate-400">正在加载人员数据...</span>
-        </div>
-
+        <div v-if="loading" class="py-10 text-center text-slate-400">正在加载人员数据...</div>
         <div v-else class="overflow-x-auto">
           <table class="w-full border-collapse text-left">
             <thead>
@@ -629,7 +468,6 @@ defineExpose({ UserSex });
               <tr v-if="users.length === 0">
                 <td colspan="6" class="px-6 py-10 text-center text-sm text-slate-400">暂无符合条件的人员数据</td>
               </tr>
-
               <tr v-for="u in users" :key="u.user_id" class="group transition-all hover:bg-sky-500/5">
                 <td class="px-6 py-5">
                   <div class="flex items-center gap-4">
@@ -637,14 +475,11 @@ defineExpose({ UserSex });
                       <div
                         class="h-10 w-10 overflow-hidden border-2 border-slate-100 rounded-full dark:border-slate-800"
                       >
-                        <img
-                          :src="`https://ui-avatars.com/api/?name=${u.realname || '未知用户'}&background=random`"
-                          alt="用户头像"
-                          class="h-full w-full object-cover"
-                        />
+                        <img :src="u.head_img" alt="用户头像" class="h-full w-full object-cover" />
                       </div>
                       <div
-                        :class="`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${u.is_use === 1 ? 'bg-emerald-500' : 'bg-slate-300'}`"
+                        class="absolute h-3.5 w-3.5 border-2 border-white rounded-full -bottom-1 -right-1 dark:border-slate-900"
+                        :class="[{ 'bg-emerald-500': u.is_use === 1, 'bg-slate-300': u.is_use !== 1 }]"
                       ></div>
                     </div>
                     <div class="flex flex-col">
@@ -688,9 +523,7 @@ defineExpose({ UserSex });
                 </td>
                 <td class="px-6 py-5 text-center">
                   <template v-if="u.is_use === 1">
-                    <div class="flex justify-center">
-                      <BadgeCheck :size="18" class="text-emerald-500"></BadgeCheck>
-                    </div>
+                    <div class="flex justify-center"><BadgeCheck :size="18" class="text-emerald-500"></BadgeCheck></div>
                   </template>
                   <span v-else class="text-[10px] text-slate-300 font-black uppercase">禁用</span>
                 </td>
@@ -698,16 +531,16 @@ defineExpose({ UserSex });
                   <div class="flex justify-end gap-2">
                     <button
                       class="rounded-lg p-2 text-slate-400 shadow-sm transition-all hover:bg-sky-500 hover:text-white"
-                      :disabled="editLoading || deleteLoading || updateLoading"
-                      :class="{ 'opacity-50 cursor-not-allowed': editLoading || deleteLoading || updateLoading }"
+                      :disabled="allBtnLoading"
+                      :class="{ 'opacity-50 cursor-not-allowed': allBtnLoading }"
                       @click="handleEdit(u)"
                     >
                       <Edit :size="14"></Edit>
                     </button>
                     <button
                       class="rounded-lg p-2 text-slate-400 shadow-sm transition-all hover:bg-rose-500 hover:text-white"
-                      :disabled="editLoading || deleteLoading || updateLoading"
-                      :class="{ 'opacity-50 cursor-not-allowed': editLoading || deleteLoading || updateLoading }"
+                      :disabled="allBtnLoading"
+                      :class="{ 'opacity-50 cursor-not-allowed': allBtnLoading }"
                       @click="handleDelete(u)"
                     >
                       <Trash2 :size="14"></Trash2>
@@ -720,6 +553,7 @@ defineExpose({ UserSex });
         </div>
       </div>
 
+      <!-- 职位分布图表 -->
       <div
         class="border border-slate-200 rounded-[2.5rem] bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60"
       >
@@ -727,6 +561,7 @@ defineExpose({ UserSex });
         <div ref="chartRef" class="h-64 w-full"></div>
       </div>
 
+      <!-- 提示卡片 -->
       <div class="flex gap-4 border border-amber-500/10 rounded-[2.5rem] bg-amber-500/5 p-6">
         <div class="h-fit rounded-2xl bg-amber-500/20 p-3 text-amber-500">
           <Info :size="20"></Info>
@@ -742,7 +577,7 @@ defineExpose({ UserSex });
       </div>
     </div>
 
-    <!-- 底部固定分页栏 -->
+    <!-- 底部分页 -->
     <footer
       class="fixed bottom-0 left-[220px] right-0 z-50 h-16 flex items-center justify-between border-t border-slate-200 bg-white/90 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90"
     >
@@ -770,7 +605,6 @@ defineExpose({ UserSex });
 :deep(.animate-in) {
   animation: fadeIn 0.5s ease-in-out;
 }
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -781,11 +615,9 @@ defineExpose({ UserSex });
     transform: translateY(0);
   }
 }
-
 :deep(.ec-legend) {
   padding-bottom: 10px !important;
 }
-
 :deep(.n-pagination) {
   --n-color-text: #475569;
   --n-color-text-dark: #e2e8f0;

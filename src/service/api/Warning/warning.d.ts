@@ -1,27 +1,24 @@
+import type { ApiResponse } from '@/service/api/types/common';
+
+// ====================== 预警类型列表 ======================
 export interface WarningTypeListParams {
   elevator_id?: number;
   page?: number;
   limit?: number;
 }
+export type WarningTypeListResponse = ApiResponse<any>;
 
-export interface WarningTypeListResponse {
-  code: number;
-  message: string;
-  data: any; // 若暂不定义结构
-}
+// ====================== 预警异常记录 ======================
 /**
  * 预警异常记录列表 - 请求参数
  */
 export interface WarningSoundListParams {
   /** 预警编码 */
   trouble_code?: string;
-
   /** 电梯ID（与sn二选一） */
   elevator_id?: number;
-
   /** 注册码（与elevator_id二选一） */
   sn?: string;
-
   /** 统计天数，默认14 */
   days?: number;
 }
@@ -39,24 +36,15 @@ export interface WarningSoundItem {
   status?: number;
 }
 
-/**
- * 预警异常记录列表 - 响应结果
- */
-export interface WarningSoundListResponse {
-  /** 业务代码 */
-  code: number;
-
-  /** 业务信息 */
-  message: string;
-
-  /** 业务数据 */
-  data: {
-    list: WarningSoundItem[];
-    total?: number;
-    page?: number;
-    limit?: number;
-  };
+export interface WarningSoundPageData {
+  list: WarningSoundItem[];
+  total?: number;
+  page?: number;
+  limit?: number;
 }
+export type WarningSoundListResponse = ApiResponse<WarningSoundPageData>;
+
+// ====================== 曲线计算接口 ======================
 /**
  * 速度曲线计算 - 请求参数
  */
@@ -64,20 +52,8 @@ export interface WarningCalculateParams {
   /** 数据文件URL */
   fileUrl: string;
 }
+export type WarningCalculateResponse = ApiResponse<any>;
 
-/**
- * 速度曲线计算 - 响应结果
- */
-export interface WarningCalculateResponse {
-  /** 业务代码 */
-  code: number;
-
-  /** 业务信息 */
-  message: string;
-
-  /** 业务数据 */
-  data: any;
-}
 /**
  * 加速度曲线计算 - 请求参数
  */
@@ -85,20 +61,9 @@ export interface WarningCalculateAccelParams {
   /** 数据文件URL */
   fileUrl: string;
 }
+export type WarningCalculateAccelResponse = ApiResponse<any>;
 
-/**
- * 加速度曲线计算 - 响应结果
- */
-export interface WarningCalculateAccelResponse {
-  /** 业务代码 */
-  code: number;
-
-  /** 业务信息 */
-  message: string;
-
-  /** 业务数据 */
-  data: any;
-}
+// ====================== 故障模板AI分析 ======================
 /**
  * 故障模板分析 - 请求参数
  */
@@ -108,31 +73,9 @@ export interface WarningAnalyzeParams {
   /** 电梯ID（用于匹配模板） */
   elevator_id: number;
 }
+export type WarningAnalyzeResponse = ApiResponse<any>;
 
-/**
- * 故障模板分析 - 响应结果
- */
-export interface WarningAnalyzeResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: any;
-}
-
-/**
- * 故障模板-部件目录 - 响应结果
- */
-export interface FaultTemplateComponentsResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 部件目录数组 */
-  data: FaultTemplateComponentItem[];
-}
-
+// ====================== 故障模板-部件目录 ======================
 /**
  * 故障模板-部件目录 - 单条部件数据
  */
@@ -148,25 +91,15 @@ export interface FaultTemplateComponentItem {
   /** 创建时间 Y-m-d H:i:s */
   created_at: string;
 }
+export type FaultTemplateComponentsResponse = ApiResponse<FaultTemplateComponentItem[]>;
 
+// ====================== 故障模板-故障原因目录 ======================
 /**
  * 故障模板-原因目录 - 请求参数
  */
 export interface FaultTemplateCausesParams {
   /** 部件ID，传入则按部件筛选 */
   component_id?: number;
-}
-
-/**
- * 故障模板-原因目录 - 响应结果
- */
-export interface FaultTemplateCausesResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 原因目录数组 */
-  data: FaultTemplateCauseItem[];
 }
 
 /**
@@ -188,7 +121,9 @@ export interface FaultTemplateCauseItem {
   /** 创建时间 Y-m-d H:i:s */
   created_at: string;
 }
+export type FaultTemplateCausesResponse = ApiResponse<FaultTemplateCauseItem[]>;
 
+// ====================== 提交人工故障分析模板 ======================
 /**
  * 故障模板-提交人工分析 - 请求参数
  */
@@ -213,52 +148,10 @@ export interface SubmitFaultTemplateParams {
   s_url?: string;
 }
 
-/**
- * 故障模板-提交人工分析 - 响应结果
- */
-export interface SubmitFaultTemplateResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: SubmitFaultTemplateData;
-}
-
-/**
- * 故障模板-提交人工分析 - 响应业务数据
- */
 export interface SubmitFaultTemplateData {
   /** 是否新建了故障模板（save_template=1 且特征有效时为 true） */
   template_created: boolean;
   /** 关联的故障检测记录ID（新建或传入的 detection_id） */
   detection_id: number;
 }
-
-/**
- * 故障模板-部件目录 - 响应结果
- */
-export interface FaultTemplateComponentsResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 - 部件目录数组 */
-  data: FaultTemplateComponentItem[];
-}
-
-/**
- * 故障模板-部件目录 - 部件数据项
- */
-export interface FaultTemplateComponentItem {
-  /** 部件ID */
-  id: number;
-  /** 部件编码（英文常量，如 CAR_GUIDE_RAIL） */
-  code: string;
-  /** 部件名称 */
-  name: string;
-  /** 部件描述，无则为 null */
-  description: string | null;
-  /** 创建时间 | Y-m-d H:i:s */
-  created_at: string;
-}
+export type SubmitFaultTemplateResponse = ApiResponse<SubmitFaultTemplateData>;

@@ -133,31 +133,34 @@ const fetchCityList = async (province_id: number) => {
     isCityLoading.value = true;
     const response = await getCityList({ province_id });
 
-    if (response.data?.code === 2000) {
-      cityList.value = response.data.data || [];
-      districtList.value = [];
-
-      // 修复：只在没有初始数据时设置默认值
-      if (!props.initialData && cityList.value.length > 0) {
-        const currentCityName = formData.city;
-        // 如果当前选中的城市在新的列表中，保留它
-        const cityExists = cityList.value.some(item => item.name === currentCityName);
-        if (!cityExists) {
-          formData.city = cityList.value[0].name;
-          await fetchDistrictList(cityList.value[0].value);
-        } else {
-          // 如果城市存在，但需要更新区县列表
-          const targetCity = cityList.value.find(item => item.name === currentCityName);
-          if (targetCity) {
-            await fetchDistrictList(targetCity.value);
-          }
-        }
-      }
-    } else {
+    if (response.data?.code !== 2000) {
       cityList.value = [];
       if (!props.initialData) {
         formData.city = '';
         formData.district = '';
+      }
+      return;
+    }
+
+    cityList.value = response.data.data || [];
+    districtList.value = [];
+
+    // 只在没有初始数据时处理
+    if (!props.initialData && cityList.value.length > 0) {
+      const currentCityName = formData.city;
+      const cityExists = cityList.value.some(item => item.name === currentCityName);
+
+      if (!cityExists) {
+        // 选择第一个城市
+        const firstCity = cityList.value[0];
+        formData.city = firstCity.name;
+        await fetchDistrictList(firstCity.value);
+      } else {
+        // 保留当前城市，更新区县
+        const targetCity = cityList.value.find(item => item.name === currentCityName);
+        if (targetCity) {
+          await fetchDistrictList(targetCity.value);
+        }
       }
     }
   } catch (error) {
@@ -181,40 +184,54 @@ const getDefaultDate = (daysLater = 30) => {
   return `${year}-${month}-${day}`;
 };
 
+// ==================== 辅助函数 ====================
+
+const findProvinceByName = (name: string) => {
+  if (!name || provinceList.value.length === 0) return null;
+  return provinceList.value.find(item => item.name === name) || null;
+};
+
+const findCityByName = (name: string) => {
+  if (!name || cityList.value.length === 0) return null;
+  return cityList.value.find(item => item.name === name) || null;
+};
+
+const setDistrictIfExists = (districtName: string) => {
+  if (!districtName || districtList.value.length === 0) return;
+
+  const exists = districtList.value.some(item => item.name === districtName);
+  if (exists) {
+    formData.district = districtName;
+  }
+};
+
+// ==================== 主函数 ====================
+
 const resetFormData = async (initData?: any | null) => {
   if (initData) {
+    // 有初始数据：解析并填充
     const parsedData = JSON.parse(JSON.stringify(initData));
     parsedData.expiration = formatToValidDate(parsedData.expiration);
     parsedData.password = '';
 
-    const targetProvinceName = parsedData.province || '';
-    const targetCityName = parsedData.city || '';
-    const targetDistrictName = parsedData.district || '';
+    const { province: targetProvince = '', city: targetCity = '', district: targetDistrict = '' } = parsedData;
 
     Object.assign(formData, parsedData);
 
-    // 修复：检查 provinceList 是否已加载
-    if (targetProvinceName && provinceList.value.length > 0) {
-      const targetProvince = provinceList.value.find(item => item.name === targetProvinceName);
-      if (targetProvince) {
-        await fetchCityList(targetProvince.value);
-
-        if (targetCityName && cityList.value.length > 0) {
-          const targetCity = cityList.value.find(item => item.name === targetCityName);
-          if (targetCity) {
-            await fetchDistrictList(targetCity.value);
-            if (targetDistrictName && districtList.value.length > 0) {
-              const isDistrictExist = districtList.value.some(item => item.name === targetDistrictName);
-              if (isDistrictExist) {
-                formData.district = targetDistrictName;
-              }
-            }
-          }
-        }
+    // 处理省市区级联
+    const province = findProvinceByName(targetProvince);
+    if (province) {
+      await fetchCityList(province.value);
+      const city = findCityByName(targetCity);
+      if (city) {
+        await fetchDistrictList(city.value);
+        setDistrictIfExists(targetDistrict);
       }
     }
   } else {
     const defaultExpiration = getDefaultDate(30);
+    const defaultProvince = provinceList.value.length > 0 ? provinceList.value[0].name : '';
+
     Object.assign(formData, {
       name: '',
       type: '2',
@@ -223,7 +240,7 @@ const resetFormData = async (initData?: any | null) => {
       contact: '',
       phone: '',
       email: '',
-      province: provinceList.value.length > 0 ? provinceList.value[0].name : '',
+      province: defaultProvince,
       city: '',
       district: '',
       address: '',
@@ -239,6 +256,7 @@ const resetFormData = async (initData?: any | null) => {
       licensing_time: ''
     });
 
+    // 加载默认省市区
     if (provinceList.value.length > 0) {
       await fetchCityList(provinceList.value[0].value);
       if (cityList.value.length > 0) {
@@ -247,7 +265,6 @@ const resetFormData = async (initData?: any | null) => {
     }
   }
 };
-
 const fetchProvinceList = async () => {
   try {
     isProvinceLoading.value = true;
@@ -269,7 +286,7 @@ const fetchProvinceList = async () => {
   }
 };
 
-const { roleOptions, loading, fetchRoleListData } = useRoleSelector();
+const { roleOptions, fetchRoleListData } = useRoleSelector();
 
 watch(
   () => props.isOpen,
@@ -352,81 +369,70 @@ const handleClose = () => {
   emit('close');
 };
 
-const handleSubmit = async () => {
-  // 修复：添加更详细的验证信息
-  if (!formData.name) {
-    message.error('请填写单位名称');
-    return;
-  }
-  if (!formData.credit_code) {
-    message.error('请填写社会信用代码');
-    return;
-  }
-  if (!formData.contact) {
-    message.error('请填写联系人');
-    return;
-  }
-  if (!formData.phone) {
-    message.error('请填写联系电话');
-    return;
-  }
+const REQUIRED_FIELDS = [
+  { key: 'name', msg: '请填写单位名称' },
+  { key: 'credit_code', msg: '请填写社会信用代码' },
+  { key: 'contact', msg: '请填写联系人' },
+  { key: 'phone', msg: '请填写联系电话' },
+  { key: 'province', msg: '请选择省份' },
+  { key: 'city', msg: '请选择城市' },
+  { key: 'district', msg: '请选择区县' },
+  { key: 'address', msg: '请填写详细街道地址' }
+] as const;
 
-  if (!formData.province) {
-    message.error('请选择省份');
-    return;
+const validateRequired = (): boolean => {
+  for (const { key, msg } of REQUIRED_FIELDS) {
+    if (!formData[key as keyof typeof formData]) {
+      message.error(msg);
+      return false;
+    }
   }
-  if (!formData.city) {
-    message.error('请选择城市');
-    return;
-  }
-  if (!formData.district) {
-    message.error('请选择区县');
-    return;
-  }
-  if (!formData.address) {
-    message.error('请填写详细街道地址');
-    return;
-  }
+  return true;
+};
 
-  const validExpiration = formatToValidDate(formData.expiration);
-  if (!validExpiration) {
+const validateExpiration = (): string | null => {
+  const valid = formatToValidDate(formData.expiration);
+  if (!valid) {
     message.error('单位有效期格式无效，请选择合法日期（格式：YYYY-MM-DD）');
     formData.expiration = getDefaultDate(30);
-    return;
   }
+  return valid;
+};
 
-  if (formData.is_user) {
-    if (!formData.user_name) {
-      message.error('请填写登录用户名');
-      return;
+const validateUser = (): boolean => {
+  if (!formData.is_user) return true;
+  if (!formData.user_name) {
+    message.error('请填写登录用户名');
+    return false;
+  }
+  if (!props.initialData) {
+    if (!formData.password) {
+      message.error('请填写登录密码');
+      return false;
     }
-
-    // 修复：新增时必须检查密码和角色
-    if (!props.initialData) {
-      if (!formData.password) {
-        message.error('请填写登录密码');
-        return;
-      }
-      if (!formData.role_id) {
-        message.error('请选择角色权限组');
-        return;
-      }
+    if (!formData.role_id) {
+      message.error('请选择角色权限组');
+      return false;
     }
   }
+  return true;
+};
 
-  const targetProvince = provinceList.value.find(item => item.name === formData.province);
-  const provinceId = targetProvince ? targetProvince.value : 0;
-  const targetCity = cityList.value.find(item => item.name === formData.city);
-  const cityId = targetCity ? targetCity.value : 0;
-  const targetDistrict = districtList.value.find(item => item.name === formData.district);
-  const districtId = targetDistrict ? targetDistrict.value : 0;
+// ==================== 数据函数 ====================
 
-  if (provinceId === 0 || cityId === 0 || districtId === 0) {
-    message.error('省/市/区数据异常，请重新选择');
-    return;
-  }
+const getLocationIds = () => {
+  const findId = (list: any[], name: string) => list.find(item => item.name === name)?.value || 0;
 
-  const submitData: any = {
+  return {
+    provinceId: findId(provinceList.value, formData.province),
+    cityId: findId(cityList.value, formData.city),
+    districtId: findId(districtList.value, formData.district)
+  };
+};
+
+const buildSubmitData = (expiration: string) => {
+  const { provinceId, cityId, districtId } = getLocationIds();
+  const data: any = {
     name: formData.name,
     type: Number(formData.type),
     credit_code: formData.credit_code,
@@ -438,7 +444,7 @@ const handleSubmit = async () => {
     city: cityId,
     district: districtId,
     address: formData.address,
-    expiration: validExpiration,
+    expiration,
     is_user: formData.is_user,
     qua_level: formData.qua_level || '',
     brand: formData.brand || '',
@@ -447,51 +453,56 @@ const handleSubmit = async () => {
     licensing_time: formData.licensing_time || ''
   };
 
-  // 修复：只有开启账号时才添加账号信息
   if (formData.is_user) {
-    submitData.user_name = formData.user_name;
-    if (formData.password) {
-      submitData.password = formData.password;
-    }
-    if (formData.role_id) {
-      submitData.role_id = Number(formData.role_id);
-    }
+    data.user_name = formData.user_name;
+    if (formData.password) data.password = formData.password;
+    if (formData.role_id) data.role_id = Number(formData.role_id);
   }
 
+  return data;
+};
+
+// ==================== API 调用 ====================
+
+const submitApi = async (data: any) => {
+  const isUpdate = Boolean(props.initialData);
+  const response = isUpdate
+    ? await updateCompany({ company_id: Number(props.initialData.id), ...data })
+    : await createCompany(data);
+
+  if (response.data?.code === 2000) {
+    const msg = isUpdate ? '单位信息更新成功！' : '单位信息新增成功！';
+    message.success(msg);
+    emit('confirm', data);
+    handleClose();
+    return true;
+  }
+
+  const msg = response?.data?.msg || response?.response?.data?.msg || '操作失败';
+  message.error(msg);
+  return false;
+};
+
+// ==================== 主函数 ====================
+
+const handleSubmit = async () => {
+  // 验证
+  if (!validateRequired()) return;
+  if (!validateUser()) return;
+
+  const expiration = validateExpiration();
+  if (!expiration) return;
+
+  // 验证省市区
+  const { provinceId, cityId, districtId } = getLocationIds();
+  if (provinceId === 0 || cityId === 0 || districtId === 0) {
+    message.error('省/市/区数据异常，请重新选择');
+    return;
+  }
+
+  // 提交
   try {
-    if (props.initialData) {
-      const companyId = Number(props.initialData.id);
-      if (isNaN(companyId)) {
-        message.error('单位ID无效，无法执行更新操作');
-        return;
-      }
-
-      const updateParams = {
-        company_id: companyId,
-        ...submitData
-      };
-
-      const response = await updateCompany(updateParams);
-      if (response.data?.code === 2000) {
-        message.success('单位信息更新成功！');
-        emit('confirm', submitData);
-        handleClose();
-      } else {
-        message.error(response?.response?.data?.msg || '更新单位信息失败');
-      }
-    } else {
-      const response = await createCompany(submitData);
-      if (response.data?.code === 2000) {
-        message.success('单位信息新增成功！');
-        emit('confirm', submitData);
-        handleClose();
-        setTimeout(() => {
-          // 触发列表刷新
-        }, 1000);
-      } else {
-        message.error(response?.data?.msg || '新增单位信息失败');
-      }
-    }
+    await submitApi(buildSubmitData(expiration));
   } catch (error: any) {
     console.error('单位操作接口调用失败：', error);
     message.error(error?.message || '操作失败：网络异常，请稍后重试');

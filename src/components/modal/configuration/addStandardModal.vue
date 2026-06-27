@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineEmits, defineProps, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { NInput, NModal, useMessage } from 'naive-ui';
 import { Activity, Building2, Layers, RefreshCw, Save, ScrollText, X } from 'lucide-vue-next';
 import { createMaintenanceType } from '@/service/api/maintenance/maintenance';

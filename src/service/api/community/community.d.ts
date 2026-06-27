@@ -1,3 +1,6 @@
+import type { ApiResponse } from '@/service/api/types/common';
+
+// ====================== 单位管理 ======================
 /**
  * 获取单位列表 - 请求参数
  * 注意：接口为 GET 请求，参数实际通过 Query 传递
@@ -52,18 +55,7 @@ export interface CompanyListItem {
   /** 品牌 */
   brand: string;
 }
-
-/**
- * 获取单位列表 - 响应体
- */
-export interface GetCompanyListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据（单位列表） */
-  data: CompanyListItem[];
-}
+export type GetCompanyListResponse = ApiResponse<CompanyListItem[]>;
 
 /**
  * 新增单位 - 请求体参数（POST 请求）
@@ -106,39 +98,14 @@ export interface CreateCompanyParams {
   /** 品牌 */
   brand: string;
 }
+export type CreateCompanyResponse = ApiResponse<{ company_id: number }>;
 
-/**
- * 新增单位 - 响应体
- */
-export interface CreateCompanyResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: {
-    /** 新建单位ID */
-    company_id: number;
-  };
-}
 /**
  * 获取单位详情 - 请求参数（GET 请求，Query 传递）
  */
 export interface GetCompanyDetailParams {
   /** 单位ID */
   company_id: number;
-}
-
-/**
- * 获取单位详情 - 响应体
- */
-export interface GetCompanyDetailResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据（单位详情） */
-  data: CompanyDetailItem;
 }
 
 /**
@@ -182,6 +149,8 @@ export interface CompanyDetailItem {
   /** 关联账号，is_user 为 true 时存在 */
   user_name?: string;
 }
+export type GetCompanyDetailResponse = ApiResponse<CompanyDetailItem>;
+
 /**
  * 编辑单位 - 请求体参数（POST 请求）
  */
@@ -225,18 +194,8 @@ export interface UpdateCompanyParams {
   /** 品牌 */
   brand: string;
 }
+export type UpdateCompanyResponse = ApiResponse<object>;
 
-/**
- * 编辑单位 - 响应体
- */
-export interface UpdateCompanyResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息（成功/失败提示） */
-  message: string;
-  /** 业务数据（接口文档无具体字段，保持 object 类型） */
-  data: object;
-}
 /**
  * 删除单位 - 请求体参数（POST 请求）
  */
@@ -244,33 +203,11 @@ export interface RemoveCompanyParams {
   /** 待删除的单位ID */
   company_id: number;
 }
+export type RemoveCompanyResponse = ApiResponse<object>;
 
+// ====================== 省市区联动 ======================
 /**
- * 删除单位 - 响应体
- */
-export interface RemoveCompanyResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息（成功/失败提示，如"删除成功"） */
-  message: string;
-  /** 业务数据（接口文档无具体字段，保持 object 类型） */
-  data: object;
-}
-
-/**
- * 获取省份列表 - 响应体
- */
-export interface GetProvinceListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息（成功/失败提示，如"获取成功"） */
-  message: string;
-  /** 业务数据（省份列表数组） */
-  data: ProvinceItem[];
-}
-
-/**
- * 省份数据项（响应体 data 中的单个数据结构）
+ * 省份数据项
  */
 export interface ProvinceItem {
   /** 省份ID（province_id） */
@@ -278,26 +215,10 @@ export interface ProvinceItem {
   /** 省份名称 */
   name: string;
 }
-export interface ProvinceItem {
-  /** 省份ID（province_id） */
-  value: number;
-  /** 省份名称 */
-  name: string;
-}
+export type GetProvinceListResponse = ApiResponse<ProvinceItem[]>;
 
 /**
- * 获取省份列表 - 响应体
- */
-export interface GetProvinceListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息（成功/失败提示，如"获取成功"） */
-  message: string;
-  /** 业务数据（省份列表数组） */
-  data: ProvinceItem[];
-}
-/**
- * 城市数据项（响应体 data 中的单个数据结构）
+ * 城市数据项
  */
 export interface CityItem {
   /** 城市ID（city_id） */
@@ -307,26 +228,16 @@ export interface CityItem {
 }
 
 /**
- * 获取城市列表 - 请求参数（注意：GET 请求通常用 params 传递，此处按文档标注 Body 字段）
+ * 获取城市列表 - 请求参数
  */
 export interface GetCityListParams {
   /** 省份ID（用于筛选对应省份下的城市） */
   province_id: number;
 }
+export type GetCityListResponse = ApiResponse<CityItem[]>;
 
 /**
- * 获取城市列表 - 响应体
- */
-export interface GetCityListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息（成功/失败提示，如"获取城市列表成功"） */
-  message: string;
-  /** 业务数据（城市列表数组） */
-  data: CityItem[];
-}
-/**
- * 区县数据项（响应体 data 中的单个数据结构）
+ * 区县数据项
  */
 export interface DistrictItem {
   /** 区县ID（area_id） */
@@ -336,24 +247,15 @@ export interface DistrictItem {
 }
 
 /**
- * 获取区县列表 - 请求参数（注意：GET 请求通常用 params 传递，此处按文档标注 Body 字段）
+ * 获取区县列表 - 请求参数
  */
 export interface GetDistrictListParams {
   /** 城市ID（用于筛选对应城市下的区县） */
   city_id: number;
 }
+export type GetDistrictListResponse = ApiResponse<DistrictItem[]>;
 
-/**
- * 获取区县列表 - 响应体
- */
-export interface GetDistrictListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息（成功/失败提示，如"获取区县列表成功"） */
-  message: string;
-  /** 业务数据（区县列表数组） */
-  data: DistrictItem[];
-}
+// ====================== 小区管理 ======================
 /**
  * 获取小区列表 - 请求参数
  */
@@ -377,7 +279,7 @@ export interface GetVillageListParams {
 }
 
 /**
- * 小区列表数据项（响应体 data 中的单条数据结构）
+ * 小区列表单条项
  */
 export interface VillageListItem {
   /** 小区ID */
@@ -415,16 +317,16 @@ export interface VillageListItem {
 }
 
 /**
- * 获取小区列表 - 响应体
+ * 小区分页包装对象（后端 data 真实结构 { list: [], total: number }）
  */
-export interface GetVillageListResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据（小区列表） */
-  data: VillageListItem[];
+export interface VillagePageData {
+  list: VillageListItem[];
+  total: number;
 }
+
+// 修复：泛型传入分页对象，不再直接传数组
+export type GetVillageListResponse = ApiResponse<VillagePageData>;
+
 /**
  * 新增小区 - 请求参数
  */
@@ -450,18 +352,8 @@ export interface CreateVillageParams {
   /** 所属公司ID（不传则使用当前用户公司） */
   company_id?: number;
 }
+export type CreateVillageResponse = ApiResponse<any>;
 
-/**
- * 新增小区 - 响应体
- */
-export interface CreateVillageResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: any; // 一般新增接口返回 null 或 id，具体看后端
-}
 /**
  * 更新小区 - 请求参数
  */
@@ -487,18 +379,8 @@ export interface UpdateVillageParams {
   /** 备注 */
   remark: string;
 }
+export type UpdateVillageResponse = ApiResponse<any>;
 
-/**
- * 更新小区 - 响应体
- */
-export interface UpdateVillageResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: any; // 一般为空或返回更新结果
-}
 /**
  * 删除小区 - 请求参数
  */
@@ -506,18 +388,8 @@ export interface DeleteVillageParams {
   /** 小区ID */
   village_id: number;
 }
+export type DeleteVillageResponse = ApiResponse<any>;
 
-/**
- * 删除小区 - 响应体
- */
-export interface DeleteVillageResponse {
-  /** 业务代码 */
-  code: number;
-  /** 业务信息 */
-  message: string;
-  /** 业务数据 */
-  data: any; // 一般为空
-}
 /**
  * 获取小区详情 - 请求参数
  */
@@ -532,63 +404,35 @@ export interface GetVillageDetailParams {
 export interface VillageDetail {
   /** 小区ID */
   village_id: number;
-
   /** 小区名称 */
   village_name: string;
-
   /** 省份ID */
   province: number;
-
   /** 省份名称 */
   province_name: string;
-
   /** 城市ID */
   city: number;
-
   /** 城市名称 */
   city_name: string;
-
   /** 区县ID */
   district: number;
-
   /** 区县名称 */
   district_name: string;
-
   /** 详细地址 */
   address: string;
-
   /** 经度 */
   longitude: string;
-
   /** 纬度 */
   latitude: string;
-
   /** 楼宇数量 */
   building: number;
-
   /** 备注 */
   remark: string;
-
   /** 所属公司ID */
   company_id: number;
-
   /** 所属公司名称 */
   company_name: string;
-
   /** 添加时间 */
   add_time: string;
 }
-
-/**
- * 获取小区详情 - 响应体
- */
-export interface GetVillageDetailResponse {
-  /** 业务代码 */
-  code: number;
-
-  /** 业务信息 */
-  message: string;
-
-  /** 业务数据 */
-  data: VillageDetail;
-}
+export type GetVillageDetailResponse = ApiResponse<VillageDetail>;

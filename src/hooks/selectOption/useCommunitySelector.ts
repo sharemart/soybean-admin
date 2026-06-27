@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { getVillageList } from '@/service/api/community/community';
 
@@ -81,7 +81,7 @@ export function useVillageSelector() {
         hasMore.value = false;
       }
     } catch (error) {
-      message.error('获取小区列表失败');
+      message.error(`获取小区列表失败${error}`);
       hasMore.value = false;
     } finally {
       loading.villageLoading = false;
