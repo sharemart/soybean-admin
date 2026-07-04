@@ -101,19 +101,21 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
 
     const removedTabRouteKey = tabs.value[removeTabIndex].routeKey;
     const isRemoveActiveTab = activeTabId.value === tabId;
+    const isLastClosableTab = tabs.value.length === 1 && !isTabRetain(tabId);
 
-    // if remove the last tab, then switch to the second last tab
+    if (isLastClosableTab) {
+      tabs.value.splice(removeTabIndex, 1);
+      return;
+    }
+
+    // 原来的逻辑
     const nextTab = tabs.value[removeTabIndex + 1] || tabs.value[removeTabIndex - 1] || homeTab.value;
-
-    // remove tab
     tabs.value.splice(removeTabIndex, 1);
 
-    // if current tab is removed, then switch to next tab
     if (isRemoveActiveTab && nextTab) {
       await switchRouteByTab(nextTab);
     }
 
-    // reset route cache
     routeStore.resetRouteCache(removedTabRouteKey);
   }
 

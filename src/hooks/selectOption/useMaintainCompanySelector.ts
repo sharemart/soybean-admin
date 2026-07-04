@@ -24,7 +24,10 @@ export function useMaintainCompanySelector() {
     maintainLoading: false
   });
 
+  let requestSeq = 0;
+
   const fetchMaintainCompanyList = async (params: { company_name?: string; page?: number; limit?: number } = {}) => {
+    const seq = ++requestSeq;
     try {
       loading.maintainLoading = true;
       const res = await getMaintainCompanyList({
@@ -32,6 +35,9 @@ export function useMaintainCompanySelector() {
         page: params.page || 1,
         limit: params.limit || 100
       });
+
+      if (seq !== requestSeq) return;
+
       const data = res.data?.data;
 
       if (data && Array.isArray(data)) {
@@ -56,11 +62,13 @@ export function useMaintainCompanySelector() {
         hasMore.value = false;
       }
     } catch (error) {
+      if (seq !== requestSeq) return;
       message.error(`获取维保公司失败${error}`);
-
       hasMore.value = false;
     } finally {
-      loading.maintainLoading = false;
+      if (seq === requestSeq) {
+        loading.maintainLoading = false;
+      }
     }
   };
 

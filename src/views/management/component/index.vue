@@ -280,8 +280,7 @@ const handleDelete = async (asset: ElevatorAsset) => {
           showMessage(res?.data?.message || '删除失败', 'error');
         }
       } catch (e) {
-        console.error('删除异常：', e);
-        showMessage('删除操作异常', 'error');
+        showMessage(`删除操作异常${e}`);
       }
     }
   });

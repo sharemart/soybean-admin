@@ -177,16 +177,66 @@ const updateChart = () => {
   const completed = filteredChartData.value.map(item => item.completed);
   const pending = filteredChartData.value.map(item => item.pending);
   const timeout = filteredChartData.value.map(item => item.predicted_timeout);
+  const dataLength = xAxisData.length;
+  let fontSize = 11;
+  let bottomPadding = 50;
+  let barWidth = 35;
+
+  if (dataLength > 10) {
+    fontSize = 9;
+    bottomPadding = 70;
+    barWidth = 20;
+  } else if (dataLength > 6) {
+    fontSize = 10;
+    bottomPadding = 60;
+    barWidth = 28;
+  }
 
   const option = {
     backgroundColor: 'transparent',
-    grid: { left: 30, right: 10, top: 20, bottom: 50, containLabel: true },
+    grid: {
+      left: 30,
+      right: 10,
+      top: 20,
+      bottom: bottomPadding,
+      containLabel: true
+    },
     xAxis: {
       type: 'category',
       data: xAxisData,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { fontSize: 11, fontWeight: '900', color: '#94a3b8' }
+      axisLabel: {
+        fontSize,
+        fontWeight: '900',
+        color: '#94a3b8',
+        rotate: 0,
+        interval: 0,
+        margin: 10,
+        formatter: (value: string) => {
+          if (value.includes(' ')) {
+            const parts = value.split(' ');
+            if (parts.length >= 2) {
+              const firstPart = parts[0];
+              const rest = parts.slice(1).join(' ');
+              if (firstPart.length > 6) {
+                return `${firstPart.substring(0, 6)}...\n${rest}`;
+              }
+              return `${firstPart}\n${rest}`;
+            }
+          }
+
+          if (value.length > 8) {
+            const mid = Math.ceil(value.length / 2);
+
+            if (value.length > 14) {
+              return `${value.substring(0, 6)}...\n${value.substring(value.length - 4)}`;
+            }
+            return `${value.substring(0, mid)}\n${value.substring(mid)}`;
+          }
+          return value;
+        }
+      }
     },
     yAxis: {
       type: 'value',
@@ -202,7 +252,18 @@ const updateChart = () => {
       borderWidth: 1,
       borderRadius: 16,
       boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-      textStyle: { color: '#0f172a', fontWeight: 'bold' }
+      textStyle: { color: '#0f172a', fontWeight: 'bold' },
+      formatter: (params: any) => {
+        const fullName = params[0].axisValue;
+        let html = `<div style="font-weight:bold;font-size:14px;margin-bottom:6px;">${fullName}</div>`;
+        params.forEach((p: any) => {
+          html += `<div style="display:flex;justify-content:space-between;gap:30px;font-size:12px;padding:2px 0;">
+            <span>${p.marker} ${p.seriesName}</span>
+            <span style="font-weight:bold;">${p.value}</span>
+          </div>`;
+        });
+        return html;
+      }
     },
     legend: {
       icon: 'circle',
@@ -216,7 +277,7 @@ const updateChart = () => {
         stack: 'a',
         data: completed,
         itemStyle: { color: COLORS.completed },
-        barWidth: 35
+        barWidth
       },
       {
         name: '待办/执行中',
@@ -224,7 +285,7 @@ const updateChart = () => {
         stack: 'a',
         data: pending,
         itemStyle: { color: COLORS.pending },
-        barWidth: 35
+        barWidth
       },
       {
         name: '预计超时',
@@ -232,12 +293,12 @@ const updateChart = () => {
         stack: 'a',
         data: timeout,
         itemStyle: { color: COLORS.timeout, borderRadius: [8, 8, 0, 0] },
-        barWidth: 35
+        barWidth
       }
     ]
   };
 
-  barChart.setOption(option);
+  barChart.setOption(option, true);
 };
 
 const initBarChart = () => {

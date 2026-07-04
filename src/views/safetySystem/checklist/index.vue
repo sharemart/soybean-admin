@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useDialog, useMessage } from 'naive-ui';
+import { useMessage } from 'naive-ui';
 import {
   AlertCircle,
   Building2,
   CheckCircle,
   Clock,
-  Download,
-  Edit,
   Eye,
   FileCheck,
   FileSpreadsheet,
@@ -15,11 +13,22 @@ import {
   Info,
   LayoutList,
   ListChecks,
-  Plus,
   RefreshCw,
-  Search,
-  Trash2
+  Search
 } from 'lucide-vue-next';
+import {
+  createChecklistFromTemplate,
+  fetchSafetyChecklistList,
+  fetchSafetyChecklistTemplateList
+} from '@/service/api/safety/safetyChecklist/safetyCheckApi';
+import type {
+  SafetyChecklistItem,
+  SafetyChecklistTemplateItem
+} from '@/service/api/safety/safetyChecklist/safetyCheck.d';
+import { useCompanySelector } from '@/hooks/selectOption/useCompanyManage';
+import TemplateDetailModal from '@/components/modal/safety/safetyCheck/getTemplateDetail.vue';
+import ChecklistDetailModal from '@/components/modal/safety/safetyCheck/ChecklistDetailModal.vue';
+import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 
 // ==================== 类型定义 ====================
 interface TemplateItem {
@@ -33,50 +42,26 @@ interface TemplateItem {
   update_time: number;
 }
 
-interface ChecklistItem {
-  id?: number;
-  item_name: string;
-  item_code: string;
-  category: string;
-  standard: string;
-  required: number;
-  sort_order: number;
-  is_enabled: number;
-  template_item_id?: number;
-}
-
-interface ChecklistVersion {
-  id: number;
-  version_name: string;
-  effective_date: string;
-  expiry_date?: string;
-  status: number;
-  company_id: number;
-  template_id: number;
-  create_time: number;
-  update_time: number;
-}
-
-interface ChecklistDetail {
-  checklist: ChecklistVersion;
-  items: ChecklistItem[];
-}
-
 // ==================== 状态管理 ====================
 const message = useMessage();
-const dialog = useDialog();
 
 const activeTab = ref('template');
 const loading = ref(false);
 const isSyncing = ref(false);
 
-// 模板库相关
-const templateList = ref<TemplateItem[]>([]);
+// ==================== 公司选择器 ====================
+const { companyOptions, fetchCompanyListData } = useCompanySelector();
+const selectedCompanyId = ref<string>('');
+const isInitialized = ref(false);
+
+// ==================== 模板库相关 ====================
+const templateList = ref<SafetyChecklistTemplateItem[]>([]);
 const templateSearchTerm = ref('');
-const selectedTemplate = ref<TemplateItem | null>(null);
+
+// 模板明细弹窗
 const templateDetailVisible = ref(false);
-const templateDetailLoading = ref(false);
-const templateDetailData = ref<{ template: TemplateItem; items: ChecklistItem[] } | null>(null);
+const selectedTemplateId = ref<number>();
+const selectedTemplateName = ref('');
 
 // 生成清单对话框
 const generateDialogVisible = ref(false);
@@ -88,191 +73,76 @@ const generateForm = reactive({
 const generateLoading = ref(false);
 
 // 本单位清单列表
-const checklistList = ref<ChecklistVersion[]>([]);
+const checklistList = ref<SafetyChecklistItem[]>([]);
 const checklistFilter = reactive({
   status: undefined as number | undefined
 });
 
 // 清单详情
 const checklistDetailVisible = ref(false);
-const checklistDetailLoading = ref(false);
-const currentChecklist = ref<ChecklistDetail | null>(null);
+const selectedChecklistId = ref<number>();
 
-// 编辑检查项对话框
-const editItemDialogVisible = ref(false);
-const editingItem = ref<ChecklistItem | null>(null);
-const saveItemLoading = ref(false);
+// ==================== 各Tab数据加载状态 ====================
+const templateLoaded = ref(false);
+const checklistLoaded = ref(false);
 
-// 新增检查项对话框
-const addItemDialogVisible = ref(false);
-const newItemForm = reactive<Partial<ChecklistItem>>({
-  item_name: '',
-  item_code: '',
-  category: '',
-  standard: '',
-  required: 1,
-  sort_order: 0,
-  is_enabled: 1
-});
-
-// ==================== 模拟API调用 ====================
+// 获取模板列表
 const fetchTemplateList = async () => {
+  if (templateLoaded.value && templateList.value.length > 0) return;
+
   loading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    templateList.value = [
-      {
-        id: 1,
-        template_name: '电梯安全风险管控清单（通用）',
-        template_code: 'TSG_Z0008_DEFAULT',
-        elevator_type: 0,
-        description:
-          '依据TSG Z0008-2023，分为基础管理、机房、轿厢与层站、井道底坑、安全保护装置五大模块；检查结果正常打√、异常打×、无此项打○。',
-        status: 1,
-        add_time: 1779955409,
-        update_time: 1779955409
-      },
-      {
-        id: 2,
-        template_name: '曳引驱动电梯安全风险管控清单',
-        template_code: 'TSG_Z0008_TRACTION',
-        elevator_type: 1,
-        description: '针对曳引驱动电梯的专项检查清单，包含曳引系统、导向系统、门系统等关键部件。',
-        status: 1,
-        add_time: 1779955409,
-        update_time: 1779955409
-      },
-      {
-        id: 3,
-        template_name: '自动扶梯与自动人行道安全风险管控清单',
-        template_code: 'TSG_Z0008_ESCALATOR',
-        elevator_type: 2,
-        description: '针对自动扶梯和自动人行道的专项检查清单，包含梳齿板、扶手带、梯级链等关键部件。',
-        status: 1,
-        add_time: 1779955409,
-        update_time: 1779955409
-      }
-    ];
+    const res = await fetchSafetyChecklistTemplateList();
+    if (res?.data?.code === 2000) {
+      templateList.value = res.data?.data?.list || [];
+      templateLoaded.value = true;
+    } else {
+      message.error(res?.data?.msg || '获取模板列表失败');
+      templateList.value = [];
+    }
+  } catch (error) {
+    message.error(`获取模板列表失败，请稍后重试${error}`);
+    templateList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-const fetchTemplateDetail = async (templateId: number) => {
-  templateDetailLoading.value = true;
+// 获取本单位清单列表
+const fetchChecklistList = async () => {
+  if (!selectedCompanyId.value) {
+    message.warning('请先选择物业公司');
+    return;
+  }
+
+  loading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const mockItems: ChecklistItem[] = [
-      {
-        id: 1,
-        item_name: '使用登记与定期检验',
-        item_code: 'GL-01',
-        category: '基础管理',
-        standard: '是否办理使用登记，检验是否在有效期内',
-        required: 1,
-        sort_order: 1,
-        is_enabled: 1
-      },
-      {
-        id: 2,
-        item_name: '安全管理人员配备',
-        item_code: 'GL-02',
-        category: '基础管理',
-        standard: '是否按规定配备安全管理人员',
-        required: 1,
-        sort_order: 2,
-        is_enabled: 1
-      },
-      {
-        id: 3,
-        item_name: '机房环境卫生',
-        item_code: 'JF-01',
-        category: '机房',
-        standard: '机房是否清洁，无杂物堆积',
-        required: 1,
-        sort_order: 3,
-        is_enabled: 1
-      },
-      {
-        id: 4,
-        item_name: '曳引机运行状态',
-        item_code: 'JF-02',
-        category: '机房',
-        standard: '曳引机运行是否平稳，无异响',
-        required: 1,
-        sort_order: 4,
-        is_enabled: 1
-      },
-      {
-        id: 5,
-        item_name: '轿厢照明与通风',
-        item_code: 'JX-01',
-        category: '轿厢与层站',
-        standard: '轿厢照明是否明亮，通风是否良好',
-        required: 1,
-        sort_order: 5,
-        is_enabled: 1
-      },
-      {
-        id: 6,
-        item_name: '紧急报警装置',
-        item_code: 'JX-02',
-        category: '轿厢与层站',
-        standard: '紧急报警装置是否有效，通话是否清晰',
-        required: 1,
-        sort_order: 6,
-        is_enabled: 1
-      },
-      {
-        id: 7,
-        item_name: '层站呼梯按钮',
-        item_code: 'JX-03',
-        category: '轿厢与层站',
-        standard: '层站呼梯按钮是否灵敏有效',
-        required: 1,
-        sort_order: 7,
-        is_enabled: 1
-      },
-      {
-        id: 8,
-        item_name: '井道照明',
-        item_code: 'JD-01',
-        category: '井道底坑',
-        standard: '井道照明是否正常',
-        required: 0,
-        sort_order: 8,
-        is_enabled: 1
-      },
-      {
-        id: 9,
-        item_name: '底坑清洁与干燥',
-        item_code: 'JD-02',
-        category: '井道底坑',
-        standard: '底坑是否清洁，无积水',
-        required: 1,
-        sort_order: 9,
-        is_enabled: 1
-      },
-      {
-        id: 10,
-        item_name: '限速器校验',
-        item_code: 'AQ-01',
-        category: '安全保护装置',
-        standard: '限速器是否在校验有效期内',
-        required: 1,
-        sort_order: 10,
-        is_enabled: 1
-      }
-    ];
-    templateDetailData.value = {
-      template: templateList.value.find(t => t.id === templateId)!,
-      items: mockItems
+    const params: any = {
+      company_id: Number(selectedCompanyId.value)
     };
+
+    if (checklistFilter.status !== undefined) {
+      params.status = checklistFilter.status;
+    }
+
+    const res = await fetchSafetyChecklistList(params);
+
+    if (res?.data?.code === 2000) {
+      checklistList.value = res.data?.data?.list || [];
+      checklistLoaded.value = true;
+    } else {
+      message.error(res?.data?.msg || '获取清单列表失败');
+      checklistList.value = [];
+    }
+  } catch (error) {
+    message.error(`获取清单列表失败，请稍后重试${error}`);
+    checklistList.value = [];
   } finally {
-    templateDetailLoading.value = false;
+    loading.value = false;
   }
 };
 
+// 生成清单
 const createFromTemplate = async () => {
   if (!generateForm.version_name) {
     message.warning('请输入版本名称');
@@ -282,181 +152,38 @@ const createFromTemplate = async () => {
     message.warning('请选择生效日期');
     return;
   }
+  if (!selectedCompanyId.value) {
+    message.warning('请先选择物业公司');
+    return;
+  }
+
   generateLoading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    message.success('成功生成本单位清单版本');
-    generateDialogVisible.value = false;
-    await fetchChecklistList();
-    activeTab.value = 'mylist';
+    const res = await createChecklistFromTemplate({
+      template_id: generateForm.template_id,
+      company_id: Number(selectedCompanyId.value),
+      version_name: generateForm.version_name,
+      effective_date: generateForm.effective_date
+    });
+
+    if (res?.data?.code === 2000) {
+      message.success('成功生成本单位清单版本');
+      generateDialogVisible.value = false;
+      // 刷新清单列表
+      checklistLoaded.value = false;
+      await fetchChecklistList();
+      activeTab.value = 'mylist';
+    } else {
+      message.error(res?.data?.message || '生成清单失败');
+    }
+  } catch (error) {
+    message.error(`生成清单失败，请稍后重试${error}`);
   } finally {
     generateLoading.value = false;
   }
 };
 
-const fetchChecklistList = async () => {
-  loading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    checklistList.value = [
-      {
-        id: 101,
-        version_name: '2024年度电梯安全风险管控清单',
-        effective_date: '2024-01-01',
-        expiry_date: '2024-12-31',
-        status: 2,
-        company_id: 1,
-        template_id: 1,
-        create_time: 1704067200,
-        update_time: 1704067200
-      },
-      {
-        id: 102,
-        version_name: '2025年度电梯安全风险管控清单（草案）',
-        effective_date: '2025-01-01',
-        expiry_date: null,
-        status: 1,
-        company_id: 1,
-        template_id: 1,
-        create_time: 1735689600,
-        update_time: 1735689600
-      },
-      {
-        id: 103,
-        version_name: '曳引驱动电梯专项清单',
-        effective_date: '2024-06-01',
-        expiry_date: '2025-05-31',
-        status: 2,
-        company_id: 1,
-        template_id: 2,
-        create_time: 1717200000,
-        update_time: 1717200000
-      }
-    ];
-  } finally {
-    loading.value = false;
-  }
-};
-
-const fetchChecklistDetail = async (checklistId: number) => {
-  checklistDetailLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const checklist = checklistList.value.find(c => c.id === checklistId);
-    if (checklist) {
-      const mockItems: ChecklistItem[] = [
-        {
-          id: 1001,
-          item_name: '使用登记与定期检验',
-          item_code: 'GL-01',
-          category: '基础管理',
-          standard: '是否办理使用登记，检验是否在有效期内',
-          required: 1,
-          sort_order: 1,
-          is_enabled: 1
-        },
-        {
-          id: 1002,
-          item_name: '安全管理人员配备',
-          item_code: 'GL-02',
-          category: '基础管理',
-          standard: '是否按规定配备安全管理人员',
-          required: 1,
-          sort_order: 2,
-          is_enabled: 1
-        },
-        {
-          id: 1003,
-          item_name: '机房环境卫生',
-          item_code: 'JF-01',
-          category: '机房',
-          standard: '机房是否清洁，无杂物堆积',
-          required: 1,
-          sort_order: 3,
-          is_enabled: 1
-        },
-        {
-          id: 1004,
-          item_name: '曳引机运行状态',
-          item_code: 'JF-02',
-          category: '机房',
-          standard: '曳引机运行是否平稳，无异响',
-          required: 1,
-          sort_order: 4,
-          is_enabled: 0
-        },
-        {
-          id: 1005,
-          item_name: '轿厢照明与通风',
-          item_code: 'JX-01',
-          category: '轿厢与层站',
-          standard: '轿厢照明是否明亮，通风是否良好',
-          required: 1,
-          sort_order: 5,
-          is_enabled: 1
-        },
-        {
-          id: 1006,
-          item_name: '紧急报警装置',
-          item_code: 'JX-02',
-          category: '轿厢与层站',
-          standard: '紧急报警装置是否有效，通话是否清晰',
-          required: 1,
-          sort_order: 6,
-          is_enabled: 1
-        },
-        {
-          id: 1007,
-          item_name: '层站呼梯按钮',
-          item_code: 'JX-03',
-          category: '轿厢与层站',
-          standard: '层站呼梯按钮是否灵敏有效',
-          required: 1,
-          sort_order: 7,
-          is_enabled: 1
-        },
-        {
-          id: 1008,
-          item_name: '井道照明',
-          item_code: 'JD-01',
-          category: '井道底坑',
-          standard: '井道照明是否正常',
-          required: 0,
-          sort_order: 8,
-          is_enabled: 1
-        },
-        {
-          id: 1009,
-          item_name: '底坑清洁与干燥',
-          item_code: 'JD-02',
-          category: '井道底坑',
-          standard: '底坑是否清洁，无积水',
-          required: 1,
-          sort_order: 9,
-          is_enabled: 0
-        },
-        {
-          id: 1010,
-          item_name: '限速器校验',
-          item_code: 'AQ-01',
-          category: '安全保护装置',
-          standard: '限速器是否在校验有效期内',
-          required: 1,
-          sort_order: 10,
-          is_enabled: 1
-        }
-      ];
-      currentChecklist.value = {
-        checklist,
-        items: mockItems
-      };
-    }
-  } finally {
-    checklistDetailLoading.value = false;
-  }
-};
-
-// 过滤模板列表
+// ==================== 计算属性 ====================
 const filteredTemplates = computed(() => {
   if (!templateSearchTerm.value) return templateList.value;
   return templateList.value.filter(
@@ -466,12 +193,12 @@ const filteredTemplates = computed(() => {
   );
 });
 
-// 过滤本单位清单
 const filteredChecklists = computed(() => {
   if (!checklistFilter.status) return checklistList.value;
   return checklistList.value.filter(item => item.status === checklistFilter.status);
 });
 
+// ==================== 事件处理 ====================
 const handleGenerateFromTemplate = (template: TemplateItem) => {
   generateForm.template_id = template.id;
   generateForm.version_name = `${template.template_name} - ${new Date().toLocaleDateString()}`;
@@ -479,127 +206,34 @@ const handleGenerateFromTemplate = (template: TemplateItem) => {
   generateDialogVisible.value = true;
 };
 
-const handleViewTemplateDetail = async (template: TemplateItem) => {
-  selectedTemplate.value = template;
-  await fetchTemplateDetail(template.id);
+const handleViewTemplateDetail = (template: SafetyChecklistTemplateItem) => {
+  selectedTemplateId.value = template.id;
+  selectedTemplateName.value = template.template_name;
   templateDetailVisible.value = true;
 };
 
-const handleViewChecklistDetail = async (checklist: ChecklistVersion) => {
-  await fetchChecklistDetail(checklist.id);
+const handleGenerateFromModal = (template: TemplateItem) => {
+  handleGenerateFromTemplate(template);
+};
+
+const handleViewChecklistDetail = (checklist: SafetyChecklistItem) => {
+  selectedChecklistId.value = checklist.id;
   checklistDetailVisible.value = true;
-};
-
-const handleToggleItemStatus = async (item: ChecklistItem) => {
-  dialog.warning({
-    title: '提示',
-    content: `确定要${item.is_enabled ? '停用' : '启用'}检查项"${item.item_name}"吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      item.is_enabled = item.is_enabled ? 0 : 1;
-      message.success(`已${item.is_enabled ? '启用' : '停用'}检查项`);
-    }
-  });
-};
-
-const handleEditItem = (item: ChecklistItem) => {
-  editingItem.value = { ...item };
-  editItemDialogVisible.value = true;
-};
-
-const handleSaveItem = async () => {
-  if (!editingItem.value?.item_name) {
-    message.warning('请输入检查项名称');
-    return;
-  }
-  saveItemLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (currentChecklist.value) {
-      const index = currentChecklist.value.items.findIndex(i => i.id === editingItem.value!.id);
-      if (index !== -1) {
-        currentChecklist.value.items[index] = { ...editingItem.value! };
-      }
-    }
-    message.success('保存成功');
-    editItemDialogVisible.value = false;
-    editingItem.value = null;
-  } finally {
-    saveItemLoading.value = false;
-  }
-};
-
-const handleAddItem = () => {
-  addItemDialogVisible.value = true;
-};
-
-const handleSaveNewItem = async () => {
-  if (!newItemForm.item_name) {
-    message.warning('请输入检查项名称');
-    return;
-  }
-  if (!newItemForm.category) {
-    message.warning('请输入分类');
-    return;
-  }
-  saveItemLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newItem: ChecklistItem = {
-      id: Date.now(),
-      item_name: newItemForm.item_name!,
-      item_code: newItemForm.item_code || `CUS-${Date.now()}`,
-      category: newItemForm.category!,
-      standard: newItemForm.standard || '',
-      required: newItemForm.required || 1,
-      sort_order: newItemForm.sort_order || (currentChecklist.value?.items.length || 0) + 1,
-      is_enabled: newItemForm.is_enabled || 1
-    };
-    if (currentChecklist.value) {
-      currentChecklist.value.items.push(newItem);
-    }
-    message.success('新增成功');
-    addItemDialogVisible.value = false;
-    Object.assign(newItemForm, {
-      item_name: '',
-      item_code: '',
-      category: '',
-      standard: '',
-      required: 1,
-      sort_order: 0,
-      is_enabled: 1
-    });
-  } finally {
-    saveItemLoading.value = false;
-  }
-};
-
-const handleDeleteItem = async (item: ChecklistItem) => {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要删除检查项"${item.item_name}"吗？此操作不可恢复！`,
-    positiveText: '删除',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      if (currentChecklist.value) {
-        currentChecklist.value.items = currentChecklist.value.items.filter(i => i.id !== item.id);
-      }
-      message.success('删除成功');
-    }
-  });
-};
-
-const handleExport = (type: 'pdf' | 'excel', checklist: ChecklistVersion) => {
-  message.info(`正在导出${type.toUpperCase()}格式...`);
-  setTimeout(() => {
-    message.success(`导出成功：${checklist.version_name}`);
-  }, 1000);
 };
 
 const handleSync = () => {
   isSyncing.value = true;
-  Promise.all([fetchTemplateList(), fetchChecklistList()]).finally(() => {
+  const promises: Promise<any>[] = [];
+
+  if (activeTab.value === 'template') {
+    templateLoaded.value = false;
+    promises.push(fetchTemplateList());
+  } else if (activeTab.value === 'mylist') {
+    checklistLoaded.value = false;
+    promises.push(fetchChecklistList());
+  }
+
+  Promise.all(promises).finally(() => {
     setTimeout(() => {
       isSyncing.value = false;
       message.success('数据已同步');
@@ -607,6 +241,7 @@ const handleSync = () => {
   });
 };
 
+// ==================== 工具函数 ====================
 const getStatusInfo = (status: number) => {
   switch (status) {
     case 1:
@@ -633,9 +268,64 @@ const getElevatorTypeInfo = (type: number) => {
   }
 };
 
+// ==================== 监听Tab切换 ====================
+watch(activeTab, async newTab => {
+  if (newTab === 'template') {
+    if (!templateLoaded.value || templateList.value.length === 0) {
+      await fetchTemplateList();
+    }
+  } else if (newTab === 'mylist') {
+    if (!checklistLoaded.value || checklistList.value.length === 0) {
+      if (selectedCompanyId.value) {
+        await fetchChecklistList();
+      }
+    }
+  }
+});
+
+// 监听公司变化
+watch(selectedCompanyId, async newVal => {
+  if (newVal && isInitialized.value) {
+    // 重置清单加载状态，重新加载
+    checklistLoaded.value = false;
+    if (activeTab.value === 'mylist') {
+      await fetchChecklistList();
+    }
+  }
+});
+
+// 监听筛选状态变化
+watch(
+  () => checklistFilter.status,
+  async () => {
+    if (isInitialized.value && activeTab.value === 'mylist' && selectedCompanyId.value) {
+      checklistLoaded.value = false;
+      await fetchChecklistList();
+    }
+  }
+);
+
+// 监听公司选项加载完成
+watch(
+  companyOptions,
+  async newOptions => {
+    if (isInitialized.value || newOptions.length === 0) return;
+
+    if (newOptions.length > 0) {
+      // 默认选中第一个公司
+      selectedCompanyId.value = newOptions[0].value.toString();
+      isInitialized.value = true;
+
+      // 初始加载模板列表（默认显示模板库）
+      await fetchTemplateList();
+    }
+  },
+  { immediate: true }
+);
+
+// ==================== 生命周期 ====================
 onMounted(() => {
-  fetchTemplateList();
-  fetchChecklistList();
+  fetchCompanyListData({ type: '2' });
 });
 </script>
 
@@ -674,7 +364,9 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-3">
-          <button class="rounded-xl bg-slate-100 p-2.5 text-slate-500 dark:bg-slate-800 hover:bg-slate-200">
+          <button
+            class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-all dark:bg-slate-800 hover:bg-slate-200"
+          >
             <FileSpreadsheet :size="18" />
           </button>
           <button
@@ -771,12 +463,6 @@ onMounted(() => {
                     >
                       <Eye :size="14" />
                     </button>
-                    <button
-                      class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-emerald-500 hover:text-white"
-                      @click="handleGenerateFromTemplate(item)"
-                    >
-                      <Plus :size="14" />
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -791,45 +477,65 @@ onMounted(() => {
       <div
         class="border border-slate-200 rounded-[2.5rem] bg-white shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/40"
       >
+        <!-- 物业公司下拉框 + 筛选 -->
         <div class="border-b border-slate-200 p-6 dark:border-slate-800">
           <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
-              <button
-                class="rounded-xl px-4 py-1.5 text-[10px] font-bold transition-all"
-                :class="
-                  !checklistFilter.status ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm' : 'text-slate-500'
-                "
-                @click="checklistFilter.status = undefined"
-              >
-                全部
-              </button>
-              <button
-                class="rounded-xl px-4 py-1.5 text-[10px] font-bold transition-all"
-                :class="
-                  checklistFilter.status === 1 ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm' : 'text-slate-500'
-                "
-                @click="checklistFilter.status = 1"
-              >
-                草稿
-              </button>
-              <button
-                class="rounded-xl px-4 py-1.5 text-[10px] font-bold transition-all"
-                :class="
-                  checklistFilter.status === 2 ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm' : 'text-slate-500'
-                "
-                @click="checklistFilter.status = 2"
-              >
-                生效
-              </button>
-              <button
-                class="rounded-xl px-4 py-1.5 text-[10px] font-bold transition-all"
-                :class="
-                  checklistFilter.status === 3 ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm' : 'text-slate-500'
-                "
-                @click="checklistFilter.status = 3"
-              >
-                历史
-              </button>
+            <div class="flex items-center gap-4">
+              <!-- 物业公司下拉框 -->
+              <CustomSelect
+                v-model="selectedCompanyId"
+                :options="companyOptions"
+                placeholder="请选择物业公司"
+                :width="240"
+                :icon="Building2"
+                icon-size="16"
+                icon-class="text-slate-400"
+              />
+              <!-- 状态筛选 -->
+              <div class="flex gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+                <button
+                  class="whitespace-nowrap rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all"
+                  :class="
+                    !checklistFilter.status ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm' : 'text-slate-500'
+                  "
+                  @click="checklistFilter.status = undefined"
+                >
+                  全部
+                </button>
+                <button
+                  class="whitespace-nowrap rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all"
+                  :class="
+                    checklistFilter.status === 1
+                      ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm'
+                      : 'text-slate-500'
+                  "
+                  @click="checklistFilter.status = 1"
+                >
+                  草稿
+                </button>
+                <button
+                  class="whitespace-nowrap rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all"
+                  :class="
+                    checklistFilter.status === 2
+                      ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm'
+                      : 'text-slate-500'
+                  "
+                  @click="checklistFilter.status = 2"
+                >
+                  生效
+                </button>
+                <button
+                  class="whitespace-nowrap rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all"
+                  :class="
+                    checklistFilter.status === 3
+                      ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-sm'
+                      : 'text-slate-500'
+                  "
+                  @click="checklistFilter.status = 3"
+                >
+                  历史
+                </button>
+              </div>
             </div>
             <span class="text-[10px] text-slate-400 font-mono">共 {{ filteredChecklists.length }} 个版本</span>
           </div>
@@ -843,7 +549,6 @@ onMounted(() => {
               >
                 <th class="px-6 py-5">版本名称</th>
                 <th class="px-6 py-5">生效日期</th>
-                <th class="px-6 py-5">停用日期</th>
                 <th class="px-6 py-5">状态</th>
                 <th class="px-6 py-5">更新时间</th>
                 <th class="px-6 py-5 text-right">操作</th>
@@ -851,15 +556,23 @@ onMounted(() => {
             </thead>
             <tbody class="divide-y divide-slate-50 dark:divide-slate-800/40">
               <tr v-if="loading">
-                <td colspan="6" class="px-6 py-20 text-center">
+                <td colspan="5" class="px-6 py-20 text-center">
                   <div class="flex flex-col items-center justify-center text-center opacity-50">
                     <RefreshCw class="mb-2 animate-spin text-sky-500" :size="48" />
                     <p class="text-sm text-slate-500 font-black tracking-widest uppercase">加载中...</p>
                   </div>
                 </td>
               </tr>
+              <tr v-else-if="!selectedCompanyId">
+                <td colspan="5" class="px-6 py-20 text-center">
+                  <div class="flex flex-col items-center justify-center opacity-50">
+                    <Building2 :size="48" class="mb-2" />
+                    <p class="text-sm font-black tracking-widest uppercase">请选择物业公司</p>
+                  </div>
+                </td>
+              </tr>
               <tr v-else-if="filteredChecklists.length === 0">
-                <td colspan="6" class="px-6 py-20 text-center">
+                <td colspan="5" class="px-6 py-20 text-center">
                   <div class="flex flex-col items-center justify-center opacity-50">
                     <Search :size="48" class="mb-2" />
                     <p class="text-sm font-black tracking-widest uppercase">暂无清单版本</p>
@@ -876,7 +589,6 @@ onMounted(() => {
                   </div>
                 </td>
                 <td class="px-6 py-5 text-xs text-slate-600 font-mono">{{ item.effective_date }}</td>
-                <td class="px-6 py-5 text-xs text-slate-400 font-mono">{{ item.expiry_date || '—' }}</td>
                 <td class="px-6 py-5">
                   <div
                     class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
@@ -897,18 +609,6 @@ onMounted(() => {
                     >
                       <Eye :size="14" />
                     </button>
-                    <button
-                      class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-emerald-500 hover:text-white"
-                      @click="handleExport('pdf', item)"
-                    >
-                      <Download :size="14" />
-                    </button>
-                    <button
-                      class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-sky-500 hover:text-white"
-                      @click="handleExport('excel', item)"
-                    >
-                      <FileText :size="14" />
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -918,420 +618,149 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 模板明细对话框 -->
-    <NModal
-      v-model:show="templateDetailVisible"
-      preset="dialog"
-      :title="`模板明细 - ${selectedTemplate?.template_name}`"
-      style="width: 800px"
-    >
-      <NSpin :show="templateDetailLoading">
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span class="text-slate-400">模板编码：</span>
-              {{ templateDetailData?.template.template_code }}
-            </div>
-            <div>
-              <span class="text-slate-400">电梯类型：</span>
-              {{ getElevatorTypeInfo(templateDetailData?.template.elevator_type || 0).text }}
-            </div>
-            <div class="col-span-2">
-              <span class="text-slate-400">模板说明：</span>
-              {{ templateDetailData?.template.description }}
-            </div>
-          </div>
-          <div>
-            <h4 class="mb-3 text-sm font-bold">预置检查项</h4>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50">
-                  <tr>
-                    <th class="px-3 py-2">项号</th>
-                    <th class="px-3 py-2">检查项</th>
-                    <th class="px-3 py-2">分类</th>
-                    <th class="px-3 py-2">检查标准</th>
-                    <th class="px-3 py-2">必查</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y">
-                  <tr v-for="item in templateDetailData?.items" :key="item.id">
-                    <td class="px-3 py-2 font-mono">{{ item.item_code }}</td>
-                    <td class="px-3 py-2 font-medium">{{ item.item_name }}</td>
-                    <td class="px-3 py-2">{{ item.category }}</td>
-                    <td class="px-3 py-2 text-slate-500">{{ item.standard }}</td>
-                    <td class="px-3 py-2">
-                      <span
-                        class="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                        :class="item.required ? 'bg-rose-500/10 text-rose-500' : 'bg-slate-500/10 text-slate-500'"
-                      >
-                        {{ item.required ? '必查' : '可选' }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </NSpin>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="templateDetailVisible = false"
-        >
-          关闭
-        </button>
-        <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold shadow-lg shadow-sky-500/20"
-          @click="handleGenerateFromTemplate(selectedTemplate!)"
-        >
-          生成本单位清单
-        </button>
-      </template>
-    </NModal>
+    <!-- ==================== 弹窗组件 ==================== -->
+
+    <!-- 模板明细弹窗 -->
+    <TemplateDetailModal
+      v-model:visible="templateDetailVisible"
+      :template-id="selectedTemplateId"
+      :template-name="selectedTemplateName"
+      :company-id="Number(selectedCompanyId) || 0"
+      @generate="handleGenerateFromModal"
+    />
 
     <!-- 生成清单对话框 -->
-    <NModal v-model:show="generateDialogVisible" preset="dialog" title="生成本单位清单" style="width: 500px">
-      <div class="space-y-4">
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">版本名称 *</label>
-          <input
-            v-model="generateForm.version_name"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-            placeholder="请输入版本名称"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">生效日期 *</label>
-          <input
-            v-model="generateForm.effective_date"
-            type="date"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">模板来源</label>
-          <input
-            :value="templateList.find(t => t.id === generateForm.template_id)?.template_name"
-            disabled
-            class="w-full border border-slate-200 rounded-xl bg-slate-50 px-4 py-2 text-sm"
-          />
-        </div>
-      </div>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="generateDialogVisible = false"
-        >
-          取消
-        </button>
-        <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold shadow-lg shadow-sky-500/20"
-          :disabled="generateLoading"
-          @click="createFromTemplate"
-        >
-          {{ generateLoading ? '生成中...' : '确认生成' }}
-        </button>
-      </template>
-    </NModal>
-
-    <!-- 本单位清单明细对话框 -->
     <NModal
-      v-model:show="checklistDetailVisible"
+      v-model:show="generateDialogVisible"
       preset="dialog"
-      :title="`清单明细 - ${currentChecklist?.checklist.version_name}`"
-      style="width: 1000px"
+      :title="undefined"
+      style="width: 520px; border-radius: 2.5rem; overflow: hidden"
+      class="generate-modal"
     >
-      <NSpin :show="checklistDetailLoading">
-        <div class="space-y-4">
-          <div class="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <span class="text-slate-400">版本名称：</span>
-              {{ currentChecklist?.checklist.version_name }}
+      <template #header>
+        <div
+          class="w-full flex items-center justify-between border-b border-slate-100 bg-emerald-500/5 p-6 dark:border-slate-800"
+        >
+          <div class="flex items-center gap-4">
+            <div
+              class="rounded-2xl from-emerald-500 to-teal-600 bg-gradient-to-br p-3 text-white shadow-emerald-500/25 shadow-lg"
+            >
+              <FileCheck :size="24" />
             </div>
             <div>
-              <span class="text-slate-400">生效日期：</span>
-              {{ currentChecklist?.checklist.effective_date }}
-            </div>
-            <div>
-              <span class="text-slate-400">停用日期：</span>
-              {{ currentChecklist?.checklist.expiry_date || '—' }}
-            </div>
-            <div>
-              <span class="text-slate-400">状态：</span>
-              <span
-                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
-                :class="[
-                  getStatusInfo(currentChecklist?.checklist.status || 0).bg,
-                  getStatusInfo(currentChecklist?.checklist.status || 0).color
-                ]"
-              >
-                <component :is="getStatusInfo(currentChecklist?.checklist.status || 0).icon" :size="10" />
-                {{ getStatusInfo(currentChecklist?.checklist.status || 0).text }}
-              </span>
-            </div>
-            <div>
-              <span class="text-slate-400">创建时间：</span>
-              {{
-                currentChecklist?.checklist.create_time
-                  ? new Date(currentChecklist.checklist.create_time * 1000).toLocaleString()
-                  : '—'
-              }}
-            </div>
-            <div>
-              <span class="text-slate-400">更新时间：</span>
-              {{
-                currentChecklist?.checklist.update_time
-                  ? new Date(currentChecklist.checklist.update_time * 1000).toLocaleString()
-                  : '—'
-              }}
-            </div>
-          </div>
-          <div>
-            <div class="mb-3 flex items-center justify-between">
-              <h4 class="text-sm font-bold">检查项清单</h4>
-              <button
-                class="flex items-center gap-1 rounded-xl bg-sky-500 px-3 py-1.5 text-[10px] text-white font-bold"
-                @click="handleAddItem"
-              >
-                <Plus :size="12" />
-                新增检查项
-              </button>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50">
-                  <tr>
-                    <th class="px-3 py-2">序号</th>
-                    <th class="px-3 py-2">项号</th>
-                    <th class="px-3 py-2">检查项</th>
-                    <th class="px-3 py-2">分类</th>
-                    <th class="px-3 py-2">检查标准</th>
-                    <th class="px-3 py-2">必查</th>
-                    <th class="px-3 py-2">状态</th>
-                    <th class="px-3 py-2 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y">
-                  <tr v-for="item in currentChecklist?.items" :key="item.id">
-                    <td class="px-3 py-2 text-slate-400 font-mono">{{ item.sort_order }}</td>
-                    <td class="px-3 py-2 font-mono">{{ item.item_code }}</td>
-                    <td class="px-3 py-2 font-medium">{{ item.item_name }}</td>
-                    <td class="px-3 py-2">{{ item.category }}</td>
-                    <td class="px-3 py-2 text-slate-500">{{ item.standard }}</td>
-                    <td class="px-3 py-2">
-                      <span
-                        class="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                        :class="item.required ? 'bg-rose-500/10 text-rose-500' : 'bg-slate-500/10 text-slate-500'"
-                      >
-                        {{ item.required ? '必查' : '可选' }}
-                      </span>
-                    </td>
-                    <td class="px-3 py-2">
-                      <span
-                        class="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                        :class="
-                          item.is_enabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'
-                        "
-                      >
-                        {{ item.is_enabled ? '启用' : '停用' }}
-                      </span>
-                    </td>
-                    <td class="px-3 py-2 text-right">
-                      <div class="flex justify-end gap-1">
-                        <button
-                          class="rounded p-1.5 text-slate-400 hover:bg-sky-500 hover:text-white"
-                          @click="handleEditItem(item)"
-                        >
-                          <Edit :size="12" />
-                        </button>
-                        <button
-                          class="rounded p-1.5 text-slate-400 hover:bg-amber-500 hover:text-white"
-                          @click="handleToggleItemStatus(item)"
-                        >
-                          {{ item.is_enabled ? '停用' : '启用' }}
-                        </button>
-                        <button
-                          class="rounded p-1.5 text-slate-400 hover:bg-rose-500 hover:text-white"
-                          @click="handleDeleteItem(item)"
-                        >
-                          <Trash2 :size="12" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <h3 class="text-xl text-slate-800 font-black tracking-tight dark:text-slate-100">生成本单位清单</h3>
+              <p class="text-[10px] text-slate-400 font-medium tracking-wider">基于模板生成企业专属的安全检查清单</p>
             </div>
           </div>
         </div>
-      </NSpin>
+      </template>
+
+      <div class="flex-1 overflow-y-auto p-6">
+        <div class="space-y-5">
+          <!-- 模板来源 -->
+          <div
+            class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
+          >
+            <div class="flex items-center gap-3">
+              <div class="rounded-lg bg-sky-500/10 p-2 text-sky-500">
+                <FileText :size="16" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-[10px] text-slate-400 font-black tracking-wider uppercase">模板来源</p>
+                <p class="truncate text-sm text-slate-700 font-bold dark:text-slate-200">
+                  {{ templateList.find(t => t.id === generateForm.template_id)?.template_name || '未选择' }}
+                </p>
+                <p class="text-[10px] text-slate-400 font-mono">
+                  {{ templateList.find(t => t.id === generateForm.template_id)?.template_code || '' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 版本名称 -->
+          <div class="space-y-1.5">
+            <label class="flex items-center gap-1 pl-1 text-[10px] text-slate-400 font-black tracking-wider uppercase">
+              版本名称
+              <span class="text-rose-500">*</span>
+            </label>
+            <input
+              v-model="generateForm.version_name"
+              type="text"
+              class="w-full border border-slate-200 rounded-2xl bg-white px-4 py-3 text-sm transition-all dark:border-slate-700 focus:border-emerald-400 dark:bg-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:placeholder:text-slate-500"
+              placeholder="请输入版本名称，如：2025年度安全风险管控清单"
+            />
+          </div>
+
+          <!-- 生效日期 -->
+          <div class="space-y-1.5">
+            <label class="flex items-center gap-1 pl-1 text-[10px] text-slate-400 font-black tracking-wider uppercase">
+              生效日期
+              <span class="text-rose-500">*</span>
+            </label>
+            <input
+              v-model="generateForm.effective_date"
+              type="date"
+              class="w-full border border-slate-200 rounded-2xl bg-white px-4 py-3 text-sm transition-all dark:border-slate-700 focus:border-emerald-400 dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            />
+          </div>
+
+          <!-- 提示信息 -->
+          <div
+            class="flex items-start gap-3 border border-emerald-200/50 rounded-2xl bg-emerald-50/50 p-4 dark:border-emerald-800/30 dark:bg-emerald-500/10"
+          >
+            <div class="mt-0.5 rounded-full bg-emerald-500/20 p-1.5 text-emerald-500">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-xs text-emerald-700 font-medium dark:text-emerald-400">
+                生成后将自动创建为本单位的正式清单版本
+              </p>
+              <p class="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">可在此基础上进行个性化调整</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="checklistDetailVisible = false"
+        <div
+          class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/30 p-6 dark:border-slate-800 dark:bg-slate-950/20"
         >
-          关闭
-        </button>
-        <button
-          class="rounded-xl bg-emerald-500 px-6 py-2 text-xs text-white font-bold shadow-emerald-500/20 shadow-lg"
-          @click="handleExport('pdf', currentChecklist?.checklist!)"
-        >
-          导出PDF
-        </button>
-        <button
-          class="rounded-xl bg-slate-500 px-6 py-2 text-xs text-white font-bold shadow-lg shadow-slate-500/20"
-          @click="handleExport('excel', currentChecklist?.checklist!)"
-        >
-          导出Excel
-        </button>
+          <button
+            class="border border-slate-200 rounded-2xl px-8 py-2.5 text-[10px] text-slate-500 font-black uppercase transition-all dark:border-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            @click="generateDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="flex items-center gap-2 rounded-2xl from-emerald-500 to-teal-500 bg-gradient-to-r px-10 py-2.5 text-[10px] text-white font-black uppercase shadow-emerald-500/25 shadow-lg transition-all active:scale-[0.98] hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 hover:shadow-emerald-500/30 hover:shadow-xl disabled:hover:scale-100"
+            :disabled="generateLoading"
+            @click="createFromTemplate"
+          >
+            <component
+              :is="generateLoading ? 'RefreshCw' : 'Plus'"
+              :size="14"
+              :class="generateLoading ? 'animate-spin' : ''"
+            />
+            {{ generateLoading ? '生成中...' : '确认生成' }}
+          </button>
+        </div>
       </template>
     </NModal>
 
-    <!-- 编辑检查项对话框 -->
-    <NModal v-model:show="editItemDialogVisible" preset="dialog" title="编辑检查项" style="width: 500px">
-      <div class="space-y-4">
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">检查项名称 *</label>
-          <input
-            v-model="editingItem!.item_name"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">项号</label>
-          <input
-            v-model="editingItem!.item_code"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">分类</label>
-          <input
-            v-model="editingItem!.category"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">检查标准</label>
-          <textarea
-            v-model="editingItem!.standard"
-            rows="3"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          ></textarea>
-        </div>
-        <div class="flex items-center justify-between">
-          <label class="text-xs text-slate-600 font-bold">是否必查</label>
-          <button
-            class="rounded-full px-3 py-1 text-xs font-bold"
-            :class="editingItem!.required ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-500'"
-            @click="editingItem!.required = editingItem!.required ? 0 : 1"
-          >
-            {{ editingItem!.required ? '必查' : '可选' }}
-          </button>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">排序</label>
-          <input
-            v-model.number="editingItem!.sort_order"
-            type="number"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-      </div>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="editItemDialogVisible = false"
-        >
-          取消
-        </button>
-        <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold"
-          :disabled="saveItemLoading"
-          @click="handleSaveItem"
-        >
-          {{ saveItemLoading ? '保存中...' : '保存' }}
-        </button>
-      </template>
-    </NModal>
-
-    <!-- 新增检查项对话框 -->
-    <NModal v-model:show="addItemDialogVisible" preset="dialog" title="新增检查项" style="width: 500px">
-      <div class="space-y-4">
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">检查项名称 *</label>
-          <input
-            v-model="newItemForm.item_name"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">项号</label>
-          <input
-            v-model="newItemForm.item_code"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-            placeholder="自动生成或手动输入"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">分类 *</label>
-          <input
-            v-model="newItemForm.category"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">检查标准</label>
-          <textarea
-            v-model="newItemForm.standard"
-            rows="3"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          ></textarea>
-        </div>
-        <div class="flex items-center justify-between">
-          <label class="text-xs text-slate-600 font-bold">是否必查</label>
-          <button
-            class="rounded-full px-3 py-1 text-xs font-bold"
-            :class="newItemForm.required ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-500'"
-            @click="newItemForm.required = newItemForm.required ? 0 : 1"
-          >
-            {{ newItemForm.required ? '必查' : '可选' }}
-          </button>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">排序</label>
-          <input
-            v-model.number="newItemForm.sort_order"
-            type="number"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-      </div>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="addItemDialogVisible = false"
-        >
-          取消
-        </button>
-        <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold"
-          :disabled="saveItemLoading"
-          @click="handleSaveNewItem"
-        >
-          {{ saveItemLoading ? '新增中...' : '新增' }}
-        </button>
-      </template>
-    </NModal>
+    <!-- 本单位清单明细弹窗 -->
+    <ChecklistDetailModal
+      v-model:visible="checklistDetailVisible"
+      :checklist-id="selectedChecklistId"
+      :company-id="Number(selectedCompanyId) || 0"
+      @refresh="fetchChecklistList"
+    />
   </div>
 </template>
 

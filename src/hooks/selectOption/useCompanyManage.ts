@@ -49,17 +49,26 @@ export function useCompanySelector() {
       companyLoading.value = true;
 
       const res = await getCompanyList(params);
+      console.log('获取单位列表响应：', res);
 
-      // 接口返回 list
-      const list: CompanyItem[] = res?.data?.data?.list || [];
+      // 判断接口返回是否成功
+      if (res?.data?.code === 2000) {
+        // 接口返回 list
+        const list: CompanyItem[] = res?.data?.data?.list || [];
 
-      companyOptions.value = list.map(item => ({
-        label: `${item.name}（${item.type}）`,
-        value: item.id
-      }));
-    } catch (err) {
-      console.error('获取单位列表失败：', err);
-      message.error('获取单位列表失败');
+        companyOptions.value = list.map(item => ({
+          label: item.name,
+          value: item.id
+        }));
+      } else {
+        // 接口返回失败
+        const errorMsg = res?.data?.msg || res?.data?.message || '获取单位列表失败';
+        message.error(errorMsg);
+        companyOptions.value = [];
+      }
+    } catch (err: any) {
+      message.error(err?.message || '获取单位列表失败，请重试');
+      companyOptions.value = [];
     } finally {
       companyLoading.value = false;
     }

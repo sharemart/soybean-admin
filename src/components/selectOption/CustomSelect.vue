@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Check, ChevronDown, Search } from 'lucide-vue-next';
 
 interface Props {
-  modelValue: string | number;
+  modelValue: string | number | null;
   options: Array<{ label: string; value: string | number }>;
   loading?: boolean;
   placeholder?: string;

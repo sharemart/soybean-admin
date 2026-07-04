@@ -414,10 +414,21 @@ const handleBatchSubmit = async () => {
     return false;
   }
 
-  const submitData = {
-    elevator_ids: props.selectedIds.join(','),
-    ...changedFields
+  // ⭐ 构建提交数据，将 maintenance_group 转为 group_id
+  const submitData: any = {
+    elevator_ids: props.selectedIds.join(',')
   };
+
+  Object.entries(changedFields).forEach(([key, value]) => {
+    if (key === 'maintenance_group') {
+      // 关键：转换为 group_id
+      submitData.group_id = value;
+    } else {
+      submitData[key] = value;
+    }
+  });
+
+  console.log('批量提交数据:', submitData); // 调试，确认提交的是 group_id
 
   const res = await batchUpdateElevators(submitData);
   if (res?.data?.code === 2000) {

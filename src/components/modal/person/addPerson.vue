@@ -319,7 +319,7 @@ const handleSubmit = async () => {
     if (apiRes.data?.code === 2000) {
       handleSubmitSuccess(apiRes);
     } else {
-      const errorMsg = apiRes.data?.message || (props.initialData ? '编辑用户失败' : '创建用户失败');
+      const errorMsg = apiRes.data?.msg || (props.initialData ? '编辑用户失败' : '创建用户失败');
       message.error(errorMsg);
     }
   } catch (error) {

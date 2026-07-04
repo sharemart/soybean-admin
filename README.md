@@ -242,3 +242,17 @@ pnpm build
 ## 开源协议
 
 项目基于 [MIT © 2021 Soybean](./LICENSE) 协议，仅供学习参考，商业使用请保留作者版权信息，作者不保证也不承担任何软件的使用风险。
+
+
+## github 提交格式
+feat	新增功能（feature）	feat: 添加用户登录功能
+fix	修补 Bug	fix: 修复登录页面崩溃问题
+docs	仅文档变更	docs: 更新 API 文档
+style	代码格式调整，不影响代码含义（空格、格式化等）	style: 调整代码缩进
+refactor	代码重构，既不是新增功能也不是修复 Bug	refactor: 重命名变量以提高可读性
+perf	性能优化	perf: 优化数据库查询性能
+test	增加或修改测试代码	test: 增加用户登录单元测试
+chore	构建过程、辅助工具或依赖库的变动	chore: 更新项目依赖包版本
+ci	持续集成（CI）的配置文件和脚本的变动	ci: 修改 GitHub Actions 配置
+build	影响构建系统或外部依赖的更改（如 gulp、webpack）	build: 修改 webpack 打包配置
+revert	回滚之前的提交	revert: 回滚提交 abc123

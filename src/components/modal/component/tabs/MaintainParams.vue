@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue';
-import { NDatePicker, NInput, NInputNumber, NSelect } from 'naive-ui';
+import { NDatePicker, NInputNumber, NSelect } from 'naive-ui';
 import {
   AlertTriangle,
   Briefcase,
@@ -40,7 +40,7 @@ const localFormData = reactive({
 const toSafeNumber = (value: any): number | null => {
   if (value === null || value === undefined || value === '') return null;
   const num = Number(value);
-  return isNaN(num) ? null : num;
+  return Number.isNaN(num) ? null : num;
 };
 
 const toSafeString = (value: any): string => {
@@ -221,7 +221,6 @@ onMounted(async () => {
           <NSelect
             :value="localFormData.company_id3"
             :options="companyList"
-            :disabled="props.isBatchMode"
             class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
             @update:value="val => updateField('company_id3', val)"
           />
@@ -236,7 +235,6 @@ onMounted(async () => {
           <NSelect
             :value="localFormData.maintenance_group"
             :options="groupList"
-            :disabled="props.isBatchMode || !groupListRaw.length"
             class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
             @update:value="val => updateField('maintenance_group', val)"
           />

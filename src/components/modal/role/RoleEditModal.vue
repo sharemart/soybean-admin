@@ -27,6 +27,8 @@ const emit = defineEmits<{
 // ==========================
 // 工具函数
 // ==========================
+
+// 获取节点的所有子节点 keys
 function getNodeAndChildrenKeys(node: any): string[] {
   const result: string[] = [];
   function walk(item: any) {
@@ -37,7 +39,8 @@ function getNodeAndChildrenKeys(node: any): string[] {
   return result;
 }
 
-function getParentKeys(targetKey: string, tree: any[]) {
+// 获取节点的所有父节点 keys（从根到直接父节点）
+function getParentKeys(targetKey: string, tree: any[]): string[] {
   const parents: string[] = [];
   function dfs(nodes: any[], path: string[] = []) {
     for (const node of nodes) {
@@ -54,35 +57,48 @@ function getParentKeys(targetKey: string, tree: any[]) {
   return parents;
 }
 
-function getAllKeys(tree: any[]) {
+// 获取所有叶子节点 keys
+function getAllLeafKeys(tree: any[]): string[] {
   const keys: string[] = [];
   const walk = (nodes: any[]) => {
     nodes.forEach(item => {
-      keys.push(String(item.key));
-      if (item.children?.length) walk(item.children);
+      if (item.children?.length) {
+        walk(item.children);
+      } else {
+        keys.push(String(item.key));
+      }
     });
   };
   walk(tree);
   return keys;
 }
 
-// 旧方法保留，仅用于编辑回显
-function getAllParentKeys(leafKeys: string[], treeData: any[]) {
-  const parentKeys = new Set<string>();
-  function findParents(targetKey: string, nodes: any[], path: string[] = []) {
-    for (const item of nodes) {
-      const key = item.key;
-      const newPath = [...path, key];
-      if (key === targetKey) {
-        newPath.forEach(k => parentKeys.add(k));
-        return true;
-      }
-      if (item.children?.length) findParents(targetKey, item.children, newPath);
+// 确保父节点也被选中
+function ensureParentKeys(keys: string[], tree: any[]): string[] {
+  const result = new Set<string>(keys);
+  const allLeafKeys = getAllLeafKeys(tree);
+
+  // 对每个叶子节点，如果被选中，确保其所有父节点也被选中
+  keys.forEach(key => {
+    if (allLeafKeys.includes(key)) {
+      const parents = getParentKeys(key, tree);
+      parents.forEach(p => result.add(p));
     }
-    return false;
+  });
+
+  return Array.from(result);
+}
+
+// 在树中查找节点
+function findNodeInTree(nodes: any[], targetKey: string): any {
+  for (const node of nodes) {
+    if (String(node.key) === targetKey) return node;
+    if (node.children?.length) {
+      const found = findNodeInTree(node.children, targetKey);
+      if (found) return found;
+    }
   }
-  leafKeys.forEach(key => findParents(key, treeData));
-  return Array.from(parentKeys);
+  return null;
 }
 
 // ==========================
@@ -129,47 +145,82 @@ const normalizedCompanyOptions = computed(() => companyOptions.value || []);
 // 全选状态
 // ==========================
 const isAllChecked = computed(() => {
-  return checkedKeys.value.length === getAllKeys(treeData.value).length;
+  const allLeafKeys = getAllLeafKeys(treeData.value);
+  return allLeafKeys.length > 0 && allLeafKeys.every(k => checkedKeys.value.includes(k));
 });
 
 const handleCheckAll = () => {
   if (isAllChecked.value) {
     checkedKeys.value = [];
   } else {
-    checkedKeys.value = getAllKeys(treeData.value);
+    // 全选时，选中所有叶子节点 + 所有父节点
+    const allLeafKeys = getAllLeafKeys(treeData.value);
+    const allKeys = ensureParentKeys(allLeafKeys, treeData.value);
+    checkedKeys.value = allKeys;
   }
 };
 
 // ==========================
-// 核心：完全接管勾选（无半选）
+// 核心：处理勾选（cascade: false 模式下，手动实现父节点联动）
 // ==========================
-const handleChecked = (keys: string[], meta: any) => {
-  const currentKeys = new Set(keys);
-  const clickedNode = meta.node;
-  const nodeKeys = getNodeAndChildrenKeys(clickedNode);
-  const isChecked = currentKeys.has(String(clickedNode.key));
+const handleChecked = (keys: string[]) => {
+  // 找出新增和移除的 key
+  const oldKeys = new Set(checkedKeys.value);
+  const newKeys = new Set(keys);
 
-  if (isChecked) {
-    nodeKeys.forEach(k => currentKeys.add(k));
-    const parents = getParentKeys(String(clickedNode.key), treeData.value);
-    parents.forEach(k => currentKeys.add(k));
-  } else {
-    nodeKeys.forEach(k => currentKeys.delete(k));
-  }
+  // 找出被添加的 key（在 new 中但不在 old 中）
+  const addedKeys = keys.filter(k => !oldKeys.has(k));
+  // 找出被移除的 key（在 old 中但不在 new 中）
+  const removedKeys = checkedKeys.value.filter(k => !newKeys.has(k));
 
-  // 修复父节点
-  const fixParents = (nodes: any[]) => {
-    nodes.forEach(node => {
-      if (!node.children?.length) return;
+  const resultKeys = new Set(keys);
+
+  // 处理新增的 key：自动选中父节点和子节点
+  addedKeys.forEach(key => {
+    const node = findNodeInTree(treeData.value, key);
+    if (node) {
+      // 选中当前节点的所有子节点
       const childKeys = getNodeAndChildrenKeys(node);
-      const hasAnyChild = childKeys.some(k => currentKeys.has(k));
-      if (hasAnyChild) currentKeys.add(String(node.key));
-      fixParents(node.children);
-    });
-  };
+      childKeys.forEach(k => resultKeys.add(k));
 
-  fixParents(treeData.value);
-  checkedKeys.value = Array.from(currentKeys);
+      // 选中当前节点的所有父节点
+      const parents = getParentKeys(key, treeData.value);
+      parents.forEach(p => resultKeys.add(p));
+    }
+  });
+
+  // 处理移除的 key：如果移除的是父节点，不自动移除子节点
+  // 但如果移除的是子节点，且父节点没有其他子节点被选中，则移除父节点
+  removedKeys.forEach(key => {
+    const parents = getParentKeys(key, treeData.value);
+    parents.forEach(parentKey => {
+      // 检查父节点的其他子节点是否还有被选中的
+      const node = findNodeInTree(treeData.value, parentKey);
+      if (node?.children) {
+        const hasOtherChecked = node.children.some((child: any) => {
+          const childKey = String(child.key);
+          return childKey !== key && resultKeys.has(childKey);
+        });
+        // 如果没有其他子节点被选中，移除父节点
+        if (!hasOtherChecked) {
+          resultKeys.delete(parentKey);
+        }
+      }
+    });
+  });
+
+  // 如果移除的是父节点，但保留了子节点，需要重新添加父节点
+  // 遍历所有选中的叶子节点，确保它们的父节点都被选中
+  const leafKeys = getAllLeafKeys(treeData.value);
+  const selectedLeafKeys = Array.from(resultKeys).filter(k => leafKeys.includes(k));
+
+  // 确保所有选中叶子节点的父节点都在 resultKeys 中
+  selectedLeafKeys.forEach(leafKey => {
+    const parents = getParentKeys(leafKey, treeData.value);
+    parents.forEach(p => resultKeys.add(p));
+  });
+
+  checkedKeys.value = Array.from(resultKeys);
 };
 
 // ==========================
@@ -185,7 +236,8 @@ watch(
 
     if (props.initialData) {
       const originLeaf = (props.initialData.menu_ids ?? []).map(String);
-      const allKeys = getAllParentKeys(originLeaf, treeData.value);
+      // 编辑回显：确保父节点也被选中
+      const allKeys = ensureParentKeys(originLeaf, treeData.value);
       checkedKeys.value = allKeys;
 
       formData.value = {
@@ -220,11 +272,14 @@ const handleSubmit = async () => {
   try {
     isSubmitting.value = true;
 
+    // 提交所有选中的节点（包括父节点和子节点）
+    const allCheckedKeys = checkedKeys.value;
+
     const baseParams = {
       role_name: formData.value.role_name,
       company_id: formData.value.company_id,
       role_syn: formData.value.role_syn,
-      menu_ids: checkedKeys.value.map(Number)
+      menu_ids: allCheckedKeys.map(Number)
     };
 
     let res;
@@ -247,7 +302,8 @@ const handleSubmit = async () => {
       message.error(res?.data?.msg ?? '操作失败');
     }
   } catch (err) {
-    message.error(`请求失败，请稍后重试${err}`);
+    console.error('提交失败:', err);
+    message.error('请求失败，请稍后重试');
   } finally {
     isSubmitting.value = false;
   }
@@ -334,7 +390,7 @@ const handleSubmit = async () => {
         </div>
 
         <div class="custom-scrollbar w-full overflow-y-auto bg-transparent p-10 text-left lg:w-1/2">
-          <!-- 全选按钮（样式完全保持） -->
+          <!-- 全选按钮 -->
           <div class="mb-6 flex items-center justify-between">
             <h4 class="flex items-center gap-2 text-xs text-slate-400 font-black tracking-[0.2em] uppercase">
               <LayoutGrid :size="14" class="text-indigo-500" />
@@ -346,11 +402,12 @@ const handleSubmit = async () => {
           </div>
 
           <div class="border border-slate-100 rounded-2xl bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <!-- 无半选，完全自定义接管 -->
+            <!-- cascade: false，手动控制父子联动 -->
             <NTree
               :checked-keys="checkedKeys"
               :data="treeData"
               checkable
+              :cascade="false"
               :default-expand-all="true"
               class="w-full"
               @update:checked-keys="handleChecked"

@@ -10,8 +10,7 @@ import {
   Edit,
   RotateCcw,
   Trash2,
-  Users,
-  X
+  Users
 } from 'lucide-vue-next';
 import {
   deletePlan,
@@ -27,7 +26,6 @@ import CustomSelect from '@/components/selectOption/Select.vue';
 
 const message = useMessage();
 
-// ==================== 类型定义 ====================
 export type PlanCorrectionMode = 'regenerate' | 'delete' | 'updateGroup' | 'updateDate';
 
 export interface PlanCorrectionPayload {
@@ -64,7 +62,7 @@ interface PreviewPayload {
   groupId: string;
   companyId: number | null;
   years: number;
-  interval: number;
+  interval: 0;
 }
 
 // ==================== Props & Emits ====================
@@ -82,13 +80,14 @@ const emit = defineEmits<{
 }>();
 
 // ==================== Hooks 初始化 ====================
-// 电梯选择器
+// 电梯选择器：直接解构 loadMore，删除自定义分页函数
 const {
   elevatorOptions,
-  loading: elevatorLoading,
+  elevatorLoading,
   fetchElevatorListData,
   hasMore: elevatorHasMore,
-  handleSearch: handleElevatorSearch
+  handleSearch: handleElevatorSearch,
+  loadMore
 } = useElevatorSelector();
 
 // 维保公司选择器
@@ -104,7 +103,8 @@ const {
   groupOptions,
   loading: groupLoading,
   fetchMaintainGroupList,
-  handleSearch: handleGroupSearch
+  handleSearch: handleGroupSearch,
+  clearGroupList
 } = useMaintainGroupList();
 
 // ==================== 常量配置 ====================
@@ -125,17 +125,11 @@ const currentRecord = ref<MaintenanceItem | null>(null);
 
 // 编辑表单
 const form = ref({
-  // 维保记录选择
   fromDate: '',
-  // 维保小组ID（调整维保计划时使用）
   groupId: '',
-  // 维保公司ID
   companyId: null as number | null,
-  // 新的维保小组ID（整体修改维保组时使用）
   newGroupId: '',
-  // 新的维保时间（修改排班计划日期时使用）
   newMaintTime: null as number | null,
-  // 维保间隔天数
   maintenanceIntervalDays: 15 as number | null
 });
 
@@ -199,7 +193,6 @@ const getErrorMessage = (mode: PlanCorrectionMode): string => {
   return errorMessages[mode] || '操作失败';
 };
 
-// 提取独立函数
 const getRegenerateSuccessMessage = (result?: any): string => {
   return result?.message || '调整维保计划成功';
 };
@@ -235,15 +228,6 @@ const getSuccessMessage = (mode: PlanCorrectionMode, result?: any): string => {
     default:
       return '操作成功';
   }
-};
-// ==================== 数据加载函数 ====================
-// 加载更多电梯数据
-const handleLoadMoreElevators = (page: number) => {
-  if (elevatorLoading.value) return;
-  fetchElevatorListData({
-    limit: PAGE_SIZE,
-    page
-  });
 };
 
 // 处理电梯选择变化
@@ -445,15 +429,10 @@ const handleUpdateDate = async () => {
 
 // ==================== 主提交函数 ====================
 const handleConfirm = async () => {
-  // 1. 表单验证
-  if (!validateForm()) {
-    return;
-  }
+  if (!validateForm()) return;
 
   try {
     isSubmitting.value = true;
-
-    // 2. 根据模式执行对应操作
     switch (actionMode.value) {
       case 'regenerate':
         await handleRegenerate();
@@ -479,7 +458,6 @@ const handleConfirm = async () => {
 };
 
 // ==================== 重置和关闭函数 ====================
-// 重置表单
 const resetForm = () => {
   form.value = {
     fromDate: '',
@@ -492,33 +470,24 @@ const resetForm = () => {
   dateOptions.value = [];
 };
 
-// 编辑操作 - 调整维保计划
+// 调整维保弹窗
 const handleEdit = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'regenerate';
   actionModalVisible.value = true;
-
   resetForm();
-
   form.value = {
     ...form.value,
     fromDate: String(row.bill_id),
     companyId: row.company_id || null
   };
-
-  // 构建维保记录选项
   dateOptions.value = tableData.value.map(item => ({
     label: `${item.date} - ${item.maintain_type || '未分类'}`,
     value: String(item.bill_id)
   }));
-
-  // 如果有公司ID，自动获取对应的维保小组列表
-  if (row.company_id) {
-    fetchMaintainGroupList(row.company_id);
-  }
+  if (row.company_id) fetchMaintainGroupList(row.company_id);
 };
 
-// 删除操作
 const handleDeleteAction = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'delete';
@@ -526,7 +495,6 @@ const handleDeleteAction = (row: MaintenanceItem) => {
   resetForm();
 };
 
-// 整体修改维保组
 const handleUpdateGroupAction = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'updateGroup';
@@ -534,7 +502,6 @@ const handleUpdateGroupAction = (row: MaintenanceItem) => {
   resetForm();
 };
 
-// 修改排班计划日期
 const handleUpdateDateAction = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'updateDate';
@@ -542,64 +509,51 @@ const handleUpdateDateAction = (row: MaintenanceItem) => {
   resetForm();
 };
 
-// 关闭操作弹窗
 const closeActionModal = () => {
   actionModalVisible.value = false;
   currentRecord.value = null;
   resetForm();
 };
 
-// 关闭主弹窗
 const closeMainModal = () => {
   emit('close');
 };
 
 // ==================== Watchers ====================
-// 监听电梯选择变化
 watch(selectedElevatorId, async id => {
-  if (id) {
-    await fetchMaintenanceList(id);
-  } else {
-    tableData.value = [];
-  }
+  if (id) await fetchMaintenanceList(id);
+  else tableData.value = [];
 });
 
-// 监听公司ID变化，自动获取维保小组列表
 watch(
   () => form.value.companyId,
-  async companyId => {
-    // 切换公司时清空已选中的小组ID
+  async (companyId, oldCompanyId) => {
+    if (companyId === oldCompanyId) return;
+
     form.value.groupId = '';
     form.value.newGroupId = '';
 
     if (companyId) {
       await fetchMaintainGroupList(companyId);
     } else {
-      handleGroupSearch('');
+      clearGroupList();
     }
   }
 );
-
-// 监听主弹窗打开/关闭
 watch(
   () => props.isOpen,
   async val => {
     if (val) {
-      // 加载电梯列表
+      // 打开弹窗清空搜索关键词，加载第一页电梯
       await fetchElevatorListData({
         page: 1,
-        limit: PAGE_SIZE
+        limit: PAGE_SIZE,
+        elevator_name: ''
       });
-      // 加载维保公司列表
-      await fetchMaintainCompanyList({
-        page: 1,
-        limit: 100
-      });
-      // 重置数据
+      await fetchMaintainCompanyList({ page: 1, limit: 100 });
       selectedElevatorId.value = '';
       tableData.value = [];
     } else {
-      // 关闭时清理数据
       selectedElevatorId.value = '';
       tableData.value = [];
       actionModalVisible.value = false;
@@ -641,7 +595,7 @@ watch(
 
       <!-- 内容区域 -->
       <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6">
-        <!-- 电梯选择器 -->
+        <!-- 电梯选择器 【已修复】增加remote、绑定loadMore -->
         <div class="flex flex-col gap-4 rounded-2xl bg-slate-50 p-4 lg:flex-row lg:items-center dark:bg-slate-800/50">
           <div class="w-full lg:max-w-xs lg:flex-1">
             <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">目标电梯</label>
@@ -653,9 +607,10 @@ watch(
               :page-size="PAGE_SIZE"
               icon-class="text-indigo-500"
               placeholder="请选择目标电梯"
+              remote
               :has-more="elevatorHasMore"
               @search="handleElevatorSearch"
-              @load-more="handleLoadMoreElevators"
+              @load-more="loadMore"
               @change="handleElevatorChange"
             />
           </div>
@@ -667,7 +622,6 @@ watch(
               <span v-else class="text-slate-400">请选择电梯查看</span>
             </p>
           </div>
-          <!-- 右侧操作按钮区域 -->
           <div v-if="latestRecord" class="w-full flex flex-wrap items-center gap-3 lg:flex-1 lg:justify-end">
             <span class="whitespace-nowrap text-xs text-slate-500 font-black tracking-wide uppercase">维保单号</span>
             <span
@@ -675,7 +629,6 @@ watch(
             >
               {{ latestRecord.maint_sn || '-' }}
             </span>
-            <!-- 整体修改维保组按钮 -->
             <button
               class="whitespace-nowrap rounded-xl bg-amber-100 px-4 py-2.5 text-sm text-amber-700 font-semibold shadow-sm transition-all duration-200 dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-300 hover:shadow dark:hover:bg-amber-800"
               @click="handleUpdateGroupAction(latestRecord)"
@@ -683,7 +636,6 @@ watch(
               <Users :size="16" class="mr-2 inline-block" />
               整体修改维保组
             </button>
-            <!-- 删除按钮 -->
             <button
               class="whitespace-nowrap rounded-xl bg-rose-100 px-4 py-2.5 text-sm text-rose-700 font-semibold shadow-sm transition-all duration-200 dark:bg-rose-900/30 hover:bg-rose-200 dark:text-rose-300 hover:shadow dark:hover:bg-rose-800"
               @click="handleDeleteAction(latestRecord)"
@@ -728,7 +680,6 @@ watch(
                       {{ row.maintain_type || '-' }}
                     </span>
                   </td>
-                  <!-- 表格行内操作按钮 -->
                   <td class="px-6 py-4">
                     <div class="flex items-center justify-center gap-3">
                       <NButton
@@ -758,7 +709,6 @@ watch(
             </table>
           </div>
 
-          <!-- 空状态 -->
           <div v-if="!tableData.length" class="flex flex-col items-center justify-center py-16 text-slate-400">
             <CalendarRange :size="48" class="mb-3 opacity-30" />
             <p class="text-sm">
@@ -785,9 +735,9 @@ watch(
     class="!max-w-2xl !rounded-[2.5rem] !p-0"
     display-directive="if"
     @close="closeActionModal"
+    @mask-click="closeActionModal"
   >
     <div class="max-h-[80vh] flex flex-col overflow-hidden">
-      <!-- 子弹窗头部 -->
       <div
         class="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-700 dark:bg-slate-800/30"
       >
@@ -839,11 +789,9 @@ watch(
         </div>
       </div>
 
-      <!-- 子弹窗内容 -->
       <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6">
         <!-- 调整维保计划 -->
         <div v-if="actionMode === 'regenerate'" class="space-y-4">
-          <!-- 当前选中的维保记录信息 -->
           <div
             class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
           >
@@ -892,6 +840,7 @@ watch(
                 class="!rounded-xl"
                 clearable
                 filterable
+                remote
                 @search="handleCompanySearch"
               />
               <template #extra>
@@ -909,6 +858,7 @@ watch(
                 :disabled="!form.companyId"
                 clearable
                 filterable
+                remote
                 @search="handleGroupSearch"
               />
               <template #extra>
@@ -917,7 +867,6 @@ watch(
             </NFormItem>
           </NForm>
 
-          <!-- 影响信息 -->
           <div
             class="border border-indigo-200 rounded-2xl bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-950/20"
           >
@@ -971,7 +920,6 @@ watch(
 
         <!-- 整体修改维保组 -->
         <div v-else-if="actionMode === 'updateGroup'" class="space-y-4">
-          <!-- 当前维保计划信息 -->
           <div
             class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
           >
@@ -1035,7 +983,7 @@ watch(
 
             <NFormItem label="新的维保小组" label-class="text-[10px] font-black text-slate-500 uppercase">
               <NSelect
-                v-model:value="form.groupId"
+                v-model:value="form.newGroupId"
                 :options="groupOptions"
                 :loading="groupLoading.fetching"
                 placeholder="请选择维保小组"
@@ -1058,7 +1006,6 @@ watch(
 
         <!-- 修改排班计划日期 -->
         <div v-else-if="actionMode === 'updateDate'" class="space-y-4">
-          <!-- 当前维保记录信息 -->
           <div
             class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
           >
@@ -1143,7 +1090,7 @@ watch(
           class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase"
           :loading="isSubmitting"
           :disabled="
-            (actionMode === 'regenerate' && (!form.fromDate || !form.groupId)) ||
+            (actionMode === 'regenerate' && (!form.fromDate || !form.groupId || form.groupId === '')) ||
             (actionMode === 'delete' && !currentRecord) ||
             (actionMode === 'updateGroup' && (!form.newGroupId || !currentRecord)) ||
             (actionMode === 'updateDate' && (!form.newMaintTime || !currentRecord))

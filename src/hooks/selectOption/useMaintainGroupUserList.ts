@@ -78,7 +78,7 @@ export function useMaintainGroupList() {
 
       if (res?.data?.code === 2000 && res.data.data) {
         const data = res.data.data;
-        if (isCompanyChanged || params.page === 1) {
+        if (params.page === 1) {
           groupList.value = data;
         } else {
           groupList.value = [...groupList.value, ...data];
@@ -97,8 +97,17 @@ export function useMaintainGroupList() {
     }
   };
 
+  // 清空小组列表
+  const clearGroupList = () => {
+    groupList.value = [];
+    currentCompanyId.value = undefined;
+    hasMore.value = true;
+  };
+
   const handleSearch = (keyword: string) => {
-    fetchMaintainGroupList(undefined, {
+    // 搜索时清空列表，从第一页开始
+    groupList.value = [];
+    fetchMaintainGroupList(currentCompanyId.value, {
       name: keyword,
       page: 1,
       limit: 100
@@ -120,7 +129,9 @@ export function useMaintainGroupList() {
     loading,
     hasMore,
     fetchMaintainGroupList,
-    handleSearch
+    handleSearch,
+    clearGroupList,
+    currentCompanyId
   };
 }
 

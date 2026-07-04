@@ -1,32 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useDialog, useMessage } from 'naive-ui';
+import { useMessage } from 'naive-ui';
 import {
-  AlertOctagon,
   AlertTriangle,
   Building2,
   Calendar,
-  Camera,
   CheckCircle,
+  ChevronLeft,
   ChevronRight,
   Clock,
-  Cloud,
   Download,
   Eye,
   FileSpreadsheet,
   FileText,
-  ListTodo,
-  Phone,
   RefreshCw,
   Search,
-  Send,
-  Thermometer,
   TrendingUp,
-  User,
-  Users,
-  Wind,
-  XCircle
+  User
 } from 'lucide-vue-next';
+import {
+  exportSafetyDailyRecord,
+  fetchSafetyDailyDashboard,
+  fetchSafetyDailyList
+} from '@/service/api/safety/safetyDaily/safetyDaily';
+import type { SafetyDailyItem } from '@/service/api/safety/safetyDaily/safetyDaily.d';
+import { useVillageSelector } from '@/hooks/selectOption/useCommunitySelector';
+import SafetyDailyDetailModal from '@/components/modal/safety/safetyDaily/SafetyDailyDetailModal.vue';
+import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 
 // ==================== 类型定义 ====================
 interface DailyRecord {
@@ -52,23 +52,10 @@ interface DailyRecord {
   submit_time?: string;
   create_time: string;
   update_time: string;
-}
-
-interface DailyRecordDetail {
-  record: DailyRecord;
-  items: DailyCheckItem[];
-}
-
-interface DailyCheckItem {
-  id: number;
-  item_name: string;
-  item_code: string;
-  category: string;
-  check_result: number; // 0未检查 1正常 2异常 3无此项
-  remark: string;
-  images: string[];
-  standard: string;
-  sort_order: number;
+  check_no: string;
+  inspector_sign_url: string;
+  director_sign_url: string;
+  elevator_number: number;
 }
 
 interface DashboardStats {
@@ -88,18 +75,49 @@ interface DashboardStats {
   }>;
 }
 
+// ==================== 映射常量 ====================
+const PERIOD_MAP: Record<number, string> = {
+  1: '上午',
+  2: '下午',
+  3: '全天'
+};
+
+const OVERALL_RESULT_MAP: Record<number, { text: string; type: string }> = {
+  1: { text: '正常', type: 'normal' },
+  2: { text: '有隐患', type: 'hazard' },
+  3: { text: '零风险报告', type: 'zero' },
+  4: { text: '待评定', type: 'unknown' }
+};
+
+const STATUS_MAP: Record<number, { text: string; type: string }> = {
+  0: { text: '草稿', type: 'draft' },
+  1: { text: '已提交', type: 'submitted' }
+};
+
 // ==================== 状态管理 ====================
 const message = useMessage();
-const dialog = useDialog();
+
+// 使用小区选择器 Hook
+const {
+  villageOptions,
+  loading: villageLoading,
+  fetchVillageListData,
+  handleSearch: handleVillageSearch,
+  hasMore: villageHasMore
+} = useVillageSelector();
+
+// 看板数据
+const dashboardStats = ref<DashboardStats | null>(null);
+const dashboardLoading = ref(false);
 
 // 筛选条件
 const filterForm = reactive({
-  check_date: new Date().toISOString().slice(0, 10),
-  village_id: undefined as number | undefined,
-  elevator_id: undefined as number | undefined,
-  overall_result: undefined as number | undefined,
-  status: undefined as number | undefined,
-  has_hazard: undefined as number | undefined
+  check_date: undefined as string | undefined,
+  village_id: null as number | null,
+  elevator_id: null as number | null,
+  overall_result: null as number | null,
+  status: null as number | null,
+  has_hazard: null as number | null
 });
 
 const searchTerm = ref('');
@@ -112,366 +130,236 @@ const isSyncing = ref(false);
 // 列表数据
 const recordList = ref<DailyRecord[]>([]);
 
-// 统计数据
-const dashboardStats = ref<DashboardStats | null>(null);
-
 // 详情弹窗
 const detailVisible = ref(false);
-const detailLoading = ref(false);
-const currentRecord = ref<DailyRecordDetail | null>(null);
-
-// 通知维保弹窗
-const notifyDialogVisible = ref(false);
-const notifyLoading = ref(false);
-const notifyRecord = ref<DailyRecord | null>(null);
-const notifyForm = reactive({
-  contact_person: '',
-  phone: '',
-  description: ''
-});
+const selectedRecordId = ref<number | undefined>(undefined);
 
 // 导出弹窗
 const exportDialogVisible = ref(false);
 const exportLoading = ref(false);
 const exportRecord = ref<DailyRecord | null>(null);
 
-// 模拟小区和电梯数据
-const villageOptions = ref([
-  { value: 1, label: '阳光花园小区' },
-  { value: 2, label: '碧水湾小区' },
-  { value: 3, label: '翡翠城小区' }
-]);
+// 电梯选项
+const elevatorOptions = ref<Array<{ value: number; label: string }>>([]);
 
-const elevatorOptions = ref([
-  { value: 1, label: '1号楼客梯' },
-  { value: 2, label: '1号楼货梯' },
-  { value: 3, label: '2号楼客梯' },
-  { value: 4, label: '2号楼货梯' }
-]);
+// ==================== 小区统计分页 ====================
+const villagePage = ref(1);
+const villagePageSize = ref(3); // 每页显示6个小区
 
-// ==================== 模拟API调用 ====================
-// 获取列表
+const totalVillagePages = computed(() => {
+  const total = dashboardStats.value?.by_village?.length || 0;
+  return Math.ceil(total / villagePageSize.value) || 1;
+});
+
+// 分页后的小区统计数据
+const paginatedVillageStats = computed(() => {
+  const villages = dashboardStats.value?.by_village || [];
+  const start = (villagePage.value - 1) * villagePageSize.value;
+  const end = start + villagePageSize.value;
+  return villages.slice(start, end);
+});
+
+// 监听数据变化重置页码
+watch(
+  () => dashboardStats.value?.by_village?.length,
+  () => {
+    villagePage.value = 1;
+  }
+);
+// ==================== 看板数据映射 ====================
+const mapDashboardStats = (data: any): DashboardStats => {
+  const s = data.summary || {};
+  const villages = data.villages || [];
+
+  return {
+    total_count: s.elevator_total || 0,
+    completed_count: s.submitted_count || 0,
+    completion_rate: s.completion_rate || 0,
+    zero_risk_count: s.zero_risk_count || 0,
+    pending_count: s.pending_count || 0,
+    hazard_count: s.hazard_count || 0,
+    overdue_count: s.overdue_count || 0,
+    by_village: villages.map((v: any) => ({
+      village_id: v.village_id,
+      village_name: v.village_name || `小区${v.village_id}`,
+      total: v.elevator_total || 0,
+      completed: v.submitted_count || 0,
+      has_hazard: v.hazard_count || 0
+    }))
+  };
+};
+
+// ==================== API 调用 ====================
+const fetchDashboard = async () => {
+  dashboardLoading.value = true;
+  try {
+    const res = await fetchSafetyDailyDashboard({});
+    if (res?.data?.code === 2000) {
+      dashboardStats.value = mapDashboardStats(res.data.data);
+    } else {
+      message.error(res?.data?.msg || '获取看板数据失败');
+    }
+  } catch (error) {
+    message.error(`获取看板数据失败${error}`);
+  } finally {
+    dashboardLoading.value = false;
+  }
+};
+
+// 构建请求参数
+const buildRequestParams = () => {
+  const params: any = {
+    page: currentPage.value,
+    limit: pageSize.value
+  };
+
+  // 只添加有值的参数
+  if (filterForm.check_date) {
+    params.check_date = filterForm.check_date;
+  }
+  if (filterForm.village_id !== null && filterForm.village_id !== undefined) {
+    params.village_id = filterForm.village_id;
+  }
+  if (filterForm.elevator_id !== null && filterForm.elevator_id !== undefined) {
+    params.elevator_id = filterForm.elevator_id;
+  }
+  if (filterForm.overall_result !== null && filterForm.overall_result !== undefined) {
+    params.overall_result = filterForm.overall_result;
+  }
+  if (filterForm.status !== null && filterForm.status !== undefined) {
+    params.status = filterForm.status;
+  }
+  if (filterForm.has_hazard !== null && filterForm.has_hazard !== undefined) {
+    params.has_hazard = filterForm.has_hazard;
+  }
+
+  return params;
+};
+
+// 映射单个记录
+const mapToDailyRecord = (item: SafetyDailyItem): DailyRecord => ({
+  id: item.id,
+  elevator_id: item.elevator_id,
+  elevator_name: item.elevator_name || `电梯${item.elevator_id}`,
+  village_id: item.village_id,
+  village_name: `小区${item.village_name}`,
+  check_date: item.check_date,
+  period: item.period,
+  period_name: PERIOD_MAP[item.period] || '未知',
+  weather: item.weather || '未知',
+  overall_result: item.overall_result,
+  overall_result_name: OVERALL_RESULT_MAP[item.overall_result]?.text || '未知',
+  status: item.status,
+  status_name: STATUS_MAP[item.status]?.text || '未知',
+  has_hazard: item.overall_result === 2 ? 1 : 0,
+  hazard_count: item.overall_result === 2 ? 1 : 0,
+  safety_officer: `user_${item.inspector_user_id}`,
+  safety_officer_name: item.inspector_name || `检查员${item.inspector_user_id}`,
+  checklist_id: item.checklist_id,
+  checklist_name: `清单${item.checklist_id}`,
+  submit_time: item.submit_time ? new Date(item.submit_time * 1000).toLocaleString() : '',
+  create_time: new Date(item.add_time * 1000).toLocaleString(),
+  update_time: new Date(item.update_time * 1000).toLocaleString(),
+  check_no: item.check_no,
+  inspector_sign_url: item.inspector_sign_url || '',
+  director_sign_url: item.director_sign_url || '',
+  elevator_number: item.elevator_number
+});
+
+// 更新电梯选项
+const updateElevatorOptions = (list: SafetyDailyItem[]) => {
+  const uniqueElevators = list
+    .map((item: SafetyDailyItem) => ({
+      value: item.elevator_id,
+      label: item.elevator_name || `电梯${item.elevator_id}`
+    }))
+    .filter((v: any, i: number, self: any[]) => self.findIndex((t: any) => t.value === v.value) === i);
+
+  if (uniqueElevators.length > 0) {
+    elevatorOptions.value = uniqueElevators;
+  }
+};
+
+// ==================== 获取列表数据（优化后） ====================
 const fetchRecordList = async () => {
   loading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const params = buildRequestParams();
+    const res = await fetchSafetyDailyList(params);
 
-    // 模拟数据
-    const mockList: DailyRecord[] = [
-      {
-        id: 1001,
-        elevator_id: 1,
-        elevator_name: '1号楼客梯',
-        village_id: 1,
-        village_name: '阳光花园小区',
-        check_date: '2024-01-15',
-        period: 3,
-        period_name: '全天',
-        weather: '晴',
-        overall_result: 1,
-        overall_result_name: '正常',
-        status: 1,
-        status_name: '已提交',
-        has_hazard: 0,
-        hazard_count: 0,
-        safety_officer: 'user_001',
-        safety_officer_name: '张明',
-        checklist_id: 101,
-        checklist_name: '2024年度电梯安全风险管控清单',
-        submit_time: '2024-01-15 17:30:00',
-        create_time: '2024-01-15 08:00:00',
-        update_time: '2024-01-15 17:30:00'
-      },
-      {
-        id: 1002,
-        elevator_id: 2,
-        elevator_name: '1号楼货梯',
-        village_id: 1,
-        village_name: '阳光花园小区',
-        check_date: '2024-01-15',
-        period: 3,
-        period_name: '全天',
-        weather: '晴',
-        overall_result: 2,
-        overall_result_name: '有隐患',
-        status: 1,
-        status_name: '已提交',
-        has_hazard: 1,
-        hazard_count: 2,
-        safety_officer: 'user_001',
-        safety_officer_name: '张明',
-        checklist_id: 101,
-        checklist_name: '2024年度电梯安全风险管控清单',
-        submit_time: '2024-01-15 16:45:00',
-        create_time: '2024-01-15 08:00:00',
-        update_time: '2024-01-15 16:45:00'
-      },
-      {
-        id: 1003,
-        elevator_id: 3,
-        elevator_name: '2号楼客梯',
-        village_id: 2,
-        village_name: '碧水湾小区',
-        check_date: '2024-01-15',
-        period: 1,
-        period_name: '上午',
-        weather: '多云',
-        overall_result: 3,
-        overall_result_name: '零风险报告',
-        status: 1,
-        status_name: '已提交',
-        has_hazard: 0,
-        hazard_count: 0,
-        safety_officer: 'user_002',
-        safety_officer_name: '李华',
-        checklist_id: 101,
-        checklist_name: '2024年度电梯安全风险管控清单',
-        submit_time: '2024-01-15 11:20:00',
-        create_time: '2024-01-15 08:00:00',
-        update_time: '2024-01-15 11:20:00'
-      },
-      {
-        id: 1004,
-        elevator_id: 4,
-        elevator_name: '2号楼货梯',
-        village_id: 2,
-        village_name: '碧水湾小区',
-        check_date: '2024-01-15',
-        period: 2,
-        period_name: '下午',
-        weather: '阴',
-        overall_result: 0,
-        overall_result_name: '未检查',
-        status: 0,
-        status_name: '草稿',
-        has_hazard: 0,
-        hazard_count: 0,
-        safety_officer: 'user_002',
-        safety_officer_name: '李华',
-        checklist_id: 101,
-        checklist_name: '2024年度电梯安全风险管控清单',
-        submit_time: null,
-        create_time: '2024-01-15 08:00:00',
-        update_time: '2024-01-15 08:00:00'
-      }
-    ];
-
-    // 应用筛选
-    let filtered = [...mockList];
-    if (filterForm.village_id) {
-      filtered = filtered.filter(item => item.village_id === filterForm.village_id);
-    }
-    if (filterForm.elevator_id) {
-      filtered = filtered.filter(item => item.elevator_id === filterForm.elevator_id);
-    }
-    if (filterForm.overall_result !== undefined) {
-      filtered = filtered.filter(item => item.overall_result === filterForm.overall_result);
-    }
-    if (filterForm.status !== undefined) {
-      filtered = filtered.filter(item => item.status === filterForm.status);
-    }
-    if (filterForm.has_hazard !== undefined) {
-      filtered = filtered.filter(item => item.has_hazard === filterForm.has_hazard);
-    }
-    if (searchTerm.value) {
-      filtered = filtered.filter(
-        item => item.elevator_name.includes(searchTerm.value) || item.safety_officer_name.includes(searchTerm.value)
-      );
+    if (res?.data?.code !== 2000) {
+      message.error(res?.data?.msg || '获取日检记录列表失败');
+      recordList.value = [];
+      totalCount.value = 0;
+      return;
     }
 
-    totalCount.value = filtered.length;
-    const start = (currentPage.value - 1) * pageSize.value;
-    recordList.value = filtered.slice(start, start + pageSize.value);
+    const data = res.data.data;
+    const list = data.list || [];
+
+    recordList.value = list.map(mapToDailyRecord);
+    totalCount.value = data.total || 0;
+    updateElevatorOptions(list);
+  } catch (error) {
+    console.error('获取日检记录列表失败:', error);
+    message.error('获取日检记录列表失败，请稍后重试');
+    recordList.value = [];
+    totalCount.value = 0;
   } finally {
     loading.value = false;
   }
 };
-
-// 获取统计数据
-const fetchDashboard = async () => {
-  try {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    dashboardStats.value = {
-      total_count: 12,
-      completed_count: 9,
-      completion_rate: 75,
-      zero_risk_count: 3,
-      pending_count: 3,
-      hazard_count: 2,
-      overdue_count: 1,
-      by_village: [
-        { village_id: 1, village_name: '阳光花园小区', total: 6, completed: 5, has_hazard: 1 },
-        { village_id: 2, village_name: '碧水湾小区', total: 4, completed: 3, has_hazard: 1 },
-        { village_id: 3, village_name: '翡翠城小区', total: 2, completed: 1, has_hazard: 0 }
-      ]
-    };
-  } catch (error) {
-    console.error(error);
-  }
+// ==================== 查看详情 ====================
+const handleViewDetail = (record: DailyRecord) => {
+  selectedRecordId.value = record.id;
+  detailVisible.value = true;
 };
 
-// 获取详情
-const fetchRecordDetail = async (id: number) => {
-  detailLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const record = recordList.value.find(r => r.id === id);
-    if (record) {
-      const mockItems: DailyCheckItem[] = [
-        {
-          id: 1,
-          item_name: '使用登记与定期检验',
-          item_code: 'GL-01',
-          category: '基础管理',
-          check_result: 1,
-          remark: '检验在有效期内',
-          images: [],
-          standard: '是否办理使用登记，检验是否在有效期内',
-          sort_order: 1
-        },
-        {
-          id: 2,
-          item_name: '安全管理人员配备',
-          item_code: 'GL-02',
-          category: '基础管理',
-          check_result: 1,
-          remark: '',
-          images: [],
-          standard: '是否按规定配备安全管理人员',
-          sort_order: 2
-        },
-        {
-          id: 3,
-          item_name: '机房环境卫生',
-          item_code: 'JF-01',
-          category: '机房',
-          check_result: 1,
-          remark: '',
-          images: [],
-          standard: '机房是否清洁，无杂物堆积',
-          sort_order: 3
-        },
-        {
-          id: 4,
-          item_name: '曳引机运行状态',
-          item_code: 'JF-02',
-          category: '机房',
-          check_result: 2,
-          remark: '曳引机有异响，需要检查',
-          images: ['/demo/image1.jpg'],
-          standard: '曳引机运行是否平稳，无异响',
-          sort_order: 4
-        },
-        {
-          id: 5,
-          item_name: '轿厢照明与通风',
-          item_code: 'JX-01',
-          category: '轿厢与层站',
-          check_result: 1,
-          remark: '',
-          images: [],
-          standard: '轿厢照明是否明亮，通风是否良好',
-          sort_order: 5
-        },
-        {
-          id: 6,
-          item_name: '紧急报警装置',
-          item_code: 'JX-02',
-          category: '轿厢与层站',
-          check_result: 2,
-          remark: '紧急报警按钮失灵',
-          images: ['/demo/image2.jpg'],
-          standard: '紧急报警装置是否有效，通话是否清晰',
-          sort_order: 6
-        },
-        {
-          id: 7,
-          item_name: '层站呼梯按钮',
-          item_code: 'JX-03',
-          category: '轿厢与层站',
-          check_result: 1,
-          remark: '',
-          images: [],
-          standard: '层站呼梯按钮是否灵敏有效',
-          sort_order: 7
-        },
-        {
-          id: 8,
-          item_name: '井道照明',
-          item_code: 'JD-01',
-          category: '井道底坑',
-          check_result: 3,
-          remark: '井道照明不适用',
-          images: [],
-          standard: '井道照明是否正常',
-          sort_order: 8
-        }
-      ];
-      currentRecord.value = {
-        record,
-        items: mockItems
-      };
-    }
-  } finally {
-    detailLoading.value = false;
-  }
-};
-
-// 通知维保单位
-const handleNotifyMaintenance = (record: DailyRecord) => {
-  notifyRecord.value = record;
-  notifyForm.contact_person = '';
-  notifyForm.phone = '';
-  notifyForm.description = `电梯【${record.elevator_name}】在${record.check_date}的日检中发现${record.hazard_count}项隐患，请及时处理。`;
-  notifyDialogVisible.value = true;
-};
-
-const submitNotify = async () => {
-  if (!notifyForm.contact_person) {
-    message.warning('请输入联系人');
-    return;
-  }
-  if (!notifyForm.phone) {
-    message.warning('请输入联系电话');
-    return;
-  }
-  notifyLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    message.success('已通知维保单位，工单已创建');
-    notifyDialogVisible.value = false;
-  } finally {
-    notifyLoading.value = false;
-  }
-};
-
-// 导出记录
-const handleExport = async (record: DailyRecord) => {
+// ==================== 导出记录 ====================
+const handleExport = (record: DailyRecord) => {
   exportRecord.value = record;
   exportDialogVisible.value = true;
 };
 
 const confirmExport = async () => {
+  if (!exportRecord.value) {
+    message.warning('请选择要导出的记录');
+    return;
+  }
+
   exportLoading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    message.success('导出成功，文件已生成');
-    exportDialogVisible.value = false;
+    const res = await exportSafetyDailyRecord({ id: exportRecord.value.id });
+
+    if (res?.data?.code === 2000) {
+      const fileUrl = res.data.data.file_url;
+      const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
+      const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+      const downloadUrl = fileUrl.startsWith('http') ? fileUrl : baseUrl + fileUrl;
+
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `日检报告_${exportRecord.value.check_no || exportRecord.value.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      message.success('导出成功');
+      exportDialogVisible.value = false;
+    } else {
+      message.error(res?.data?.msg || '导出失败');
+    }
+  } catch (error) {
+    message.error(`导出失败: ${error}`);
   } finally {
     exportLoading.value = false;
   }
 };
 
-// 查看详情
-const handleViewDetail = async (record: DailyRecord) => {
-  await fetchRecordDetail(record.id);
-  detailVisible.value = true;
-};
-
-// 同步数据
+// ==================== 同步数据 ====================
 const handleSync = () => {
   isSyncing.value = true;
-  Promise.all([fetchRecordList(), fetchDashboard()]).finally(() => {
+  fetchRecordList().finally(() => {
     setTimeout(() => {
       isSyncing.value = false;
       message.success('数据已同步');
@@ -479,71 +367,70 @@ const handleSync = () => {
   });
 };
 
-// 重置筛选
+// ==================== 重置筛选 ====================
 const handleReset = () => {
-  filterForm.village_id = undefined;
-  filterForm.elevator_id = undefined;
-  filterForm.overall_result = undefined;
-  filterForm.status = undefined;
-  filterForm.has_hazard = undefined;
+  filterForm.village_id = null;
+  filterForm.elevator_id = null;
+  filterForm.overall_result = null;
+  filterForm.status = null;
+  filterForm.has_hazard = null;
   searchTerm.value = '';
   currentPage.value = 1;
   fetchRecordList();
 };
 
-// 快速筛选按钮
+// ==================== 快速筛选按钮 ====================
 const quickFilters = [
-  { label: '未提交', key: 'pending', status: 0, has_hazard: undefined },
-  { label: '有隐患', key: 'hazard', status: 1, has_hazard: 1 },
-  { label: '逾期未整改', key: 'overdue', status: undefined, has_hazard: undefined }
+  { label: '未提交', key: 'pending', status: 0, has_hazard: null },
+  { label: '有隐患', key: 'hazard', status: 1, has_hazard: 1 }
 ];
 
 const applyQuickFilter = (type: string) => {
-  filterForm.status = type === 'pending' ? 0 : undefined;
-  filterForm.has_hazard = type === 'hazard' ? 1 : undefined;
+  if (type === 'all') {
+    filterForm.status = null;
+    filterForm.has_hazard = null;
+  } else if (type === 'pending') {
+    filterForm.status = 0;
+    filterForm.has_hazard = null;
+  } else if (type === 'hazard') {
+    filterForm.status = 1;
+    filterForm.has_hazard = 1;
+  }
   currentPage.value = 1;
   fetchRecordList();
 };
 
-// 获取结果样式
+// ==================== 获取结果样式 ====================
 const getResultInfo = (result: number, resultName: string) => {
-  switch (result) {
-    case 1:
-      return { text: resultName, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
-    case 2:
-      return { text: resultName, icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10' };
-    case 3:
-      return { text: resultName, icon: FileText, color: 'text-sky-500', bg: 'bg-sky-500/10' };
-    default:
-      return { text: resultName || '未检查', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-500/10' };
+  const config = OVERALL_RESULT_MAP[result];
+  if (!config) {
+    return { text: resultName || '未知', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-500/10' };
   }
+  const styles = {
+    normal: { text: config.text, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    hazard: { text: config.text, icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    zero: { text: config.text, icon: FileText, color: 'text-sky-500', bg: 'bg-sky-500/10' },
+    unknown: { text: config.text, icon: Clock, color: 'text-slate-400', bg: 'bg-slate-500/10' }
+  };
+  return styles[config.type as keyof typeof styles] || styles.unknown;
 };
 
 const getStatusInfo = (status: number, statusName: string) => {
-  switch (status) {
-    case 1:
-      return { text: statusName, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
-    default:
-      return { text: statusName, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+  const config = STATUS_MAP[status];
+  if (!config) {
+    return { text: statusName || '未知', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-500/10' };
   }
+  const styles = {
+    submitted: { text: config.text, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    draft: { text: config.text, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' }
+  };
+  return styles[config.type as keyof typeof styles] || styles.draft;
 };
 
-const getCheckResultInfo = (result: number) => {
-  switch (result) {
-    case 1:
-      return { text: '正常', icon: CheckCircle, color: 'text-emerald-500' };
-    case 2:
-      return { text: '异常', icon: AlertTriangle, color: 'text-amber-500' };
-    case 3:
-      return { text: '无此项', icon: XCircle, color: 'text-slate-400' };
-    default:
-      return { text: '未检查', icon: Clock, color: 'text-slate-400' };
-  }
-};
-
-// 监听筛选变化
+// ==================== 监听筛选变化 ====================
 watch(
   [
+    () => filterForm.check_date,
     () => filterForm.village_id,
     () => filterForm.elevator_id,
     () => filterForm.overall_result,
@@ -561,157 +448,222 @@ watch(searchTerm, () => {
   fetchRecordList();
 });
 
-onMounted(() => {
-  fetchRecordList();
+// ==================== 生命周期 ====================
+onMounted(async () => {
+  const today = new Date().toISOString().split('T')[0];
+  filterForm.check_date = today;
+
+  await fetchVillageListData();
   fetchDashboard();
+  fetchRecordList();
 });
 </script>
 
 <template>
   <div class="animate-in fade-in pb-20 text-left duration-500 space-y-6">
-    <!-- 统计看板 -->
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-5 md:grid-cols-2">
+    <!-- ==================== 统计看板 ==================== -->
+    <div v-if="!dashboardLoading" class="grid grid-cols-1 gap-4 lg:grid-cols-5 md:grid-cols-2">
       <div
+        v-for="(stat, index) in [
+          {
+            key: 'total',
+            label: '今日应检',
+            value: dashboardStats?.total_count || 0,
+            suffix: '台电梯',
+            icon: Building2,
+            color: 'sky'
+          },
+          {
+            key: 'completed',
+            label: '今日完成',
+            value: dashboardStats?.completed_count || 0,
+            suffix: `完成率 ${dashboardStats?.completion_rate || 0}%`,
+            icon: CheckCircle,
+            color: 'emerald'
+          },
+          {
+            key: 'zero',
+            label: '零风险报告',
+            value: dashboardStats?.zero_risk_count || 0,
+            suffix: '份今日报告',
+            icon: FileText,
+            color: 'sky'
+          },
+          {
+            key: 'pending',
+            label: '未提交',
+            value: dashboardStats?.pending_count || 0,
+            suffix: '台待检查',
+            icon: Clock,
+            color: 'amber'
+          },
+          {
+            key: 'hazard',
+            label: '隐患数量',
+            value: dashboardStats?.hazard_count || 0,
+            suffix: '个待处理',
+            icon: AlertTriangle,
+            color: 'rose'
+          }
+        ]"
+        :key="index"
         class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-xs text-slate-400 font-bold tracking-wider uppercase">今日应检</p>
-            <p class="mt-1 text-3xl text-slate-700 font-black dark:text-slate-200">
-              {{ dashboardStats?.total_count || 0 }}
-            </p>
-            <p class="mt-1 text-[10px] text-slate-400">台电梯</p>
+            <p class="text-xs text-slate-400 font-bold tracking-wider uppercase">{{ stat.label }}</p>
+            <p class="mt-1 text-3xl text-slate-700 font-black dark:text-slate-200">{{ stat.value }}</p>
+            <p class="mt-1 text-[10px] text-slate-400">{{ stat.suffix }}</p>
           </div>
-          <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-sky-500/10">
-            <Building2 class="text-sky-500" :size="24" />
+          <div class="h-12 w-12 flex items-center justify-center rounded-2xl" :class="`bg-${stat.color}-500/10`">
+            <component :is="stat.icon" class="text-slate-500" :size="24" />
           </div>
         </div>
-      </div>
-
-      <div
-        class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
-      >
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs text-slate-400 font-bold tracking-wider uppercase">今日完成</p>
-            <p class="mt-1 text-3xl text-slate-700 font-black dark:text-slate-200">
-              {{ dashboardStats?.completed_count || 0 }}
-            </p>
-            <p class="mt-1 text-[10px] text-slate-400">完成率 {{ dashboardStats?.completion_rate || 0 }}%</p>
-          </div>
-          <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-emerald-500/10">
-            <CheckCircle class="text-emerald-500" :size="24" />
-          </div>
-        </div>
-        <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div v-if="stat.key === 'completed'" class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
             class="h-full rounded-full bg-emerald-500 transition-all"
             :style="{ width: `${dashboardStats?.completion_rate || 0}%` }"
           ></div>
         </div>
       </div>
+    </div>
 
+    <!-- 看板加载状态 -->
+    <div v-else class="grid grid-cols-1 gap-4 lg:grid-cols-5 md:grid-cols-2">
       <div
-        class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
+        v-for="i in 5"
+        :key="i"
+        class="animate-pulse border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-xs text-slate-400 font-bold tracking-wider uppercase">零风险报告</p>
-            <p class="mt-1 text-3xl text-slate-700 font-black dark:text-slate-200">
-              {{ dashboardStats?.zero_risk_count || 0 }}
-            </p>
-            <p class="mt-1 text-[10px] text-slate-400">份今日报告</p>
+            <div class="h-3 w-16 rounded bg-slate-200"></div>
+            <div class="mt-2 h-8 w-12 rounded bg-slate-200"></div>
           </div>
-          <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-sky-500/10">
-            <FileText class="text-sky-500" :size="24" />
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
-      >
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs text-slate-400 font-bold tracking-wider uppercase">未提交</p>
-            <p class="mt-1 text-3xl text-amber-500 font-black">{{ dashboardStats?.pending_count || 0 }}</p>
-            <p class="mt-1 text-[10px] text-slate-400">台待检查</p>
-          </div>
-          <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-amber-500/10">
-            <Clock class="text-amber-500" :size="24" />
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
-      >
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs text-slate-400 font-bold tracking-wider uppercase">隐患数量</p>
-            <p class="mt-1 text-3xl text-rose-500 font-black">{{ dashboardStats?.hazard_count || 0 }}</p>
-            <p class="mt-1 text-[10px] text-slate-400">个待处理</p>
-          </div>
-          <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-rose-500/10">
-            <AlertTriangle class="text-rose-500" :size="24" />
-          </div>
+          <div class="h-12 w-12 rounded-2xl bg-slate-200"></div>
         </div>
       </div>
     </div>
 
-    <!-- 按小区统计 -->
+    <!-- ==================== 按小区统计 ==================== -->
     <div class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-      <h3 class="mb-4 flex items-center gap-2 text-sm text-slate-700 font-bold">
-        <TrendingUp :size="16" class="text-sky-500" />
-        按小区统计
-      </h3>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="flex items-center gap-2 text-sm text-slate-700 font-bold">
+          <TrendingUp :size="16" class="text-sky-500" />
+          按小区统计
+          <span class="ml-2 text-xs text-slate-400 font-normal">
+            共 {{ dashboardStats?.by_village?.length || 0 }} 个小区
+          </span>
+        </h3>
+
+        <!-- 小区统计分页 - 使用图标 -->
+        <div class="flex items-center gap-1.5">
+          <!-- 上一页 -->
+          <button
+            class="rounded-lg p-1.5 text-slate-400 transition-all disabled:cursor-not-allowed hover:bg-slate-100 hover:text-sky-500 disabled:opacity-30"
+            :disabled="villagePage <= 1"
+            @click="villagePage--"
+          >
+            <ChevronLeft :size="16" />
+          </button>
+
+          <!-- 页码信息 - 使用小圆点或简洁的数字 -->
+          <span class="min-w-[40px] text-center text-[10px] text-slate-500 font-medium tabular-nums">
+            {{ villagePage }} / {{ totalVillagePages }}
+          </span>
+
+          <!-- 下一页 -->
+          <button
+            class="rounded-lg p-1.5 text-slate-400 transition-all disabled:cursor-not-allowed hover:bg-slate-100 hover:text-sky-500 disabled:opacity-30"
+            :disabled="villagePage >= totalVillagePages"
+            @click="villagePage++"
+          >
+            <ChevronRight :size="16" />
+          </button>
+        </div>
+      </div>
+
+      <!-- 统计卡片网格 -->
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 md:grid-cols-2">
         <div
-          v-for="item in dashboardStats?.by_village"
+          v-for="item in paginatedVillageStats"
           :key="item.village_id"
-          class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50"
+          class="group rounded-xl bg-slate-50 p-4 transition-all dark:bg-slate-800/50 hover:bg-white hover:shadow-md dark:hover:bg-slate-800/70"
         >
           <div class="mb-3 flex items-center justify-between">
-            <span class="text-sm font-bold">{{ item.village_name }}</span>
-            <span class="text-xs text-slate-400">总数 {{ item.total }}</span>
+            <span class="truncate text-sm font-bold" :title="item.village_name">
+              {{ item.village_name }}
+            </span>
+            <span
+              class="flex items-center gap-1.5 rounded-full bg-slate-200/60 px-2.5 py-0.5 text-[10px] text-slate-500 font-medium dark:bg-slate-700/60 dark:text-slate-400"
+            >
+              <Building2 :size="10" />
+              {{ item.total }} 台
+            </span>
           </div>
+
+          <!-- 进度数据 -->
           <div class="flex justify-between text-xs">
-            <div class="text-center">
-              <div class="text-emerald-500 font-bold">{{ item.completed }}</div>
-              <div class="text-slate-400">已检</div>
+            <div class="flex-1 text-center">
+              <div class="text-base text-emerald-500 font-bold">{{ item.completed }}</div>
+              <div class="text-[10px] text-slate-400">已检</div>
             </div>
-            <div class="text-center">
-              <div class="text-amber-500 font-bold">{{ item.total - item.completed }}</div>
-              <div class="text-slate-400">未检</div>
+            <div class="flex-1 border-x border-slate-200/60 text-center dark:border-slate-700/60">
+              <div class="text-base text-amber-500 font-bold">{{ item.total - item.completed }}</div>
+              <div class="text-[10px] text-slate-400">未检</div>
             </div>
-            <div class="text-center">
-              <div class="text-rose-500 font-bold">{{ item.has_hazard }}</div>
-              <div class="text-slate-400">隐患</div>
+            <div class="flex-1 text-center">
+              <div class="text-base text-rose-500 font-bold">{{ item.has_hazard }}</div>
+              <div class="text-[10px] text-slate-400">隐患</div>
             </div>
           </div>
-          <div class="mt-3 h-1 w-full overflow-hidden rounded-full bg-slate-200">
+
+          <!-- 进度条 -->
+          <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div
-              class="h-full rounded-full bg-emerald-500"
-              :style="{ width: `${(item.completed / item.total) * 100}%` }"
+              class="h-full rounded-full from-emerald-400 to-emerald-500 bg-gradient-to-r transition-all duration-500"
+              :style="{ width: `${item.total > 0 ? (item.completed / item.total) * 100 : 0}%` }"
             ></div>
+          </div>
+          <div class="mt-1.5 flex justify-between text-[9px] text-slate-400">
+            <span>完成率</span>
+            <span class="text-emerald-600 font-medium">
+              {{ item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0 }}%
+            </span>
           </div>
         </div>
       </div>
+
+      <!-- 空状态 -->
+      <div v-if="!dashboardStats?.by_village?.length" class="py-8 text-center">
+        <Building2 :size="32" class="mx-auto mb-2 text-slate-300 opacity-50" />
+        <p class="text-sm text-slate-400">暂无小区统计数据</p>
+      </div>
     </div>
 
-    <!-- 筛选栏 -->
+    <!-- ==================== 筛选栏 ==================== -->
     <div
       class="border border-slate-200 rounded-2xl bg-white p-5 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/40"
     >
       <div class="flex flex-wrap gap-3">
+        <button
+          class="rounded-xl px-4 py-2 text-xs font-bold transition-all"
+          :class="[
+            filterForm.status === null && filterForm.has_hazard === null
+              ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          ]"
+          @click="applyQuickFilter('all')"
+        >
+          全部
+        </button>
         <button
           v-for="filter in quickFilters"
           :key="filter.key"
           class="rounded-xl px-4 py-2 text-xs font-bold transition-all"
           :class="[
             (filter.key === 'pending' && filterForm.status === 0) ||
-            (filter.key === 'hazard' && filterForm.has_hazard === 1) ||
-            (filter.key === 'overdue' && false)
+            (filter.key === 'hazard' && filterForm.has_hazard === 1)
               ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
           ]"
@@ -722,6 +674,7 @@ onMounted(() => {
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-3">
+        <!-- 检查日期 -->
         <div class="relative">
           <Calendar class="absolute left-3 top-1/2 text-slate-400 -translate-y-1/2" :size="14" />
           <input
@@ -731,32 +684,16 @@ onMounted(() => {
           />
         </div>
 
-        <select
+        <!-- 小区选择 -->
+        <CustomSelect
           v-model="filterForm.village_id"
-          class="border border-slate-200 rounded-xl px-3 py-2 text-sm dark:border-slate-800 focus:border-sky-500 dark:bg-slate-950 focus:outline-none"
-        >
-          <option :value="undefined">全部小区</option>
-          <option v-for="item in villageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-        </select>
+          :options="villageOptions"
+          :loading="villageLoading.villageLoading"
+          placeholder="全部小区"
+          :width="200"
+        />
 
-        <select
-          v-model="filterForm.elevator_id"
-          class="border border-slate-200 rounded-xl px-3 py-2 text-sm dark:border-slate-800 focus:border-sky-500 dark:bg-slate-950 focus:outline-none"
-        >
-          <option :value="undefined">全部电梯</option>
-          <option v-for="item in elevatorOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-        </select>
-
-        <select
-          v-model="filterForm.overall_result"
-          class="border border-slate-200 rounded-xl px-3 py-2 text-sm dark:border-slate-800 focus:border-sky-500 dark:bg-slate-950 focus:outline-none"
-        >
-          <option :value="undefined">全部结果</option>
-          <option :value="1">正常</option>
-          <option :value="2">有隐患</option>
-          <option :value="3">零风险报告</option>
-        </select>
-
+        <!-- 搜索框 -->
         <div class="relative min-w-[200px] flex-1">
           <Search class="absolute left-3 top-1/2 text-slate-400 -translate-y-1/2" :size="14" />
           <input
@@ -767,19 +704,20 @@ onMounted(() => {
           />
         </div>
 
+        <!-- 操作按钮 -->
         <div class="ml-auto flex items-center gap-2">
-          <button
-            class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200"
-            @click="handleReset"
-          >
-            <RefreshCw :size="16" />
-          </button>
           <button
             class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200"
             :class="isSyncing ? 'animate-spin text-sky-500' : ''"
             @click="handleSync"
           >
             <RefreshCw :size="16" />
+          </button>
+          <button
+            class="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-500 font-medium transition-colors hover:bg-slate-200"
+            @click="handleReset"
+          >
+            重置
           </button>
           <button class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200">
             <FileSpreadsheet :size="16" />
@@ -788,7 +726,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 数据表格 -->
+    <!-- ==================== 数据表格 ==================== -->
     <div class="border border-slate-200 rounded-2xl bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
       <div class="overflow-x-auto">
         <table class="w-full text-left">
@@ -879,13 +817,6 @@ onMounted(() => {
                     <Eye :size="14" />
                   </button>
                   <button
-                    v-if="item.has_hazard === 1 && item.status === 1"
-                    class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-amber-500 hover:text-white"
-                    @click="handleNotifyMaintenance(item)"
-                  >
-                    <Send :size="14" />
-                  </button>
-                  <button
                     class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-500 hover:text-white"
                     @click="handleExport(item)"
                   >
@@ -927,154 +858,10 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 详情弹窗 -->
-    <NModal
-      v-model:show="detailVisible"
-      preset="dialog"
-      :title="`检查记录详情 - ${currentRecord?.record.elevator_name}`"
-      style="width: 900px"
-    >
-      <NSpin :show="detailLoading">
-        <div class="max-h-[60vh] overflow-y-auto px-1 space-y-4">
-          <!-- 基本信息 -->
-          <div class="grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
-            <div class="rounded-lg bg-slate-50 p-2">
-              <span class="text-slate-400">检查日期</span>
-              <p class="mt-0.5 font-bold">{{ currentRecord?.record.check_date }}</p>
-            </div>
-            <div class="rounded-lg bg-slate-50 p-2">
-              <span class="text-slate-400">时段</span>
-              <p class="mt-0.5 font-bold">{{ currentRecord?.record.period_name }}</p>
-            </div>
-            <div class="rounded-lg bg-slate-50 p-2">
-              <span class="text-slate-400">天气</span>
-              <p class="mt-0.5 flex items-center gap-1 font-bold">
-                <Cloud :size="12" />
-                {{ currentRecord?.record.weather }}
-              </p>
-            </div>
-            <div class="rounded-lg bg-slate-50 p-2">
-              <span class="text-slate-400">安全员</span>
-              <p class="mt-0.5 font-bold">{{ currentRecord?.record.safety_officer_name }}</p>
-            </div>
-          </div>
+    <!-- ==================== 详情弹窗 ==================== -->
+    <SafetyDailyDetailModal v-model:show="detailVisible" :record-id="selectedRecordId" @close="detailVisible = false" />
 
-          <!-- 检查项列表 -->
-          <div>
-            <h4 class="mb-3 flex items-center gap-2 text-sm font-bold">
-              <ListTodo :size="14" class="text-sky-500" />
-              检查项目
-            </h4>
-            <div class="space-y-2">
-              <div
-                v-for="item in currentRecord?.items"
-                :key="item.id"
-                class="border border-slate-100 rounded-xl p-3 dark:border-slate-800"
-              >
-                <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <div class="mb-1 flex items-center gap-2">
-                      <span class="text-xs text-slate-400 font-mono">{{ item.item_code }}</span>
-                      <span class="text-xs font-bold">{{ item.item_name }}</span>
-                      <span
-                        class="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                        :class="[
-                          getCheckResultInfo(item.check_result).color.replace('text', 'bg') + '/10',
-                          getCheckResultInfo(item.check_result).color
-                        ]"
-                      >
-                        <component :is="getCheckResultInfo(item.check_result).icon" :size="9" class="mr-0.5 inline" />
-                        {{ getCheckResultInfo(item.check_result).text }}
-                      </span>
-                    </div>
-                    <p class="text-xs text-slate-500">{{ item.standard }}</p>
-                    <p v-if="item.remark" class="mt-1 text-xs text-amber-600">备注：{{ item.remark }}</p>
-                    <div v-if="item.images && item.images.length > 0" class="mt-2 flex gap-2">
-                      <div
-                        v-for="(img, idx) in item.images"
-                        :key="idx"
-                        class="h-16 w-16 flex items-center justify-center rounded-lg bg-slate-100"
-                      >
-                        <Camera :size="20" class="text-slate-400" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </NSpin>
-      <template #action>
-        <button class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold" @click="detailVisible = false">
-          关闭
-        </button>
-        <button
-          v-if="currentRecord?.record.has_hazard === 1"
-          class="rounded-xl bg-amber-500 px-6 py-2 text-xs text-white font-bold"
-          @click="
-            handleNotifyMaintenance(currentRecord.record);
-            detailVisible = false;
-          "
-        >
-          通知维保单位
-        </button>
-      </template>
-    </NModal>
-
-    <!-- 通知维保弹窗 -->
-    <NModal v-model:show="notifyDialogVisible" preset="dialog" title="通知维保单位整改" style="width: 500px">
-      <div class="space-y-4">
-        <div class="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-600">
-          <AlertTriangle :size="14" class="mr-1 inline" />
-          电梯【{{ notifyRecord?.elevator_name }}】在日检中发现 {{ notifyRecord?.hazard_count }} 项隐患
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">联系人 *</label>
-          <input
-            v-model="notifyForm.contact_person"
-            type="text"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm"
-            placeholder="请输入联系人"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">联系电话 *</label>
-          <input
-            v-model="notifyForm.phone"
-            type="tel"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm"
-            placeholder="请输入联系电话"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">整改要求</label>
-          <textarea
-            v-model="notifyForm.description"
-            rows="3"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm"
-            placeholder="请描述整改要求"
-          ></textarea>
-        </div>
-      </div>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="notifyDialogVisible = false"
-        >
-          取消
-        </button>
-        <button
-          class="rounded-xl bg-amber-500 px-6 py-2 text-xs text-white font-bold"
-          :disabled="notifyLoading"
-          @click="submitNotify"
-        >
-          {{ notifyLoading ? '发送中...' : '发送通知并创建工单' }}
-        </button>
-      </template>
-    </NModal>
-
-    <!-- 导出确认弹窗 -->
+    <!-- ==================== 导出确认弹窗 ==================== -->
     <NModal v-model:show="exportDialogVisible" preset="dialog" title="导出检查记录" style="width: 400px">
       <div class="py-4 text-center">
         <Download :size="48" class="mx-auto mb-3 text-sky-500" />
@@ -1093,7 +880,7 @@ onMounted(() => {
           取消
         </button>
         <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold"
+          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold disabled:opacity-50"
           :disabled="exportLoading"
           @click="confirmExport"
         >
