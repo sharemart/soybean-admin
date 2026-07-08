@@ -167,13 +167,12 @@ const toggleDropdown = () => {
 
 const handleClickOutside = (e: MouseEvent) => {
   const target = e.target as Node;
-  if (!wrapperRef.value?.contains(target)) {
-    const dropdownEl = document.querySelector('.custom-select-dropdown-panel');
-    if (dropdownEl && dropdownEl.contains(target)) {
-      return;
-    }
-    showDropdown.value = false;
-  }
+  const dropdownEl = document.querySelector('.custom-select-dropdown-panel');
+  // 同时判断：点击在选择器容器内 或 下拉面板内，都不关闭
+  const inWrapper = wrapperRef.value?.contains(target);
+  const inDropdown = dropdownEl && dropdownEl.contains(target);
+  if (inWrapper || inDropdown) return;
+  showDropdown.value = false;
 };
 
 const handleWindowScroll = () => {
@@ -264,6 +263,7 @@ onBeforeUnmount(() => {
       :style="dropdownStyle"
       class="custom-select-dropdown-panel overflow-hidden border border-slate-200/60 rounded-xl bg-white/95 shadow-slate-300/20 shadow-xl backdrop-blur-md transition-all duration-300 dark:border-slate-700/60 dark:bg-slate-900/95 dark:shadow-slate-900/30"
       @click.stop
+      @mousedown.stop
     >
       <div class="border-b border-slate-100 p-2 dark:border-slate-700/50">
         <div
@@ -278,6 +278,7 @@ onBeforeUnmount(() => {
             class="w-full bg-transparent text-xs text-slate-700 outline-none dark:text-slate-300 placeholder:text-slate-400"
             @click.stop
             @keydown.stop
+            @mousedown.stop
           />
         </div>
       </div>

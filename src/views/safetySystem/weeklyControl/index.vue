@@ -4,46 +4,58 @@ import { useDialog, useMessage } from 'naive-ui';
 import {
   AlertTriangle,
   Archive,
-  Building2,
   Calendar,
   CheckCircle,
-  ChevronRight,
   Clock,
   Download,
   Edit,
   Eye,
   FileSpreadsheet,
-  FileText,
   ListTodo,
-  Mail,
-  Phone,
   Plus,
   RefreshCw,
-  Save,
   Search,
   Send,
   TrendingUp,
-  User,
   XCircle
 } from 'lucide-vue-next';
+import { fetchSafetyWeeklyList } from '@/service/api/safety/safetyWeekly/safetyWeekly';
+import { useVillageSelector } from '@/hooks/selectOption/useCommunitySelector';
+import WeeklyReportDetail from '@/components/modal/safety/safetyWeekly/WeeklyReportDetail.vue';
+import WeeklyReportCreate from '@/components/modal/safety/safetyWeekly/WeeklyReportCreate.vue';
 
 // ==================== 类型定义 ====================
 interface WeeklyReport {
   id: number;
+  company_id: number;
   village_id: number;
   village_name: string;
+  report_no: string;
   year: number;
   week_no: number;
-  week_range: string;
-  summary: string;
-  risk_analysis: string;
-  next_plan: string;
+  week_start: string;
+  week_end: string;
   status: number; // 0草稿 1已提交 2已归档
-  status_name: string;
-  submit_time?: string;
-  archive_time?: string;
-  create_time: string;
-  update_time: string;
+  elevator_total: number;
+  normal_count: number;
+  hazard_count: number;
+  stopped_count: number;
+  hazard_total: number;
+  major_hazard_count: number;
+  general_hazard_count: number;
+  summary: string;
+  risk_analysis: string | null;
+  next_plan: string | null;
+  director_user_id: number;
+  director_sign_url: string;
+  principal_user_id: number;
+  principal_sign_url: string;
+  created_by: number;
+  submit_time: number;
+  archive_time: number;
+  add_time: number;
+  update_time: number;
+  is_del: number;
 }
 
 interface HazardItem {
@@ -73,7 +85,7 @@ interface MaintainSupervise {
   images: string[];
 }
 
-interface WeeklyReportDetail {
+interface WeeklyReportDetailData {
   report: WeeklyReport;
   hazards: HazardItem[];
   maintain_supervises: MaintainSupervise[];
@@ -82,6 +94,8 @@ interface WeeklyReportDetail {
 // ==================== 状态管理 ====================
 const message = useMessage();
 const dialog = useDialog();
+
+const { villageOptions, loading: villageLoading, fetchVillageListData } = useVillageSelector();
 
 // 筛选条件
 const filterForm = reactive({
@@ -96,12 +110,8 @@ const isSyncing = ref(false);
 // 列表数据
 const reportList = ref<WeeklyReport[]>([]);
 
-// 小区选项
-const villageOptions = ref([
-  { value: 1, label: '阳光花园小区' },
-  { value: 2, label: '碧水湾小区' },
-  { value: 3, label: '翡翠城小区' }
-]);
+// 在状态管理区域添加
+const currentReportId = ref<number | null>(null);
 
 // 年份选项
 const yearOptions = computed(() => {
@@ -116,6 +126,7 @@ const yearOptions = computed(() => {
 // 编辑弹窗
 const editDialogVisible = ref(false);
 const editLoading = ref(false);
+const currentEditReport = ref<WeeklyReport | null>(null);
 const isEdit = ref(false);
 const editForm = reactive({
   id: 0,
@@ -130,7 +141,7 @@ const editForm = reactive({
 // 详情弹窗
 const detailVisible = ref(false);
 const detailLoading = ref(false);
-const currentReport = ref<WeeklyReportDetail | null>(null);
+const currentReport = ref<WeeklyReportDetailData | null>(null);
 
 // 维保监督弹窗
 const superviseDialogVisible = ref(false);
@@ -167,113 +178,68 @@ function getCurrentWeek(): number {
 }
 
 // 获取周范围
-function getWeekRange(year: number, weekNo: number): string {
-  const startDate = getDateOfWeek(year, weekNo);
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
+function getWeekRange(start: string, end: string): string {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
   return `${startDate.getMonth() + 1}/${startDate.getDate()} - ${endDate.getMonth() + 1}/${endDate.getDate()}`;
 }
 
-function getDateOfWeek(year: number, weekNo: number): Date {
-  const date = new Date(year, 0, 1);
-  const dayOfWeek = date.getDay();
-  const daysToAdd = (weekNo - 1) * 7 - dayOfWeek + 1;
-  date.setDate(date.getDate() + daysToAdd);
-  return date;
+// 格式化时间戳
+function formatTimestamp(timestamp: number): string {
+  if (!timestamp) return '—';
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 }
 
-// ==================== 模拟API调用 ====================
+// 获取状态名称
+function getStatusName(status: number): string {
+  const map: Record<number, string> = {
+    0: '草稿',
+    1: '已提交',
+    2: '已归档'
+  };
+  return map[status] || '未知';
+}
+
+// ==================== API调用 ====================
 // 获取列表
 const fetchReportList = async () => {
   loading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const mockList: WeeklyReport[] = [
-      {
-        id: 1,
-        village_id: 1,
-        village_name: '阳光花园小区',
-        year: 2024,
-        week_no: 50,
-        week_range: '12/9 - 12/15',
-        summary: '本周完成日检7次，发现一般隐患2处，已整改1处，1处整改中。',
-        risk_analysis: '曳引机运行异响问题持续关注，建议下周安排专项检查。',
-        next_plan: '1. 完成未整改隐患闭环；2. 安排曳引机专项保养。',
-        status: 2,
-        status_name: '已归档',
-        submit_time: '2024-12-16 10:30:00',
-        archive_time: '2024-12-17 09:00:00',
-        create_time: '2024-12-09 08:00:00',
-        update_time: '2024-12-17 09:00:00'
-      },
-      {
-        id: 2,
-        village_id: 1,
-        village_name: '阳光花园小区',
-        year: 2024,
-        week_no: 51,
-        week_range: '12/16 - 12/22',
-        summary: '',
-        risk_analysis: '',
-        next_plan: '',
-        status: 1,
-        status_name: '已提交',
-        submit_time: '2024-12-23 14:20:00',
-        archive_time: null,
-        create_time: '2024-12-16 08:00:00',
-        update_time: '2024-12-23 14:20:00'
-      },
-      {
-        id: 3,
-        village_id: 2,
-        village_name: '碧水湾小区',
-        year: 2024,
-        week_no: 51,
-        week_range: '12/16 - 12/22',
-        summary: '本周日检正常，无重大隐患。',
-        risk_analysis: '电梯运行平稳，建议保持日常维保频率。',
-        next_plan: '继续进行日常检查，重点关注门系统。',
-        status: 0,
-        status_name: '草稿',
-        submit_time: null,
-        archive_time: null,
-        create_time: '2024-12-16 08:00:00',
-        update_time: '2024-12-16 08:00:00'
-      },
-      {
-        id: 4,
-        village_id: 3,
-        village_name: '翡翠城小区',
-        year: 2024,
-        week_no: 51,
-        week_range: '12/16 - 12/22',
-        summary: '',
-        risk_analysis: '',
-        next_plan: '',
-        status: 0,
-        status_name: '草稿',
-        submit_time: null,
-        archive_time: null,
-        create_time: '2024-12-16 08:00:00',
-        update_time: '2024-12-16 08:00:00'
-      }
-    ];
-
-    let filtered = [...mockList];
+    const params: any = {};
     if (filterForm.village_id) {
-      filtered = filtered.filter(item => item.village_id === filterForm.village_id);
+      params.village_id = filterForm.village_id;
     }
     if (filterForm.year) {
-      filtered = filtered.filter(item => item.year === filterForm.year);
-    }
-    if (searchTerm.value) {
-      filtered = filtered.filter(
-        item => item.village_name.includes(searchTerm.value) || item.week_range.includes(searchTerm.value)
-      );
+      params.year = filterForm.year;
     }
 
-    reportList.value = filtered;
+    const res = await fetchSafetyWeeklyList(params);
+    if (res?.data?.code === 2000) {
+      const list = res.data.data.list || [];
+
+      // 筛选搜索
+      let filtered = [...list];
+      if (searchTerm.value) {
+        filtered = filtered.filter(
+          item => item.village_name?.includes(searchTerm.value) || item.report_no?.includes(searchTerm.value)
+        );
+      }
+
+      reportList.value = filtered;
+    } else {
+      message.error(res?.data?.msg || '获取列表失败');
+    }
+  } catch (err) {
+    console.error('获取周排查列表失败:', err);
+    message.error('获取列表失败，请重试');
   } finally {
     loading.value = false;
   }
@@ -327,18 +293,6 @@ const fetchReportDetail = async (id: number) => {
           conclusion: '维保过程符合规范，记录完整',
           issues: '无',
           images: []
-        },
-        {
-          id: 2,
-          maintain_date: '2024-12-19',
-          maintain_type: '半月维保',
-          maintain_content: '安全钳、限速器检查',
-          supervisor: '张明',
-          supervise_type: 2,
-          supervise_type_name: '抽样',
-          conclusion: '关键部位检查合格',
-          issues: '限速器动作值需复核',
-          images: []
         }
       ];
 
@@ -357,16 +311,15 @@ const fetchReportDetail = async (id: number) => {
 const fetchEditData = async (id: number) => {
   loading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
     const report = reportList.value.find(r => r.id === id);
     if (report) {
       editForm.id = report.id;
       editForm.village_id = report.village_id;
       editForm.year = report.year;
       editForm.week_no = report.week_no;
-      editForm.summary = report.summary;
-      editForm.risk_analysis = report.risk_analysis;
-      editForm.next_plan = report.next_plan;
+      editForm.summary = report.summary || '';
+      editForm.risk_analysis = report.risk_analysis || '';
+      editForm.next_plan = report.next_plan || '';
     }
   } finally {
     loading.value = false;
@@ -390,25 +343,6 @@ const createDraft = async () => {
   }
 };
 
-// 自动填充
-const handleAutoFill = async (id: number) => {
-  dialog.info({
-    title: '自动填充',
-    content: '系统将自动汇总本周日管控数据填充到报告中，是否继续？',
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        message.success('自动填充成功');
-        await fetchEditData(id);
-      } catch (error) {
-        message.error('自动填充失败');
-      }
-    }
-  });
-};
-
 // 保存报告
 const handleSave = async () => {
   if (!editForm.summary) {
@@ -417,6 +351,19 @@ const handleSave = async () => {
   }
   editLoading.value = true;
   try {
+    // TODO: 调用保存接口
+    // const res = await updateSafetyWeekly({
+    //   id: editForm.id,
+    //   summary: editForm.summary,
+    //   risk_analysis: editForm.risk_analysis,
+    //   next_plan: editForm.next_plan
+    // });
+    // if (res?.data?.code === 2000) {
+    //   message.success('保存成功');
+    //   editDialogVisible.value = false;
+    //   await fetchReportList();
+    // }
+
     await new Promise(resolve => setTimeout(resolve, 800));
     message.success('保存成功');
     editDialogVisible.value = false;
@@ -424,44 +371,6 @@ const handleSave = async () => {
   } finally {
     editLoading.value = false;
   }
-};
-
-// 提交报告
-const handleSubmit = async (id: number) => {
-  dialog.warning({
-    title: '提交报告',
-    content: '提交后报告将进入审核流程，是否确认提交？',
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        message.success('提交成功，等待主要负责人阅览');
-        await fetchReportList();
-      } catch (error) {
-        message.error('提交失败');
-      }
-    }
-  });
-};
-
-// 归档报告
-const handleArchive = async (id: number) => {
-  dialog.info({
-    title: '归档报告',
-    content: '归档后报告将不可编辑，是否确认归档？',
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        message.success('归档成功');
-        await fetchReportList();
-      } catch (error) {
-        message.error('归档失败');
-      }
-    }
-  });
 };
 
 // 维保监督管理
@@ -474,6 +383,12 @@ const handleManageSupervise = async (reportId: number) => {
 const fetchSuperviseRecords = async (reportId: number) => {
   superviseLoading.value = true;
   try {
+    // TODO: 调用维保监督列表接口
+    // const res = await fetchMaintainSuperviseList({ report_id: reportId });
+    // if (res?.data?.code === 2000) {
+    //   superviseRecords.value = res.data.data.list || [];
+    // }
+
     await new Promise(resolve => setTimeout(resolve, 500));
     superviseRecords.value = [
       {
@@ -506,7 +421,6 @@ const handleAddSupervise = () => {
     issues: '',
     images: []
   });
-  // 打开添加弹窗
   dialog.info({
     title: '添加维保监督记录',
     content: '请填写维保监督信息',
@@ -549,6 +463,16 @@ const handleDeleteSupervise = (index: number) => {
 const saveSuperviseRecords = async () => {
   superviseLoading.value = true;
   try {
+    // TODO: 调用保存维保监督接口
+    // const res = await saveMaintainSupervise({
+    //   report_id: currentSuperviseReportId.value,
+    //   list: superviseRecords.value
+    // });
+    // if (res?.data?.code === 2000) {
+    //   message.success('维保监督记录保存成功');
+    //   superviseDialogVisible.value = false;
+    // }
+
     await new Promise(resolve => setTimeout(resolve, 800));
     message.success('维保监督记录保存成功');
     superviseDialogVisible.value = false;
@@ -559,15 +483,8 @@ const saveSuperviseRecords = async () => {
 
 // 查看详情
 const handleViewDetail = async (report: WeeklyReport) => {
-  await fetchReportDetail(report.id);
+  currentReportId.value = report.id; // 只传递ID
   detailVisible.value = true;
-};
-
-// 编辑报告
-const handleEdit = async (report: WeeklyReport) => {
-  await fetchEditData(report.id);
-  isEdit.value = true;
-  editDialogVisible.value = true;
 };
 
 // 新建报告
@@ -581,9 +498,17 @@ const handleCreate = () => {
 // 导出报告
 const handleExport = async (report: WeeklyReport) => {
   message.info(`正在导出《每周电梯安全排查治理报告》...`);
-  setTimeout(() => {
-    message.success(`导出成功：${report.village_name}_${report.year}年第${report.week_no}周`);
-  }, 1000);
+  try {
+    // TODO: 调用导出接口
+    // const res = await exportSafetyWeekly({ id: report.id });
+    // 处理文件下载...
+
+    setTimeout(() => {
+      message.success(`导出成功：${report.village_name}_${report.year}年第${report.week_no}周`);
+    }, 1000);
+  } catch (error) {
+    message.error('导出失败');
+  }
 };
 
 // 同步数据
@@ -597,6 +522,10 @@ const handleSync = () => {
   });
 };
 
+const handleCreateSave = async () => {
+  await fetchReportList();
+};
+
 // 重置筛选
 const handleReset = () => {
   filterForm.village_id = undefined;
@@ -605,8 +534,43 @@ const handleReset = () => {
   fetchReportList();
 };
 
+const handleEditSave = async (data: any) => {
+  try {
+    editLoading.value = true;
+    // TODO: 调用保存接口
+    // const res = await updateSafetyWeekly(data);
+    // if (res?.data?.code === 2000) {
+    //   message.success('保存成功');
+    //   editDialogVisible.value = false;
+    //   await fetchReportList();
+    // }
+
+    // 模拟保存
+    await new Promise(resolve => setTimeout(resolve, 800));
+    message.success('保存成功');
+    editDialogVisible.value = false;
+    await fetchReportList();
+  } catch (error) {
+    console.error('保存失败:', error);
+    message.error('保存失败，请重试');
+  } finally {
+    editLoading.value = false;
+  }
+};
+
+// 关闭编辑弹窗
+const handleDetailClose = () => {
+  detailVisible.value = false;
+};
+
+// 关闭新建弹窗
+const handleCreateClose = () => {
+  createDialogVisible.value = false;
+};
+
 // 获取状态信息
-const getStatusInfo = (status: number, statusName: string) => {
+const getStatusInfo = (status: number) => {
+  const statusName = getStatusName(status);
   switch (status) {
     case 2:
       return { text: statusName, icon: Archive, color: 'text-slate-400', bg: 'bg-slate-500/10' };
@@ -649,6 +613,7 @@ watch(searchTerm, () => {
 });
 
 onMounted(() => {
+  fetchVillageListData();
   fetchReportList();
 });
 </script>
@@ -695,18 +660,12 @@ onMounted(() => {
           <input
             v-model="searchTerm"
             type="text"
-            placeholder="搜索小区或周期..."
+            placeholder="搜索小区或报告编号..."
             class="w-full border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-sm dark:border-slate-800 focus:border-sky-500 dark:bg-slate-950 focus:outline-none"
           />
         </div>
 
         <div class="ml-auto flex items-center gap-2">
-          <button
-            class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200"
-            @click="handleReset"
-          >
-            <RefreshCw :size="16" />
-          </button>
           <button
             class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200"
             :class="isSyncing ? 'animate-spin text-sky-500' : ''"
@@ -729,8 +688,11 @@ onMounted(() => {
             <tr
               class="border-b border-slate-100 bg-slate-50/80 text-[10px] text-slate-400 font-black tracking-[0.15em] uppercase dark:border-slate-800 dark:bg-slate-900/80"
             >
+              <th class="px-6 py-5">报告编号</th>
               <th class="px-6 py-5">周期</th>
               <th class="px-6 py-5">小区</th>
+              <th class="px-6 py-5">电梯总数</th>
+              <th class="px-6 py-5">隐患数</th>
               <th class="px-6 py-5">工作概况</th>
               <th class="px-6 py-5">状态</th>
               <th class="px-6 py-5">提交时间</th>
@@ -739,7 +701,7 @@ onMounted(() => {
           </thead>
           <tbody class="divide-y divide-slate-50 dark:divide-slate-800/40">
             <tr v-if="loading">
-              <td colspan="6" class="px-6 py-20 text-center">
+              <td colspan="9" class="px-6 py-20 text-center">
                 <div class="flex flex-col items-center justify-center text-center opacity-50">
                   <RefreshCw class="mb-2 animate-spin text-sky-500" :size="48" />
                   <p class="text-sm text-slate-500 font-black tracking-widest uppercase">加载中...</p>
@@ -747,7 +709,7 @@ onMounted(() => {
               </td>
             </tr>
             <tr v-else-if="reportList.length === 0">
-              <td colspan="6" class="px-6 py-20 text-center">
+              <td colspan="9" class="px-6 py-20 text-center">
                 <div class="flex flex-col items-center justify-center opacity-50">
                   <Search :size="48" class="mb-2" />
                   <p class="text-sm font-black tracking-widest uppercase">暂无周排查报告</p>
@@ -756,35 +718,49 @@ onMounted(() => {
             </tr>
             <tr v-for="item in reportList" :key="item.id" class="transition-colors hover:bg-sky-500/5">
               <td class="px-6 py-4">
+                <span class="text-xs font-bold font-mono">{{ item.report_no }}</span>
+              </td>
+              <td class="px-6 py-4">
                 <div class="flex items-center gap-2">
                   <div class="h-7 w-7 flex items-center justify-center rounded-lg bg-sky-500/10">
                     <Calendar class="text-sky-500" :size="14" />
                   </div>
                   <div>
                     <span class="text-sm font-bold">{{ item.year }}年第{{ item.week_no }}周</span>
-                    <p class="text-[10px] text-slate-400">{{ item.week_range }}</p>
+                    <p class="text-[10px] text-slate-400">
+                      {{ getWeekRange(item.week_start, item.week_end) }}
+                    </p>
                   </div>
                 </div>
               </td>
               <td class="px-6 py-4 text-sm font-medium">{{ item.village_name }}</td>
+              <td class="px-6 py-4 text-sm">{{ item.elevator_total }}</td>
               <td class="px-6 py-4">
-                <div class="max-w-[300px]">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold">{{ item.hazard_total }}</span>
+                  <span v-if="item.major_hazard_count > 0" class="text-xs text-rose-500">
+                    (重大 {{ item.major_hazard_count }})
+                  </span>
+                  <span v-if="item.general_hazard_count > 0" class="text-xs text-amber-500">
+                    (一般 {{ item.general_hazard_count }})
+                  </span>
+                </div>
+              </td>
+              <td class="px-6 py-4">
+                <div class="max-w-[200px]">
                   <p class="truncate text-xs text-slate-600">{{ item.summary || '暂无内容' }}</p>
                 </div>
               </td>
               <td class="px-6 py-4">
                 <div
                   class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
-                  :class="[
-                    getStatusInfo(item.status, item.status_name).bg,
-                    getStatusInfo(item.status, item.status_name).color
-                  ]"
+                  :class="[getStatusInfo(item.status).bg, getStatusInfo(item.status).color]"
                 >
-                  <component :is="getStatusInfo(item.status, item.status_name).icon" :size="10" />
-                  {{ getStatusInfo(item.status, item.status_name).text }}
+                  <component :is="getStatusInfo(item.status).icon" :size="10" />
+                  {{ getStatusInfo(item.status).text }}
                 </div>
               </td>
-              <td class="px-6 py-4 text-xs text-slate-500">{{ item.submit_time || '—' }}</td>
+              <td class="px-6 py-4 text-xs text-slate-500">{{ formatTimestamp(item.submit_time) }}</td>
               <td class="px-6 py-4 text-right">
                 <div class="flex justify-end gap-1">
                   <button
@@ -793,40 +769,15 @@ onMounted(() => {
                   >
                     <Eye :size="14" />
                   </button>
-                  <button
-                    v-if="item.status === 0"
-                    class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-500 hover:text-white"
-                    @click="handleEdit(item)"
-                  >
-                    <Edit :size="14" />
-                  </button>
-                  <button
-                    v-if="item.status === 0"
-                    class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-sky-500 hover:text-white"
-                    @click="handleAutoFill(item.id)"
-                  >
-                    <TrendingUp :size="14" />
-                  </button>
-                  <button
-                    v-if="item.status === 0"
-                    class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-amber-500 hover:text-white"
-                    @click="handleSubmit(item.id)"
-                  >
-                    <Send :size="14" />
-                  </button>
-                  <button
-                    v-if="item.status === 1"
-                    class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-indigo-500 hover:text-white"
-                    @click="handleArchive(item.id)"
-                  >
-                    <Archive :size="14" />
-                  </button>
-                  <button
+
+                  <!--
+ <button
                     class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-purple-500 hover:text-white"
                     @click="handleManageSupervise(item.id)"
                   >
                     <ListTodo :size="14" />
-                  </button>
+                  </button> 
+-->
                   <button
                     class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-500 hover:text-white"
                     @click="handleExport(item)"
@@ -842,299 +793,22 @@ onMounted(() => {
     </div>
 
     <!-- 新建周排查弹窗 -->
-    <NModal v-model:show="createDialogVisible" preset="dialog" title="新建周排查报告" style="width: 450px">
-      <div class="space-y-4">
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">选择小区 *</label>
-          <select
-            v-model="createForm.village_id"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          >
-            <option :value="undefined">请选择小区</option>
-            <option v-for="item in villageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">年份</label>
-          <select
-            v-model="createForm.year"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          >
-            <option v-for="item in yearOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-600 font-bold">周序号</label>
-          <input
-            v-model.number="createForm.week_no"
-            type="number"
-            min="1"
-            max="53"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-          />
-        </div>
-      </div>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="createDialogVisible = false"
-        >
-          取消
-        </button>
-        <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold"
-          :disabled="createLoading"
-          @click="createDraft"
-        >
-          {{ createLoading ? '创建中...' : '创建草稿' }}
-        </button>
-      </template>
-    </NModal>
+    <WeeklyReportCreate
+      v-model:visible="createDialogVisible"
+      :village-options="villageOptions"
+      :year-options="yearOptions"
+      :loading="createLoading"
+      @close="handleCreateClose"
+      @save="handleCreateSave"
+    />
 
     <!-- 编辑报告弹窗 -->
-    <NModal
-      v-model:show="editDialogVisible"
-      preset="dialog"
-      :title="`${isEdit ? '编辑' : '查看'}周排查报告`"
-      style="width: 700px"
-    >
-      <NSpin :show="loading">
-        <div class="max-h-[60vh] overflow-y-auto px-1 space-y-4">
-          <div class="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-            <Calendar :size="12" class="mr-1 inline" />
-            {{ editForm.year }}年第{{ editForm.week_no }}周 ·
-            {{ villageOptions.find(v => v.value === editForm.village_id)?.label || '请选择小区' }}
-          </div>
-
-          <div>
-            <label class="mb-1 block text-xs text-slate-600 font-bold">工作概况</label>
-            <textarea
-              v-model="editForm.summary"
-              rows="4"
-              class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-              placeholder="请填写本周日管控工作概况..."
-            ></textarea>
-          </div>
-
-          <div>
-            <label class="mb-1 block text-xs text-slate-600 font-bold">风险分析</label>
-            <textarea
-              v-model="editForm.risk_analysis"
-              rows="3"
-              class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-              placeholder="请填写风险分析..."
-            ></textarea>
-          </div>
-
-          <div>
-            <label class="mb-1 block text-xs text-slate-600 font-bold">下周计划</label>
-            <textarea
-              v-model="editForm.next_plan"
-              rows="3"
-              class="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-sky-500 focus:outline-none"
-              placeholder="请填写下周工作计划..."
-            ></textarea>
-          </div>
-        </div>
-      </NSpin>
-      <template #action>
-        <button
-          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold"
-          @click="editDialogVisible = false"
-        >
-          取消
-        </button>
-        <button
-          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold"
-          :disabled="editLoading"
-          @click="handleSave"
-        >
-          {{ editLoading ? '保存中...' : '保存' }}
-        </button>
-      </template>
-    </NModal>
-
-    <!-- 详情弹窗 -->
-    <NModal
-      v-model:show="detailVisible"
-      preset="dialog"
-      :title="`周排查报告详情 - ${currentReport?.report.village_name}`"
-      style="width: 800px"
-    >
-      <NSpin :show="detailLoading">
-        <div class="max-h-[60vh] overflow-y-auto px-1 space-y-5">
-          <!-- 报告基本信息 -->
-          <div class="rounded-xl bg-slate-50 p-4">
-            <div class="mb-3 flex items-center justify-between">
-              <span class="text-xs text-slate-400 font-bold">报告信息</span>
-              <span
-                class="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                :class="[
-                  getStatusInfo(currentReport?.report.status || 0, currentReport?.report.status_name || '').bg,
-                  getStatusInfo(currentReport?.report.status || 0, currentReport?.report.status_name || '').color
-                ]"
-              >
-                <component
-                  :is="getStatusInfo(currentReport?.report.status || 0, currentReport?.report.status_name || '').icon"
-                  :size="9"
-                  class="mr-0.5 inline"
-                />
-                {{ currentReport?.report.status_name }}
-              </span>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span class="text-slate-400">周期：</span>
-                {{ currentReport?.report.year }}年第{{ currentReport?.report.week_no }}周
-              </div>
-              <div>
-                <span class="text-slate-400">日期范围：</span>
-                {{ currentReport?.report.week_range }}
-              </div>
-              <div>
-                <span class="text-slate-400">提交时间：</span>
-                {{ currentReport?.report.submit_time || '未提交' }}
-              </div>
-              <div>
-                <span class="text-slate-400">归档时间：</span>
-                {{ currentReport?.report.archive_time || '未归档' }}
-              </div>
-            </div>
-          </div>
-
-          <!-- 工作概况 -->
-          <div>
-            <h4 class="mb-2 flex items-center gap-2 text-sm font-bold">
-              <FileText :size="14" class="text-sky-500" />
-              工作概况
-            </h4>
-            <p class="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              {{ currentReport?.report.summary || '暂无' }}
-            </p>
-          </div>
-
-          <!-- 风险分析 -->
-          <div>
-            <h4 class="mb-2 flex items-center gap-2 text-sm font-bold">
-              <AlertTriangle :size="14" class="text-amber-500" />
-              风险分析
-            </h4>
-            <p class="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              {{ currentReport?.report.risk_analysis || '暂无' }}
-            </p>
-          </div>
-
-          <!-- 下周计划 -->
-          <div>
-            <h4 class="mb-2 flex items-center gap-2 text-sm font-bold">
-              <Calendar :size="14" class="text-emerald-500" />
-              下周计划
-            </h4>
-            <p class="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              {{ currentReport?.report.next_plan || '暂无' }}
-            </p>
-          </div>
-
-          <!-- 隐患明细 -->
-          <div>
-            <h4 class="mb-2 flex items-center gap-2 text-sm font-bold">
-              <AlertTriangle :size="14" class="text-rose-500" />
-              隐患明细
-            </h4>
-            <div class="space-y-2">
-              <div v-for="item in currentReport?.hazards" :key="item.id" class="border border-slate-100 rounded-xl p-3">
-                <div class="mb-2 flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-slate-400 font-mono">{{ item.date }}</span>
-                    <span class="text-sm font-bold">{{ item.elevator_name }}</span>
-                    <span
-                      class="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                      :class="[
-                        getSeverityInfo(item.severity, item.severity_name).bg,
-                        getSeverityInfo(item.severity, item.severity_name).color
-                      ]"
-                    >
-                      {{ item.severity_name }}
-                    </span>
-                  </div>
-                  <div
-                    class="flex items-center gap-1 text-[10px]"
-                    :class="getHazardStatusInfo(item.status, item.status_name).color"
-                  >
-                    <component :is="getHazardStatusInfo(item.status, item.status_name).icon" :size="10" />
-                    {{ item.status_name }}
-                  </div>
-                </div>
-                <p class="mb-2 text-xs text-slate-600">{{ item.hazard_desc }}</p>
-                <div class="flex items-center gap-3 text-[10px] text-slate-400">
-                  <span>责任人：{{ item.responsible_person }}</span>
-                  <span>整改期限：{{ item.rectification_deadline }}</span>
-                </div>
-                <p v-if="item.remark" class="mt-1 text-[10px] text-slate-500">备注：{{ item.remark }}</p>
-              </div>
-              <p v-if="!currentReport?.hazards.length" class="py-4 text-center text-xs text-slate-400">暂无隐患记录</p>
-            </div>
-          </div>
-
-          <!-- 维保监督记录 -->
-          <div>
-            <h4 class="mb-2 flex items-center gap-2 text-sm font-bold">
-              <ListTodo :size="14" class="text-purple-500" />
-              维保监督记录
-            </h4>
-            <div class="space-y-2">
-              <div
-                v-for="item in currentReport?.maintain_supervises"
-                :key="item.id"
-                class="border border-slate-100 rounded-xl p-3"
-              >
-                <div class="mb-2 flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-slate-400 font-mono">{{ item.maintain_date }}</span>
-                    <span class="text-xs font-bold">{{ item.maintain_type }}</span>
-                    <span class="rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] text-purple-500 font-bold">
-                      {{ item.supervise_type_name }}
-                    </span>
-                  </div>
-                  <span class="text-xs text-slate-400">监督人：{{ item.supervisor }}</span>
-                </div>
-                <p class="mb-1 text-xs text-slate-600">维保内容：{{ item.maintain_content }}</p>
-                <p class="mb-1 text-xs text-emerald-600">监督结论：{{ item.conclusion }}</p>
-                <p v-if="item.issues" class="text-xs text-amber-600">问题记录：{{ item.issues }}</p>
-              </div>
-              <p v-if="!currentReport?.maintain_supervises.length" class="py-4 text-center text-xs text-slate-400">
-                暂无维保监督记录
-              </p>
-            </div>
-          </div>
-        </div>
-      </NSpin>
-      <template #action>
-        <button class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold" @click="detailVisible = false">
-          关闭
-        </button>
-        <button
-          v-if="currentReport?.report.status === 1"
-          class="rounded-xl bg-indigo-500 px-6 py-2 text-xs text-white font-bold"
-          @click="
-            handleArchive(currentReport!.report.id);
-            detailVisible = false;
-          "
-        >
-          归档报告
-        </button>
-        <button
-          v-if="currentReport?.report.status === 0"
-          class="rounded-xl bg-amber-500 px-6 py-2 text-xs text-white font-bold"
-          @click="
-            handleSubmit(currentReport!.report.id);
-            detailVisible = false;
-          "
-        >
-          提交报告
-        </button>
-      </template>
-    </NModal>
+    <WeeklyReportDetail
+      v-model:visible="detailVisible"
+      :report-id="currentReportId"
+      @close="handleDetailClose"
+      @refresh="fetchReportList"
+    />
 
     <!-- 维保监督管理弹窗 -->
     <NModal v-model:show="superviseDialogVisible" preset="dialog" title="维保监督管理" style="width: 800px">

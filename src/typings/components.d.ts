@@ -60,7 +60,6 @@ declare module 'vue' {
     MaintainParams: typeof import('./../components/modal/component/tabs/MaintainParams.vue')['default']
     MaintenanceDetailModal: typeof import('./../components/modal/scheduling/MaintenanceDetailModal.vue')['default']
     MaintenancePlanCorrectionModal: typeof import('./../components/modal/scheduling/MaintenancePlanCorrectionModal.vue')['default']
-    'MaintenancePlanCorrectionModal copy': typeof import('./../components/modal/scheduling/MaintenancePlanCorrectionModal copy.vue')['default']
     MaintenanceWidget: typeof import('./../components/modal/monitoring/MaintenanceWidget.vue')['default']
     MenuModal: typeof import('./../components/modal/menu/menuModal.vue')['default']
     MenuToggler: typeof import('./../components/common/menu-toggler.vue')['default']
@@ -126,6 +125,8 @@ declare module 'vue' {
     WarningDetail: typeof import('./../components/modal/monitoring/warningDetail.vue')['default']
     WarningWidget: typeof import('./../components/modal/monitoring/WarningWidget.vue')['default']
     WaveBg: typeof import('./../components/custom/wave-bg.vue')['default']
+    WeeklyReportCreate: typeof import('./../components/modal/safety/safetyWeekly/WeeklyReportCreate.vue')['default']
+    WeeklyReportDetail: typeof import('./../components/modal/safety/safetyWeekly/WeeklyReportDetail.vue')['default']
   }
 }
 
@@ -179,7 +180,6 @@ declare global {
   const MaintainParams: typeof import('./../components/modal/component/tabs/MaintainParams.vue')['default']
   const MaintenanceDetailModal: typeof import('./../components/modal/scheduling/MaintenanceDetailModal.vue')['default']
   const MaintenancePlanCorrectionModal: typeof import('./../components/modal/scheduling/MaintenancePlanCorrectionModal.vue')['default']
-  const 'MaintenancePlanCorrectionModal copy': typeof import('./../components/modal/scheduling/MaintenancePlanCorrectionModal copy.vue')['default']
   const MaintenanceWidget: typeof import('./../components/modal/monitoring/MaintenanceWidget.vue')['default']
   const MenuModal: typeof import('./../components/modal/menu/menuModal.vue')['default']
   const MenuToggler: typeof import('./../components/common/menu-toggler.vue')['default']
@@ -245,4 +245,6 @@ declare global {
   const WarningDetail: typeof import('./../components/modal/monitoring/warningDetail.vue')['default']
   const WarningWidget: typeof import('./../components/modal/monitoring/WarningWidget.vue')['default']
   const WaveBg: typeof import('./../components/custom/wave-bg.vue')['default']
+  const WeeklyReportCreate: typeof import('./../components/modal/safety/safetyWeekly/WeeklyReportCreate.vue')['default']
+  const WeeklyReportDetail: typeof import('./../components/modal/safety/safetyWeekly/WeeklyReportDetail.vue')['default']
 }

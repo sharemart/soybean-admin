@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { NButton, NDatePicker, NForm, NFormItem, NInputNumber, NModal, NSelect, useMessage } from 'naive-ui';
+import { computed, nextTick, ref, watch } from 'vue';
+import { NButton, NDatePicker, NForm, NFormItem, NInputNumber, NSelect, useMessage } from 'naive-ui';
 import {
   Building,
   Building2,
@@ -10,7 +10,8 @@ import {
   Edit,
   RotateCcw,
   Trash2,
-  Users
+  Users,
+  X
 } from 'lucide-vue-next';
 import {
   deletePlan,
@@ -80,7 +81,7 @@ const emit = defineEmits<{
 }>();
 
 // ==================== Hooks 初始化 ====================
-// 电梯选择器：直接解构 loadMore，删除自定义分页函数
+// 电梯选择器
 const {
   elevatorOptions,
   elevatorLoading,
@@ -119,7 +120,6 @@ const tableLoading = ref(false);
 const selectedElevatorId = ref('');
 
 // 操作弹窗状态
-const actionModalVisible = ref(false);
 const actionMode = ref<PlanCorrectionMode>('regenerate');
 const currentRecord = ref<MaintenanceItem | null>(null);
 
@@ -139,6 +139,10 @@ const isSubmitting = ref(false);
 // 维保记录选项（用于调整维保计划）
 const dateOptions = ref<{ label: string; value: string }[]>([]);
 const dateOptionsLoading = ref(false);
+
+// 弹窗动画状态
+const mainModalShow = ref(false);
+const actionModalShow = ref(false);
 
 // ==================== 计算属性 ====================
 // 获取最新的维保记录
@@ -326,7 +330,7 @@ const handleRegenerate = async () => {
 
   if (res?.data?.code === 2000) {
     message.success(res?.data?.message || '调整维保计划成功');
-    actionModalVisible.value = false;
+    actionModalShow.value = false;
     await fetchMaintenanceList(selectedElevatorId.value);
     emit('confirm', {
       ...previewPayload.value,
@@ -350,7 +354,7 @@ const handleDelete = async () => {
 
   if (res?.data?.code === 2000) {
     message.success(res?.data?.message || '删除维保计划成功');
-    actionModalVisible.value = false;
+    actionModalShow.value = false;
     await fetchMaintenanceList(selectedElevatorId.value);
     emit('confirm', {
       ...previewPayload.value,
@@ -378,7 +382,7 @@ const handleUpdateGroup = async () => {
   if (res?.data?.code === 2000) {
     const result = res.data.data;
     message.success(getSuccessMessage('updateGroup', result));
-    actionModalVisible.value = false;
+    actionModalShow.value = false;
     await fetchMaintenanceList(selectedElevatorId.value);
     emit('confirm', {
       ...previewPayload.value,
@@ -415,7 +419,7 @@ const handleUpdateDate = async () => {
   if (res?.data?.code === 2000) {
     const result = res.data.data;
     message.success(getSuccessMessage('updateDate', result));
-    actionModalVisible.value = false;
+    actionModalShow.value = false;
     await fetchMaintenanceList(selectedElevatorId.value);
     emit('confirm', {
       ...previewPayload.value,
@@ -474,7 +478,6 @@ const resetForm = () => {
 const handleEdit = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'regenerate';
-  actionModalVisible.value = true;
   resetForm();
   form.value = {
     ...form.value,
@@ -486,37 +489,58 @@ const handleEdit = (row: MaintenanceItem) => {
     value: String(item.bill_id)
   }));
   if (row.company_id) fetchMaintainGroupList(row.company_id);
+  actionModalShow.value = true;
 };
 
 const handleDeleteAction = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'delete';
-  actionModalVisible.value = true;
   resetForm();
+  actionModalShow.value = true;
 };
 
 const handleUpdateGroupAction = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'updateGroup';
-  actionModalVisible.value = true;
   resetForm();
+  actionModalShow.value = true;
 };
 
 const handleUpdateDateAction = (row: MaintenanceItem) => {
   currentRecord.value = row;
   actionMode.value = 'updateDate';
-  actionModalVisible.value = true;
   resetForm();
+  actionModalShow.value = true;
 };
 
 const closeActionModal = () => {
-  actionModalVisible.value = false;
+  actionModalShow.value = false;
   currentRecord.value = null;
   resetForm();
 };
 
 const closeMainModal = () => {
+  mainModalShow.value = false;
   emit('close');
+};
+
+// 点击遮罩关闭主弹窗
+const handleMainMaskClick = (e: MouseEvent) => {
+  if (e.target === e.currentTarget) {
+    closeMainModal();
+  }
+};
+
+// 点击遮罩关闭子弹窗
+const handleActionMaskClick = (e: MouseEvent) => {
+  if (e.target === e.currentTarget) {
+    closeActionModal();
+  }
+};
+
+// 阻止弹窗内部点击冒泡到遮罩
+const stopPropagation = (e: MouseEvent) => {
+  e.stopPropagation();
 };
 
 // ==================== Watchers ====================
@@ -540,11 +564,13 @@ watch(
     }
   }
 );
+
 watch(
   () => props.isOpen,
   async val => {
     if (val) {
-      // 打开弹窗清空搜索关键词，加载第一页电梯
+      await nextTick();
+      mainModalShow.value = true;
       await fetchElevatorListData({
         page: 1,
         limit: PAGE_SIZE,
@@ -554,561 +580,602 @@ watch(
       selectedElevatorId.value = '';
       tableData.value = [];
     } else {
+      mainModalShow.value = false;
       selectedElevatorId.value = '';
       tableData.value = [];
-      actionModalVisible.value = false;
+      actionModalShow.value = false;
       currentRecord.value = null;
       resetForm();
     }
   },
   { immediate: true }
 );
+
+// 阻止 body 滚动
+watch(mainModalShow, val => {
+  if (val) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+});
+
+watch(actionModalShow, val => {
+  if (val) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+});
 </script>
 
 <template>
-  <!-- ===== 主弹窗 ===== -->
-  <NModal
-    :show="props.isOpen"
-    preset="card"
-    mask-closable
-    class="!max-w-[90vw] !rounded-[2.5rem] !p-0"
-    display-directive="if"
-    @close="closeMainModal"
-  >
-    <div class="max-h-[85vh] flex flex-col overflow-hidden">
-      <!-- 头部 -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
       <div
-        class="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-800/30"
+        v-if="mainModalShow"
+        class="fixed inset-0 z-[800] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md"
+        @click="handleMainMaskClick"
       >
-        <div class="flex items-center gap-4">
-          <div class="rounded-2xl bg-indigo-500 p-3 text-white shadow-lg">
-            <CalendarCheck :size="24" />
-          </div>
-          <div>
-            <h3 class="text-xl text-slate-800 font-black tracking-tight dark:text-slate-100">维保计划纠错管理</h3>
-            <p class="mt-1 text-[10px] text-slate-500 tracking-widest font-mono uppercase">
-              MAINTENANCE-SCHEDULE-CORRECTION
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 内容区域 -->
-      <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6">
-        <!-- 电梯选择器 【已修复】增加remote、绑定loadMore -->
-        <div class="flex flex-col gap-4 rounded-2xl bg-slate-50 p-4 lg:flex-row lg:items-center dark:bg-slate-800/50">
-          <div class="w-full lg:max-w-xs lg:flex-1">
-            <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">目标电梯</label>
-            <CustomSelect
-              v-model="selectedElevatorId"
-              :options="elevatorOptions"
-              :loading="elevatorLoading"
-              :icon="Building2"
-              :page-size="PAGE_SIZE"
-              icon-class="text-indigo-500"
-              placeholder="请选择目标电梯"
-              remote
-              :has-more="elevatorHasMore"
-              @search="handleElevatorSearch"
-              @load-more="loadMore"
-              @change="handleElevatorChange"
-            />
-          </div>
-          <div class="w-full lg:flex-1">
-            <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">维保计划统计</label>
-            <p class="text-sm text-slate-700 font-bold dark:text-slate-300">
-              <span v-if="tableData.length > 0">共 {{ tableData.length }} 条维保记录</span>
-              <span v-else-if="selectedElevatorId" class="text-slate-400">暂无维保记录</span>
-              <span v-else class="text-slate-400">请选择电梯查看</span>
-            </p>
-          </div>
-          <div v-if="latestRecord" class="w-full flex flex-wrap items-center gap-3 lg:flex-1 lg:justify-end">
-            <span class="whitespace-nowrap text-xs text-slate-500 font-black tracking-wide uppercase">维保单号</span>
-            <span
-              class="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-indigo-100 px-4 py-2 text-sm text-indigo-700 font-bold shadow-sm dark:bg-indigo-900/30 dark:text-indigo-300"
-            >
-              {{ latestRecord.maint_sn || '-' }}
-            </span>
-            <button
-              class="whitespace-nowrap rounded-xl bg-amber-100 px-4 py-2.5 text-sm text-amber-700 font-semibold shadow-sm transition-all duration-200 dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-300 hover:shadow dark:hover:bg-amber-800"
-              @click="handleUpdateGroupAction(latestRecord)"
-            >
-              <Users :size="16" class="mr-2 inline-block" />
-              整体修改维保组
-            </button>
-            <button
-              class="whitespace-nowrap rounded-xl bg-rose-100 px-4 py-2.5 text-sm text-rose-700 font-semibold shadow-sm transition-all duration-200 dark:bg-rose-900/30 hover:bg-rose-200 dark:text-rose-300 hover:shadow dark:hover:bg-rose-800"
-              @click="handleDeleteAction(latestRecord)"
-            >
-              <Trash2 :size="16" class="mr-2 inline-block" />
-              删除维保计划
-            </button>
-          </div>
-        </div>
-
-        <!-- 表格区域 -->
-        <div class="overflow-hidden border border-slate-200 rounded-2xl dark:border-slate-700">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="border-b border-slate-200 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/30">
-                <tr class="text-[10px] text-slate-500 font-black uppercase">
-                  <th class="px-6 py-4 text-left">维保日期</th>
-                  <th class="px-6 py-4 text-left">维保人员</th>
-                  <th class="px-6 py-4 text-left">维保类型</th>
-                  <th class="px-6 py-4 text-center">操作</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
-                <tr
-                  v-for="row in tableData"
-                  :key="row.bill_id"
-                  class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/20"
-                >
-                  <td class="px-6 py-4 text-xs text-slate-700 font-mono dark:text-slate-300">{{ row.date }}</td>
-                  <td class="px-6 py-4 text-xs text-slate-700 dark:text-slate-300">{{ row.technician || '未分配' }}</td>
-                  <td class="px-6 py-4">
-                    <span
-                      class="inline-flex rounded-full px-3 py-1 text-xs font-medium"
-                      :class="{
-                        'bg-blue-100 text-blue-700': row.maintain_type?.includes('半月'),
-                        'bg-purple-100 text-purple-700': row.maintain_type?.includes('季度'),
-                        'bg-amber-100 text-amber-700': row.maintain_type?.includes('半年'),
-                        'bg-green-100 text-green-700': row.maintain_type?.includes('年度'),
-                        'bg-slate-100 text-slate-700': !row.maintain_type
-                      }"
-                    >
-                      {{ row.maintain_type || '-' }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="flex items-center justify-center gap-3">
-                      <NButton
-                        size="medium"
-                        type="primary"
-                        ghost
-                        class="!rounded-xl !px-4 !py-2"
-                        @click="handleEdit(row)"
-                      >
-                        <Edit :size="16" />
-                        调整维保
-                      </NButton>
-                      <NButton
-                        size="medium"
-                        type="success"
-                        ghost
-                        class="!rounded-xl !px-4 !py-2"
-                        @click="handleUpdateDateAction(row)"
-                      >
-                        <CalendarClock :size="16" />
-                        修改日期
-                      </NButton>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div v-if="!tableData.length" class="flex flex-col items-center justify-center py-16 text-slate-400">
-            <CalendarRange :size="48" class="mb-3 opacity-30" />
-            <p class="text-sm">
-              {{ selectedElevatorId ? '暂无维保记录' : '请选择目标电梯查看维保记录' }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 底部 -->
-      <div class="flex justify-end gap-4 border-t border-slate-200 p-6 dark:border-slate-700">
-        <NButton tertiary class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase" @click="closeMainModal">
-          关闭
-        </NButton>
-      </div>
-    </div>
-  </NModal>
-
-  <!-- ===== 子弹窗 ===== -->
-  <NModal
-    v-model:show="actionModalVisible"
-    preset="card"
-    mask-closable
-    class="!max-w-2xl !rounded-[2.5rem] !p-0"
-    display-directive="if"
-    @close="closeActionModal"
-    @mask-click="closeActionModal"
-  >
-    <div class="max-h-[80vh] flex flex-col overflow-hidden">
-      <div
-        class="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-700 dark:bg-slate-800/30"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="rounded-2xl p-3 text-white shadow-lg"
-            :class="{
-              'bg-indigo-500': actionMode === 'regenerate',
-              'bg-rose-500': actionMode === 'delete',
-              'bg-amber-500': actionMode === 'updateGroup',
-              'bg-emerald-500': actionMode === 'updateDate'
-            }"
-          >
-            <component
-              :is="
-                actionMode === 'regenerate'
-                  ? RotateCcw
-                  : actionMode === 'delete'
-                    ? Trash2
-                    : actionMode === 'updateGroup'
-                      ? Users
-                      : CalendarClock
-              "
-              :size="24"
-            />
-          </div>
-          <div>
-            <h3 class="text-xl text-slate-800 font-black tracking-tight dark:text-slate-100">
-              {{
-                {
-                  regenerate: '调整维保计划',
-                  delete: '删除维保计划',
-                  updateGroup: '整体修改维保组',
-                  updateDate: '修改排班计划日期'
-                }[actionMode]
-              }}
-            </h3>
-            <p class="mt-1 text-[10px] text-slate-500 tracking-widest font-mono uppercase">
-              {{
-                {
-                  regenerate: 'SCHEDULE-ADJUST',
-                  delete: 'SCHEDULE-DELETE',
-                  updateGroup: 'SCHEDULE-GROUP-UPDATE',
-                  updateDate: 'SCHEDULE-DATE-UPDATE'
-                }[actionMode]
-              }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6">
-        <!-- 调整维保计划 -->
-        <div v-if="actionMode === 'regenerate'" class="space-y-4">
-          <div
-            class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
-          >
-            <p class="mb-2 text-[10px] text-slate-500 font-black uppercase">当前选中的维保记录</p>
-            <div class="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span class="text-slate-500">维保单号：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保日期：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.date }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保类型：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maintain_type }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保人员：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">
-                  {{ currentRecord?.technician || '未分配' }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <NForm layout="vertical">
-            <NFormItem label="维保记录" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <CustomSelect
-                v-model="form.fromDate"
-                :options="dateOptions"
-                :loading="dateOptionsLoading"
-                placeholder="请选择维保记录"
-              />
-              <template #extra>
-                <span class="text-xs text-slate-400">选择需要调整的维保记录</span>
-              </template>
-            </NFormItem>
-
-            <NFormItem label="维保公司" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <NSelect
-                v-model:value="form.companyId"
-                :options="maintainCompanyOptions"
-                :loading="companyLoading.maintainLoading"
-                placeholder="请选择维保公司"
-                class="!rounded-xl"
-                clearable
-                filterable
-                remote
-                @search="handleCompanySearch"
-              />
-              <template #extra>
-                <span class="text-xs text-slate-400">选择要调整到的维保公司</span>
-              </template>
-            </NFormItem>
-
-            <NFormItem label="维保小组" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <NSelect
-                v-model:value="form.groupId"
-                :options="groupOptions"
-                :loading="groupLoading.fetching"
-                placeholder="请选择维保小组"
-                class="!rounded-xl"
-                :disabled="!form.companyId"
-                clearable
-                filterable
-                remote
-                @search="handleGroupSearch"
-              />
-              <template #extra>
-                <span class="text-xs text-slate-400">选择要调整到的维保小组</span>
-              </template>
-            </NFormItem>
-          </NForm>
-
-          <div
-            class="border border-indigo-200 rounded-2xl bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-950/20"
-          >
-            <div class="flex items-center gap-3">
-              <CalendarRange class="text-indigo-500" :size="20" />
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">修改模式</p>
-                <p class="text-sm text-slate-700 font-bold dark:text-slate-300">单条修改</p>
-              </div>
-              <div class="ml-auto text-right">
-                <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">目标小组</p>
-                <p class="text-sm text-slate-700 font-bold dark:text-slate-300">{{ selectedGroupLabel }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 删除维保计划 -->
-        <div v-else-if="actionMode === 'delete'" class="space-y-4">
-          <div
-            class="flex items-center gap-3 rounded-2xl bg-rose-50 p-4 text-rose-700 dark:bg-rose-950/20 dark:text-rose-300"
-          >
-            <Trash2 :size="24" />
-            <div>
-              <p class="font-bold">确认删除该维保计划？</p>
-              <p class="text-sm opacity-80">此操作将删除该维保计划及其所有维保单，不可恢复</p>
-            </div>
-          </div>
-
-          <div class="border border-slate-200 rounded-2xl p-4 dark:border-slate-700">
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase">维保单号</p>
-                <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</p>
-              </div>
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase">维保日期</p>
-                <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.date }}</p>
-              </div>
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase">维保类型</p>
-                <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maintain_type }}</p>
-              </div>
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase">维保计划ID</p>
-                <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_id }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 整体修改维保组 -->
-        <div v-else-if="actionMode === 'updateGroup'" class="space-y-4">
-          <div
-            class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
-          >
-            <p class="mb-2 text-[10px] text-slate-500 font-black uppercase">当前维保计划</p>
-            <div class="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span class="text-slate-500">维保单号：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保计划ID：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_id }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保公司：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">
-                  {{ currentRecord?.company_name || '-' }}
-                </span>
-              </div>
-              <div>
-                <span class="text-slate-500">记录数：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ tableData.length }} 条</span>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="border border-amber-200 rounded-2xl bg-amber-50/50 p-4 dark:border-amber-500/20 dark:bg-amber-950/20"
-          >
-            <div class="flex items-center gap-3">
-              <Users class="text-amber-500" :size="20" />
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">操作说明</p>
-                <p class="text-sm text-slate-700 font-bold dark:text-slate-300">
-                  整体修改该维保计划下所有维保记录的维保组
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <NForm layout="vertical">
-            <NFormItem label="维保公司" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <NSelect
-                v-model:value="form.companyId"
-                :options="maintainCompanyOptions"
-                :loading="companyLoading.maintainLoading"
-                placeholder="请选择维保公司"
-                class="!rounded-xl"
-                clearable
-                filterable
-                @search="handleCompanySearch"
-              >
-                <template #action>
-                  <Building :size="16" class="text-slate-400" />
-                </template>
-              </NSelect>
-              <template #extra>
-                <span class="text-xs text-slate-400">选择维保公司以筛选维保小组</span>
-              </template>
-            </NFormItem>
-
-            <NFormItem label="新的维保小组" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <NSelect
-                v-model:value="form.newGroupId"
-                :options="groupOptions"
-                :loading="groupLoading.fetching"
-                placeholder="请选择维保小组"
-                class="!rounded-xl"
-                :disabled="!form.companyId"
-                clearable
-                filterable
-                @search="handleGroupSearch"
-              >
-                <template #action>
-                  <Users :size="16" class="text-slate-400" />
-                </template>
-              </NSelect>
-              <template #extra>
-                <span class="text-xs text-slate-400">选择要修改到的维保小组，将同步更新所有待维保记录</span>
-              </template>
-            </NFormItem>
-          </NForm>
-        </div>
-
-        <!-- 修改排班计划日期 -->
-        <div v-else-if="actionMode === 'updateDate'" class="space-y-4">
-          <div
-            class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
-          >
-            <p class="mb-2 text-[10px] text-slate-500 font-black uppercase">当前维保记录</p>
-            <div class="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span class="text-slate-500">维保单号：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保单ID：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.bill_id }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">当前计划时间：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.date }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">维保类型：</span>
-                <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maintain_type }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="border border-emerald-200 rounded-2xl bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-950/20"
-          >
-            <div class="flex items-center gap-3">
-              <CalendarClock class="text-emerald-500" :size="20" />
-              <div>
-                <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">操作说明</p>
-                <p class="text-sm text-slate-700 font-bold dark:text-slate-300">
-                  修改该维保单的计划时间，将同步更新后续排班
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <NForm layout="vertical">
-            <NFormItem label="新的计划维保时间" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <NDatePicker
-                v-model:value="form.newMaintTime"
-                type="datetime"
-                class="!rounded-xl"
-                clearable
-                placeholder="请选择计划维保时间"
-                format="yyyy-MM-dd HH:mm:ss"
-              />
-              <template #extra>
-                <span class="text-xs text-slate-400">选择新的计划维保时间，将同步更新后续排班</span>
-              </template>
-            </NFormItem>
-
-            <NFormItem label="维保间隔天数（可选）" label-class="text-[10px] font-black text-slate-500 uppercase">
-              <NInputNumber
-                v-model:value="form.maintenanceIntervalDays"
-                :min="1"
-                :max="365"
-                :step="1"
-                placeholder="不传则使用维保计划当前间隔，默认15天"
-                class="w-full !rounded-xl"
-              >
-                <template #suffix>
-                  <span class="text-xs text-slate-400">天</span>
-                </template>
-              </NInputNumber>
-              <template #extra>
-                <span class="text-xs text-slate-400">请输入数字，如：15（不填则使用当前间隔）</span>
-              </template>
-            </NFormItem>
-          </NForm>
-        </div>
-      </div>
-
-      <!-- 子弹窗底部 -->
-      <div class="flex justify-end gap-4 border-t border-slate-200 p-6 dark:border-slate-700">
-        <NButton tertiary class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase" @click="closeActionModal">
-          取消
-        </NButton>
-        <NButton
-          type="primary"
-          class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase"
-          :loading="isSubmitting"
-          :disabled="
-            (actionMode === 'regenerate' && (!form.fromDate || !form.groupId || form.groupId === '')) ||
-            (actionMode === 'delete' && !currentRecord) ||
-            (actionMode === 'updateGroup' && (!form.newGroupId || !currentRecord)) ||
-            (actionMode === 'updateDate' && (!form.newMaintTime || !currentRecord))
-          "
-          @click="handleConfirm"
+        <div
+          class="relative max-h-[85vh] max-w-[90vw] w-full flex flex-col overflow-hidden border border-slate-200/20 rounded-[2.5rem] bg-white shadow-2xl dark:bg-slate-900"
+          @click="stopPropagation"
         >
-          {{
-            {
-              regenerate: '确认调整',
-              delete: '确认删除',
-              updateGroup: '确认修改维保组',
-              updateDate: '确认修改日期'
-            }[actionMode]
-          }}
-        </NButton>
+          <!-- 头部 -->
+          <div
+            class="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-800/30"
+          >
+            <div class="flex items-center gap-4">
+              <div class="rounded-2xl bg-indigo-500 p-3 text-white shadow-lg">
+                <CalendarCheck :size="24" />
+              </div>
+              <div>
+                <h3 class="text-xl text-slate-800 font-black tracking-tight dark:text-slate-100">维保计划纠错管理</h3>
+                <p class="mt-1 text-[10px] text-slate-500 tracking-widest font-mono uppercase">
+                  MAINTENANCE-SCHEDULE-CORRECTION
+                </p>
+              </div>
+            </div>
+            <button
+              class="rounded-full p-2 text-slate-400 transition-all hover:bg-slate-200 dark:text-slate-500 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              @click="closeMainModal"
+            >
+              <X :size="24" />
+            </button>
+          </div>
+
+          <!-- 内容区域 -->
+          <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- 电梯选择器 -->
+            <div
+              class="flex flex-col gap-4 rounded-2xl bg-slate-50 p-4 lg:flex-row lg:items-center dark:bg-slate-800/50"
+            >
+              <div class="w-full lg:max-w-xs lg:flex-1">
+                <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">目标电梯</label>
+                <CustomSelect
+                  v-model="selectedElevatorId"
+                  :options="elevatorOptions"
+                  :loading="elevatorLoading"
+                  :icon="Building2"
+                  :page-size="PAGE_SIZE"
+                  icon-class="text-indigo-500"
+                  placeholder="请选择目标电梯"
+                  remote
+                  :has-more="elevatorHasMore"
+                  @search="handleElevatorSearch"
+                  @load-more="loadMore"
+                  @change="handleElevatorChange"
+                />
+              </div>
+              <div class="w-full lg:flex-1">
+                <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">维保计划统计</label>
+                <p class="text-sm text-slate-700 font-bold dark:text-slate-300">
+                  <span v-if="tableData.length > 0">共 {{ tableData.length }} 条维保记录</span>
+                  <span v-else-if="selectedElevatorId" class="text-slate-400">暂无维保记录</span>
+                  <span v-else class="text-slate-400">请选择电梯查看</span>
+                </p>
+              </div>
+              <div v-if="latestRecord" class="w-full flex flex-wrap items-center gap-3 lg:flex-1 lg:justify-end">
+                <span class="whitespace-nowrap text-xs text-slate-500 font-black tracking-wide uppercase">
+                  维保单号
+                </span>
+                <span
+                  class="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-indigo-100 px-4 py-2 text-sm text-indigo-700 font-bold shadow-sm dark:bg-indigo-900/30 dark:text-indigo-300"
+                >
+                  {{ latestRecord.maint_sn || '-' }}
+                </span>
+                <button
+                  class="whitespace-nowrap rounded-xl bg-amber-100 px-4 py-2.5 text-sm text-amber-700 font-semibold shadow-sm transition-all duration-200 dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-300 hover:shadow dark:hover:bg-amber-800"
+                  @click="handleUpdateGroupAction(latestRecord)"
+                >
+                  <Users :size="16" class="mr-2 inline-block" />
+                  整体修改维保组
+                </button>
+                <button
+                  class="whitespace-nowrap rounded-xl bg-rose-100 px-4 py-2.5 text-sm text-rose-700 font-semibold shadow-sm transition-all duration-200 dark:bg-rose-900/30 hover:bg-rose-200 dark:text-rose-300 hover:shadow dark:hover:bg-rose-800"
+                  @click="handleDeleteAction(latestRecord)"
+                >
+                  <Trash2 :size="16" class="mr-2 inline-block" />
+                  删除维保计划
+                </button>
+              </div>
+            </div>
+
+            <!-- 表格区域 -->
+            <div class="overflow-hidden border border-slate-200 rounded-2xl dark:border-slate-700">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="border-b border-slate-200 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/30">
+                    <tr class="text-[10px] text-slate-500 font-black uppercase">
+                      <th class="px-6 py-4 text-left">维保日期</th>
+                      <th class="px-6 py-4 text-left">维保人员</th>
+                      <th class="px-6 py-4 text-left">维保类型</th>
+                      <th class="px-6 py-4 text-center">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
+                    <tr
+                      v-for="row in tableData"
+                      :key="row.bill_id"
+                      class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/20"
+                    >
+                      <td class="px-6 py-4 text-xs text-slate-700 font-mono dark:text-slate-300">{{ row.date }}</td>
+                      <td class="px-6 py-4 text-xs text-slate-700 dark:text-slate-300">
+                        {{ row.technician || '未分配' }}
+                      </td>
+                      <td class="px-6 py-4">
+                        <span
+                          class="inline-flex rounded-full px-3 py-1 text-xs font-medium"
+                          :class="{
+                            'bg-blue-100 text-blue-700': row.maintain_type?.includes('半月'),
+                            'bg-purple-100 text-purple-700': row.maintain_type?.includes('季度'),
+                            'bg-amber-100 text-amber-700': row.maintain_type?.includes('半年'),
+                            'bg-green-100 text-green-700': row.maintain_type?.includes('年度'),
+                            'bg-slate-100 text-slate-700': !row.maintain_type
+                          }"
+                        >
+                          {{ row.maintain_type || '-' }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center justify-center gap-3">
+                          <NButton
+                            size="medium"
+                            type="primary"
+                            ghost
+                            class="!rounded-xl !px-4 !py-2"
+                            @click="handleEdit(row)"
+                          >
+                            <Edit :size="16" />
+                            调整维保
+                          </NButton>
+                          <NButton
+                            size="medium"
+                            type="success"
+                            ghost
+                            class="!rounded-xl !px-4 !py-2"
+                            @click="handleUpdateDateAction(row)"
+                          >
+                            <CalendarClock :size="16" />
+                            修改日期
+                          </NButton>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div v-if="!tableData.length" class="flex flex-col items-center justify-center py-16 text-slate-400">
+                <CalendarRange :size="48" class="mb-3 opacity-30" />
+                <p class="text-sm">
+                  {{ selectedElevatorId ? '暂无维保记录' : '请选择目标电梯查看维保记录' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 底部 -->
+          <div class="flex flex-shrink-0 justify-end gap-4 border-t border-slate-200 p-6 dark:border-slate-700">
+            <NButton tertiary class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase" @click="closeMainModal">
+              关闭
+            </NButton>
+          </div>
+        </div>
       </div>
-    </div>
-  </NModal>
+    </Transition>
+  </Teleport>
+
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div
+        v-if="actionModalShow"
+        class="fixed inset-0 z-[900] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+        @click="handleActionMaskClick"
+      >
+        <div
+          class="relative max-h-[80vh] max-w-2xl w-full flex flex-col overflow-hidden border border-slate-200/20 rounded-[2.5rem] bg-white shadow-2xl dark:bg-slate-900"
+          @click="stopPropagation"
+        >
+          <div
+            class="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-700 dark:bg-slate-800/30"
+          >
+            <div class="flex items-center gap-4">
+              <div
+                class="rounded-2xl p-3 text-white shadow-lg"
+                :class="{
+                  'bg-indigo-500': actionMode === 'regenerate',
+                  'bg-rose-500': actionMode === 'delete',
+                  'bg-amber-500': actionMode === 'updateGroup',
+                  'bg-emerald-500': actionMode === 'updateDate'
+                }"
+              >
+                <component
+                  :is="
+                    actionMode === 'regenerate'
+                      ? RotateCcw
+                      : actionMode === 'delete'
+                        ? Trash2
+                        : actionMode === 'updateGroup'
+                          ? Users
+                          : CalendarClock
+                  "
+                  :size="24"
+                />
+              </div>
+              <div>
+                <h3 class="text-xl text-slate-800 font-black tracking-tight dark:text-slate-100">
+                  {{
+                    {
+                      regenerate: '调整维保计划',
+                      delete: '删除维保计划',
+                      updateGroup: '整体修改维保组',
+                      updateDate: '修改排班计划日期'
+                    }[actionMode]
+                  }}
+                </h3>
+                <p class="mt-1 text-[10px] text-slate-500 tracking-widest font-mono uppercase">
+                  {{
+                    {
+                      regenerate: 'SCHEDULE-ADJUST',
+                      delete: 'SCHEDULE-DELETE',
+                      updateGroup: 'SCHEDULE-GROUP-UPDATE',
+                      updateDate: 'SCHEDULE-DATE-UPDATE'
+                    }[actionMode]
+                  }}
+                </p>
+              </div>
+            </div>
+            <button
+              class="rounded-full p-2 text-slate-400 transition-all hover:bg-slate-200 dark:text-slate-500 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              @click="closeActionModal"
+            >
+              <X :size="24" />
+            </button>
+          </div>
+
+          <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- 调整维保计划 -->
+            <div v-if="actionMode === 'regenerate'" class="space-y-4">
+              <div
+                class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
+              >
+                <p class="mb-2 text-[10px] text-slate-500 font-black uppercase">当前选中的维保记录</p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span class="text-slate-500">维保单号：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保日期：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.date }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保类型：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maintain_type }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保人员：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">
+                      {{ currentRecord?.technician || '未分配' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <NForm layout="vertical">
+                <NFormItem label="维保记录" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <CustomSelect
+                    v-model="form.fromDate"
+                    :options="dateOptions"
+                    :loading="dateOptionsLoading"
+                    placeholder="请选择维保记录"
+                  />
+                  <template #extra>
+                    <span class="text-xs text-slate-400">选择需要调整的维保记录</span>
+                  </template>
+                </NFormItem>
+
+                <NFormItem label="维保公司" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <NSelect
+                    v-model:value="form.companyId"
+                    :options="maintainCompanyOptions"
+                    :loading="companyLoading.maintainLoading"
+                    placeholder="请选择维保公司"
+                    class="!rounded-xl"
+                    clearable
+                    filterable
+                    remote
+                    @search="handleCompanySearch"
+                  />
+                  <template #extra>
+                    <span class="text-xs text-slate-400">选择要调整到的维保公司</span>
+                  </template>
+                </NFormItem>
+
+                <NFormItem label="维保小组" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <NSelect
+                    v-model:value="form.groupId"
+                    :options="groupOptions"
+                    :loading="groupLoading.fetching"
+                    placeholder="请选择维保小组"
+                    class="!rounded-xl"
+                    :disabled="!form.companyId"
+                    clearable
+                    filterable
+                    remote
+                    @search="handleGroupSearch"
+                  />
+                  <template #extra>
+                    <span class="text-xs text-slate-400">选择要调整到的维保小组</span>
+                  </template>
+                </NFormItem>
+              </NForm>
+
+              <div
+                class="border border-indigo-200 rounded-2xl bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-950/20"
+              >
+                <div class="flex items-center gap-3">
+                  <CalendarRange class="text-indigo-500" :size="20" />
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">修改模式</p>
+                    <p class="text-sm text-slate-700 font-bold dark:text-slate-300">单条修改</p>
+                  </div>
+                  <div class="ml-auto text-right">
+                    <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">目标小组</p>
+                    <p class="text-sm text-slate-700 font-bold dark:text-slate-300">{{ selectedGroupLabel }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 删除维保计划 -->
+            <div v-else-if="actionMode === 'delete'" class="space-y-4">
+              <div
+                class="flex items-center gap-3 rounded-2xl bg-rose-50 p-4 text-rose-700 dark:bg-rose-950/20 dark:text-rose-300"
+              >
+                <Trash2 :size="24" />
+                <div>
+                  <p class="font-bold">确认删除该维保计划？</p>
+                  <p class="text-sm opacity-80">此操作将删除该维保计划及其所有维保单，不可恢复</p>
+                </div>
+              </div>
+
+              <div class="border border-slate-200 rounded-2xl p-4 dark:border-slate-700">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase">维保单号</p>
+                    <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase">维保日期</p>
+                    <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.date }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase">维保类型</p>
+                    <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maintain_type }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase">维保计划ID</p>
+                    <p class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_id }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 整体修改维保组 -->
+            <div v-else-if="actionMode === 'updateGroup'" class="space-y-4">
+              <div
+                class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
+              >
+                <p class="mb-2 text-[10px] text-slate-500 font-black uppercase">当前维保计划</p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span class="text-slate-500">维保单号：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保计划ID：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_id }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保公司：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">
+                      {{ currentRecord?.company_name || '-' }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">记录数：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ tableData.length }} 条</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="border border-amber-200 rounded-2xl bg-amber-50/50 p-4 dark:border-amber-500/20 dark:bg-amber-950/20"
+              >
+                <div class="flex items-center gap-3">
+                  <Users class="text-amber-500" :size="20" />
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">操作说明</p>
+                    <p class="text-sm text-slate-700 font-bold dark:text-slate-300">
+                      整体修改该维保计划下所有维保记录的维保组
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <NForm layout="vertical">
+                <NFormItem label="维保公司" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <NSelect
+                    v-model:value="form.companyId"
+                    :options="maintainCompanyOptions"
+                    :loading="companyLoading.maintainLoading"
+                    placeholder="请选择维保公司"
+                    class="!rounded-xl"
+                    clearable
+                    filterable
+                    @search="handleCompanySearch"
+                  >
+                    <template #action>
+                      <Building :size="16" class="text-slate-400" />
+                    </template>
+                  </NSelect>
+                  <template #extra>
+                    <span class="text-xs text-slate-400">选择维保公司以筛选维保小组</span>
+                  </template>
+                </NFormItem>
+
+                <NFormItem label="新的维保小组" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <NSelect
+                    v-model:value="form.newGroupId"
+                    :options="groupOptions"
+                    :loading="groupLoading.fetching"
+                    placeholder="请选择维保小组"
+                    class="!rounded-xl"
+                    :disabled="!form.companyId"
+                    clearable
+                    filterable
+                    @search="handleGroupSearch"
+                  >
+                    <template #action>
+                      <Users :size="16" class="text-slate-400" />
+                    </template>
+                  </NSelect>
+                  <template #extra>
+                    <span class="text-xs text-slate-400">选择要修改到的维保小组，将同步更新所有待维保记录</span>
+                  </template>
+                </NFormItem>
+              </NForm>
+            </div>
+
+            <!-- 修改排班计划日期 -->
+            <div v-else-if="actionMode === 'updateDate'" class="space-y-4">
+              <div
+                class="border border-slate-200 rounded-2xl bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30"
+              >
+                <p class="mb-2 text-[10px] text-slate-500 font-black uppercase">当前维保记录</p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span class="text-slate-500">维保单号：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maint_sn }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保单ID：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.bill_id }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">当前计划时间：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.date }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">维保类型：</span>
+                    <span class="text-slate-700 font-bold dark:text-slate-300">{{ currentRecord?.maintain_type }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="border border-emerald-200 rounded-2xl bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-950/20"
+              >
+                <div class="flex items-center gap-3">
+                  <CalendarClock class="text-emerald-500" :size="20" />
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase dark:text-slate-400">操作说明</p>
+                    <p class="text-sm text-slate-700 font-bold dark:text-slate-300">
+                      修改该维保单的计划时间，将同步更新后续排班
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <NForm layout="vertical">
+                <NFormItem label="新的计划维保时间" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <NDatePicker
+                    v-model:value="form.newMaintTime"
+                    type="datetime"
+                    class="!rounded-xl"
+                    clearable
+                    placeholder="请选择计划维保时间"
+                    format="yyyy-MM-dd HH:mm:ss"
+                  />
+                  <template #extra>
+                    <span class="text-xs text-slate-400">选择新的计划维保时间，将同步更新后续排班</span>
+                  </template>
+                </NFormItem>
+
+                <NFormItem label="维保间隔天数（可选）" label-class="text-[10px] font-black text-slate-500 uppercase">
+                  <NInputNumber
+                    v-model:value="form.maintenanceIntervalDays"
+                    :min="1"
+                    :max="365"
+                    :step="1"
+                    placeholder="不传则使用维保计划当前间隔，默认15天"
+                    class="w-full !rounded-xl"
+                  >
+                    <template #suffix>
+                      <span class="text-xs text-slate-400">天</span>
+                    </template>
+                  </NInputNumber>
+                  <template #extra>
+                    <span class="text-xs text-slate-400">请输入数字，如：15（不填则使用当前间隔）</span>
+                  </template>
+                </NFormItem>
+              </NForm>
+            </div>
+          </div>
+
+          <!-- 子弹窗底部 -->
+          <div class="flex flex-shrink-0 justify-end gap-4 border-t border-slate-200 p-6 dark:border-slate-700">
+            <NButton tertiary class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase" @click="closeActionModal">
+              取消
+            </NButton>
+            <NButton
+              type="primary"
+              class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase"
+              :loading="isSubmitting"
+              :disabled="
+                (actionMode === 'regenerate' && (!form.fromDate || !form.groupId || form.groupId === '')) ||
+                (actionMode === 'delete' && !currentRecord) ||
+                (actionMode === 'updateGroup' && (!form.newGroupId || !currentRecord)) ||
+                (actionMode === 'updateDate' && (!form.newMaintTime || !currentRecord))
+              "
+              @click="handleConfirm"
+            >
+              {{
+                {
+                  regenerate: '确认调整',
+                  delete: '确认删除',
+                  updateGroup: '确认修改维保组',
+                  updateDate: '确认修改日期'
+                }[actionMode]
+              }}
+            </NButton>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -1124,8 +1191,24 @@ watch(
   background: transparent;
 }
 
-:deep(.n-card) {
-  border-radius: 2.5rem !important;
-  overflow: hidden;
+/* 弹窗过渡动画 */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+.modal-fade-enter-active .relative,
+.modal-fade-leave-active .relative {
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
+}
+.modal-fade-enter-from .relative,
+.modal-fade-leave-to .relative {
+  transform: scale(0.95);
+  opacity: 0;
 }
 </style>

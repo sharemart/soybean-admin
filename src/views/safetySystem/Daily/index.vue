@@ -98,13 +98,7 @@ const STATUS_MAP: Record<number, { text: string; type: string }> = {
 const message = useMessage();
 
 // 使用小区选择器 Hook
-const {
-  villageOptions,
-  loading: villageLoading,
-  fetchVillageListData,
-  handleSearch: handleVillageSearch,
-  hasMore: villageHasMore
-} = useVillageSelector();
+const { villageOptions, loading: villageLoading, fetchVillageListData } = useVillageSelector();
 
 // 看板数据
 const dashboardStats = ref<DashboardStats | null>(null);

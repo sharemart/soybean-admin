@@ -109,6 +109,13 @@ export const request = createFlatRequest(
        * 处理直接退出登录的错误码
        * 这些错误码会导致用户直接被重定向到登录页
        */
+
+      if (responseCode === '4010') {
+        window.$message?.error(response.data.msg || '登录已过期，请重新登录');
+        handleLogout();
+        return null;
+      }
+
       const logoutCodes = import.meta.env.VITE_SERVICE_LOGOUT_CODES?.split(',') || [];
       if (logoutCodes.includes(responseCode)) {
         handleLogout();

@@ -52,14 +52,16 @@ interface DailyRecord {
 
 interface DailyCheckItem {
   id: number;
-  item_name: string;
-  item_code: string;
-  category: string;
-  check_result: number;
-  remark: string;
-  images: string[];
-  standard: string;
-  sort_order: number;
+  daily_check_id: number;
+  item_id: number;
+  item_name: string; // 检查项名称
+  standard: string; // 检查标准
+  result: number; // 1正常 2异常 3无此项
+  problem_desc: string; // 问题描述
+  handle_result: string; // 处理结果
+  images: string[]; // 图片
+  add_time: number;
+  update_time: number;
 }
 
 interface Props {
@@ -174,16 +176,18 @@ const mapRecordData = (recordData: any): DailyRecord => {
 };
 
 const mapItemsData = (itemsData: any[]): DailyCheckItem[] => {
-  return itemsData.map((item: any, index: number) => ({
+  return itemsData.map((item: any) => ({
     id: item.id,
-    item_name: `检查项 ${item.item_id || index + 1}`,
-    item_code: `ITEM-${item.item_id || index + 1}`,
-    category: '未分类',
-    check_result: item.result || 0,
-    remark: item.problem_desc || '',
+    daily_check_id: item.daily_check_id,
+    item_id: item.item_id,
+    item_name: item.item_name || `检查项 ${item.item_id}`,
+    standard: item.standard || '',
+    result: item.result ?? 0,
+    problem_desc: item.problem_desc || '',
+    handle_result: item.handle_result || '',
     images: item.images || [],
-    standard: '',
-    sort_order: index + 1
+    add_time: item.add_time,
+    update_time: item.update_time
   }));
 };
 
@@ -433,40 +437,46 @@ const handleNotify = () => {
 
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
               <div
-                v-for="(item, idx) in items"
-                :key="item.id || idx"
+                v-for="item in items"
+                :key="item.id"
                 class="border border-slate-200 rounded-xl p-4 transition-all dark:border-slate-800 hover:border-sky-200 hover:shadow-sm"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                       <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-400 font-mono">
-                        #{{ idx + 1 }}
+                        #{{ item.id }}
                       </span>
                       <span class="truncate text-xs font-bold">
                         {{ item.item_name }}
                       </span>
-                      <span v-if="item.item_code" class="text-[9px] text-slate-400 font-mono">
-                        {{ item.item_code }}
-                      </span>
                     </div>
-                    <p v-if="item.standard" class="line-clamp-2 mt-1 text-xs text-slate-500">
-                      {{ item.standard }}
+                    <!-- 检查标准 -->
+                    <p v-if="item.standard" class="mt-1 text-xs text-slate-500 leading-relaxed">
+                      📋 {{ item.standard }}
                     </p>
+                    <!-- 问题描述（异常时显示） -->
                     <p
-                      v-if="item.remark"
+                      v-if="item.problem_desc && item.result === 2"
                       class="mt-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-500/10"
                     >
-                      💬 {{ item.remark }}
+                      ⚠️ {{ item.problem_desc }}
+                    </p>
+                    <!-- 处理结果 -->
+                    <p
+                      v-if="item.handle_result"
+                      class="mt-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs text-emerald-600 dark:bg-emerald-500/10"
+                    >
+                      ✅ {{ item.handle_result }}
                     </p>
                   </div>
                   <div class="flex-shrink-0">
                     <div
                       class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
-                      :class="[getCheckResultInfo(item.check_result).bg, getCheckResultInfo(item.check_result).color]"
+                      :class="[getCheckResultInfo(item.result).bg, getCheckResultInfo(item.result).color]"
                     >
-                      <component :is="getCheckResultInfo(item.check_result).icon" :size="10" />
-                      {{ getCheckResultInfo(item.check_result).text }}
+                      <component :is="getCheckResultInfo(item.result).icon" :size="10" />
+                      {{ getCheckResultInfo(item.result).text }}
                     </div>
                   </div>
                 </div>
