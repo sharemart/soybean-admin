@@ -22,6 +22,7 @@ import {
   saveSafetyWeeklyReport,
   submitSafetyWeeklyReport
 } from '@/service/api/safety/safetyWeekly/safetyWeekly';
+import { getSignatureUrl } from '@/hooks/common/getImageUrl';
 
 // ==================== 类型定义 ====================
 interface HazardItem {
@@ -316,7 +317,6 @@ const handleSubmit = async () => {
       message.error(res?.data?.msg || '提交失败，请重试');
     }
   } catch (error: any) {
-    console.error('提交报告失败:', error);
     message.error(error?.message || '提交失败，请检查网络后重试');
   } finally {
     submitting.value = false;
@@ -927,6 +927,30 @@ watch(
               <p v-if="!reportData?.maintain_supervises?.length" class="py-4 text-center text-xs text-slate-400">
                 暂无维保监督记录
               </p>
+            </div>
+          </div>
+
+          <!-- 签字确认 -->
+          <div class="border-t border-slate-200 pt-4 dark:border-slate-800">
+            <h4 class="mb-3 flex items-center gap-2 text-sm font-bold">
+              <Edit :size="14" class="text-purple-500" />
+              签字确认
+            </h4>
+            <div class="border border-slate-200 rounded-xl p-4 space-y-3 dark:border-slate-700">
+              <!-- 安全总监签字 -->
+              <div class="flex items-center gap-3">
+                <span class="w-28 flex-shrink-0 text-xs text-slate-500 font-medium">安全总监签字：</span>
+                <img
+                  :src="getSignatureUrl(report?.director_sign_url)"
+                  alt="安全总监签字"
+                  class="h-32 max-w-[400px] w-full border border-slate-200 rounded-lg bg-white object-contain p-2"
+                  @error="
+                    e => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }
+                  "
+                />
+              </div>
             </div>
           </div>
 
