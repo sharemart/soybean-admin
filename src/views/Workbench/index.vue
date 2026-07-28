@@ -265,7 +265,7 @@ const goToPage = (path: string) => path && router.push(path);
                 class="relative h-12 w-12 flex items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-all duration-300 md:h-18 md:w-18 group-hover:scale-110 group-hover:shadow-xl"
                 :class="[item.iconStyle.gradient, item.iconStyle.shadow]"
               >
-                <component :is="item.icon" :size="20" class="text-white drop-shadow-md md:size-28" />
+                <component :is="item.icon" :size="20" class="text-white drop-shadow-md md:!h-8 md:!w-8" />
               </div>
 
               <div class="text-center">

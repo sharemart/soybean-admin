@@ -34,9 +34,8 @@ interface DailyRecord {
   overall_result_name: string;
   status: number;
   status_name: string;
-  has_hazard: number;
+  has_hazard: boolean;
   hazard_count: number;
-  safety_officer: string;
   safety_officer_name: string;
   checklist_id: number;
   checklist_name: string;
@@ -46,34 +45,29 @@ interface DailyRecord {
   check_no: string;
   inspector_sign_url: string;
   director_sign_url: string;
-  elevator_number: number;
   remark?: string;
 }
 
 interface DailyCheckItem {
   id: number;
-  daily_check_id: number;
-  item_id: number;
-  item_name: string; // 检查项名称
-  standard: string; // 检查标准
+  item_name: string;
+  standard: string;
   result: number; // 1正常 2异常 3无此项
-  problem_desc: string; // 问题描述
-  handle_result: string; // 处理结果
-  images: string[]; // 图片
-  add_time: number;
-  update_time: number;
+  problem_desc: string;
+  handle_result: string;
+  images: string[];
 }
 
 interface Props {
   show: boolean;
-  recordId?: number; // 改为传入记录ID
+  recordId?: number;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
   (e: 'close'): void;
-  (e: 'notify', record: DailyRecord): void;
+  (e: 'notify', recordId: number): void;
 }>();
 
 const message = useMessage();
@@ -85,113 +79,95 @@ const PERIOD_MAP: Record<number, string> = {
   3: '全天'
 };
 
-const OVERALL_RESULT_MAP: Record<number, { text: string; type: string; icon: any; color: string; bg: string }> = {
-  1: { text: '正常', type: 'normal', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500' },
-  2: { text: '有隐患', type: 'hazard', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500' },
-  3: { text: '零风险报告', type: 'zero', icon: FileText, color: 'text-sky-500', bg: 'bg-sky-500' },
-  4: { text: '待评定', type: 'unknown', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-400' }
-};
+const OVERALL_RESULT_MAP = {
+  1: { text: '正常', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500' },
+  2: { text: '有隐患', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500' },
+  3: { text: '零风险报告', icon: FileText, color: 'text-sky-500', bg: 'bg-sky-500' },
+  4: { text: '待评定', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-400' }
+} as const;
 
-const STATUS_MAP: Record<number, { text: string; type: string; icon: any; color: string }> = {
-  0: { text: '草稿', type: 'draft', icon: Clock, color: 'text-amber-500' },
-  1: { text: '已提交', type: 'submitted', icon: CheckCircle, color: 'text-emerald-500' }
-};
+const STATUS_MAP = {
+  0: { text: '草稿', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  1: { text: '已提交', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+} as const;
 
-const CHECK_RESULT_MAP: Record<number, { text: string; icon: any; color: string; bg: string }> = {
+const CHECK_RESULT_MAP = {
   1: { text: '正常', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   2: { text: '异常', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10' },
   3: { text: '无此项', icon: XCircle, color: 'text-slate-400', bg: 'bg-slate-500/10' }
-};
+} as const;
 
 // ==================== 状态管理 ====================
 const loading = ref(false);
+const exporting = ref(false);
 const record = ref<DailyRecord | null>(null);
 const items = ref<DailyCheckItem[]>([]);
-const exporting = ref(false);
 
-// 导出报告
-const handleExport = async () => {
-  if (!record.value) return;
+const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
 
-  exporting.value = true;
-  try {
-    const res = await exportSafetyDailyRecord({ id: record.value.id });
+// ==================== 工具函数 ====================
+const formatDate = (timestamp: number): string => {
+  if (!timestamp) return '';
+  return new Date(timestamp * 1000).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
-    if (res?.data?.code === 2000) {
-      const fileUrl = res.data.data.file_url;
-
-      const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
-      const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
-      const downloadUrl = fileUrl.startsWith('http') ? fileUrl : baseUrl + fileUrl;
-
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `日检报告_${record.value.check_no || record.value.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      message.success('导出成功');
-    } else {
-      message.error(res?.data?.msg || '导出失败');
-    }
-  } catch (error) {
-    message.error(`导出失败，请稍后重试: ${error}`);
-  } finally {
-    exporting.value = false;
+const formatImageUrl = (path?: string): string => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
   }
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return baseUrl + cleanPath;
 };
 
-// ==================== 获取详情 ====================
-const mapRecordData = (recordData: any): DailyRecord => {
-  return {
-    id: recordData.id,
-    elevator_id: recordData.elevator_id,
-    elevator_name: `电梯${recordData.elevator_name}`,
-    village_id: recordData.village_id,
-    village_name: `${recordData.village_name}`,
-    check_date: recordData.check_date,
-    period: recordData.period,
-    period_name: PERIOD_MAP[recordData.period] || '未知',
-    weather: recordData.weather || '未知',
-    overall_result: recordData.overall_result,
-    overall_result_name: OVERALL_RESULT_MAP[recordData.overall_result]?.text || '未知',
-    status: recordData.status,
-    status_name: STATUS_MAP[recordData.status]?.text || '未知',
-    has_hazard: recordData.overall_result === 2 ? 1 : 0,
-    hazard_count: recordData.overall_result === 2 ? 1 : 0,
-    safety_officer: `user_${recordData.inspector_user_id}`,
-    safety_officer_name: `${recordData.inspector_name}`,
-    checklist_id: recordData.checklist_id,
-    checklist_name: `清单${recordData.checklist_id}`,
-    submit_time: recordData.submit_time ? new Date(recordData.submit_time * 1000).toLocaleString() : '',
-    create_time: new Date(recordData.add_time * 1000).toLocaleString(),
-    update_time: new Date(recordData.update_time * 1000).toLocaleString(),
-    check_no: recordData.check_no,
-    inspector_sign_url: recordData.inspector_sign_url || '',
-    director_sign_url: recordData.director_sign_url || '',
-    elevator_number: 0,
-    remark: recordData.remark || ''
-  };
-};
+// ==================== 数据映射 ====================
+const mapRecordData = (data: any): DailyRecord => ({
+  id: data.id,
+  elevator_id: data.elevator_id,
+  elevator_name: data.elevator_name || `电梯${data.elevator_id}`,
+  village_id: data.village_id,
+  village_name: data.village_name || '未知小区',
+  check_date: data.check_date || '',
+  period: data.period ?? 0,
+  period_name: PERIOD_MAP[data.period] || '未知',
+  weather: data.weather || '未记录',
+  overall_result: data.overall_result ?? 4,
+  overall_result_name: OVERALL_RESULT_MAP[data.overall_result]?.text || '待评定',
+  status: data.status ?? 0,
+  status_name: STATUS_MAP[data.status]?.text || '草稿',
+  has_hazard: data.overall_result === 2,
+  hazard_count: data.overall_result === 2 ? 1 : 0,
+  safety_officer_name: data.inspector_name || '未知',
+  checklist_id: data.checklist_id || 0,
+  checklist_name: `清单${data.checklist_id || 0}`,
+  submit_time: data.submit_time ? formatDate(data.submit_time) : undefined,
+  create_time: formatDate(data.add_time),
+  update_time: formatDate(data.update_time),
+  check_no: data.check_no || `DT-${data.id}`,
+  inspector_sign_url: data.inspector_sign_url || '',
+  director_sign_url: data.director_sign_url || '',
+  remark: data.remark || ''
+});
 
-const mapItemsData = (itemsData: any[]): DailyCheckItem[] => {
-  return itemsData.map((item: any) => ({
+const mapItemsData = (data: any[]): DailyCheckItem[] =>
+  (data || []).map(item => ({
     id: item.id,
-    daily_check_id: item.daily_check_id,
-    item_id: item.item_id,
     item_name: item.item_name || `检查项 ${item.item_id}`,
     standard: item.standard || '',
     result: item.result ?? 0,
     problem_desc: item.problem_desc || '',
     handle_result: item.handle_result || '',
-    images: item.images || [],
-    add_time: item.add_time,
-    update_time: item.update_time
+    images: item.images || []
   }));
-};
 
-// ==================== 获取详情（简化后） ====================
+// ==================== API 请求 ====================
 const fetchDetail = async (id: number) => {
   if (!id) return;
 
@@ -204,55 +180,76 @@ const fetchDetail = async (id: number) => {
       return;
     }
 
-    const data = res.data.data;
-    record.value = mapRecordData(data.record);
-    items.value = mapItemsData(data.items || []);
+    const { record: recordData, items: itemsData } = res.data.data || {};
+    if (!recordData) {
+      message.error('数据格式错误');
+      return;
+    }
+
+    record.value = mapRecordData(recordData);
+    items.value = mapItemsData(itemsData);
   } catch (error) {
-    message.error(`获取详情失败，请稍后重试: ${error}`);
+    console.error('获取详情失败:', error);
+    message.error('获取详情失败，请稍后重试');
   } finally {
     loading.value = false;
   }
 };
 
-// ==================== 监听弹窗显示和ID变化 ====================
-watch(
-  () => props.show,
-  newVal => {
-    if (newVal && props.recordId) {
-      fetchDetail(props.recordId);
-    }
-  },
-  { immediate: true }
-);
+// ==================== 导出报告 ====================
+const handleExport = async () => {
+  if (!record.value) return;
 
-watch(
-  () => props.recordId,
-  newVal => {
-    if (props.show && newVal) {
-      fetchDetail(newVal);
+  exporting.value = true;
+  try {
+    const res = await exportSafetyDailyRecord({ id: record.value.id });
+
+    if (res?.data?.code !== 2000) {
+      message.error(res?.data?.msg || '导出失败');
+      return;
     }
+
+    const fileUrl = res.data.data?.file_url;
+    if (!fileUrl) {
+      message.error('导出失败：未获取到文件地址');
+      return;
+    }
+
+    const downloadUrl = formatImageUrl(fileUrl);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `日检报告_${record.value.check_no}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    message.success('导出成功');
+  } catch (error) {
+    console.error('导出失败:', error);
+    message.error('导出失败，请稍后重试');
+  } finally {
+    exporting.value = false;
   }
-);
+};
 
 // ==================== 计算属性 ====================
-const getResultInfo = (result: number) => {
-  return OVERALL_RESULT_MAP[result] || OVERALL_RESULT_MAP[4];
-};
+const getResultInfo = (result: number) =>
+  OVERALL_RESULT_MAP[result as keyof typeof OVERALL_RESULT_MAP] || OVERALL_RESULT_MAP[4];
 
-const getStatusInfo = (status: number) => {
-  return STATUS_MAP[status] || STATUS_MAP[0];
-};
+const getStatusInfo = (status: number) => STATUS_MAP[status as keyof typeof STATUS_MAP] || STATUS_MAP[0];
 
-const getCheckResultInfo = (result: number) => {
-  return CHECK_RESULT_MAP[result] || { text: '未检查', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-500/10' };
-};
+const getCheckResultInfo = (result: number) =>
+  CHECK_RESULT_MAP[result as keyof typeof CHECK_RESULT_MAP] || {
+    text: '待检查',
+    icon: Clock,
+    color: 'text-slate-400',
+    bg: 'bg-slate-500/10'
+  };
 
-// 检查结果统计
 const resultStats = computed(() => {
-  const stats = { normal: 0, abnormal: 0, notApplicable: 0, unchecked: 0 };
+  const stats = { normal: 0, abnormal: 0, notApplicable: 0 };
   items.value.forEach(item => {
-    const result = item.check_result ?? 0;
-    switch (result) {
+    switch (item.result) {
       case 1:
         stats.normal += 1;
         break;
@@ -262,52 +259,43 @@ const resultStats = computed(() => {
       case 3:
         stats.notApplicable += 1;
         break;
-      default:
-        stats.unchecked += 1;
-        break;
     }
   });
   return stats;
 });
 
-// ==================== 格式化图片URL ====================
-const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
-
-const formatImageUrl = (path?: string): string => {
-  if (!path) return '';
-
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-
-  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
-
-  // 确保 path 以 / 开头
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-
-  return baseUrl + cleanPath;
-};
-
 const inspectorSignature = computed(() => formatImageUrl(record.value?.inspector_sign_url));
 const directorSignature = computed(() => formatImageUrl(record.value?.director_sign_url));
+const hasItems = computed(() => items.value.length > 0);
+const hasRemark = computed(() => Boolean(record.value?.remark));
+const showNotifyButton = computed(() => record.value?.has_hazard ?? false);
 
-// 关闭弹窗
+// ==================== 事件处理 ====================
 const handleClose = () => {
   emit('update:show', false);
   emit('close');
-  // 关闭后清空数据
   setTimeout(() => {
     record.value = null;
     items.value = [];
   }, 300);
 };
 
-// 通知维保
 const handleNotify = () => {
   if (record.value) {
-    emit('notify', record.value);
+    emit('notify', record.value.id);
   }
 };
+
+// ==================== 监听器 ====================
+watch(
+  () => [props.show, props.recordId],
+  ([show, id]) => {
+    if (show && id) {
+      fetchDetail(id);
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -319,11 +307,11 @@ const handleNotify = () => {
     display-directive="if"
     @close="handleClose"
   >
-    <NSpin :show="loading" class="min-h-[200px]">
-      <div v-if="record" class="max-h-[85vh] flex flex-col overflow-hidden">
+    <NSpin :show="loading" class="min-h-[300px]">
+      <div v-if="record" class="max-h-[85vh] flex flex-col">
         <!-- ==================== 头部 ==================== -->
-        <div
-          class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 lg:p-8"
+        <header
+          class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 lg:p-8"
         >
           <div class="flex items-center gap-4">
             <div class="rounded-2xl p-3 text-white shadow-lg" :class="getResultInfo(record.overall_result).bg">
@@ -332,21 +320,18 @@ const handleNotify = () => {
             <div>
               <h3 class="text-lg font-black tracking-tight lg:text-xl">每日电梯安全检查报告</h3>
               <p class="mt-1 text-[10px] text-slate-500 tracking-widest font-mono uppercase">
-                {{ record.check_no || `DT-${record.id}` }}
+                {{ record.check_no }}
               </p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <div
+            <span
               class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold"
-              :class="[
-                getStatusInfo(record.status).color,
-                getStatusInfo(record.status).color === 'text-emerald-500' ? 'bg-emerald-500/10' : 'bg-amber-500/10'
-              ]"
+              :class="[getStatusInfo(record.status).color, getStatusInfo(record.status).bg]"
             >
               <component :is="getStatusInfo(record.status).icon" :size="12" />
               {{ getStatusInfo(record.status).text }}
-            </div>
+            </span>
             <NTag
               :type="record.has_hazard ? 'warning' : 'success'"
               size="small"
@@ -355,12 +340,12 @@ const handleNotify = () => {
               {{ record.has_hazard ? `⚠ ${record.hazard_count}项隐患` : '✅ 无隐患' }}
             </NTag>
           </div>
-        </div>
+        </header>
 
         <!-- ==================== 内容区 ==================== -->
         <div class="custom-scrollbar flex-1 overflow-y-auto p-6 space-y-6 lg:p-10 lg:space-y-8">
           <!-- 基本信息卡片 -->
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-5 sm:grid-cols-2">
+          <section class="grid grid-cols-1 gap-4 lg:grid-cols-5 sm:grid-cols-2">
             <div class="border-l-4 border-sky-500 pl-4 space-y-1">
               <p class="text-[10px] text-slate-400 font-black uppercase">电梯名称</p>
               <p class="flex items-center gap-2 text-sm font-bold">
@@ -368,12 +353,10 @@ const handleNotify = () => {
                 {{ record.elevator_name }}
               </p>
             </div>
-
             <div class="border-l-4 border-indigo-500 pl-4 space-y-1">
               <p class="text-[10px] text-slate-400 font-black uppercase">所属小区</p>
               <p class="text-sm font-bold">{{ record.village_name }}</p>
             </div>
-
             <div class="border-l-4 border-emerald-500 pl-4 space-y-1">
               <p class="text-[10px] text-slate-400 font-black uppercase">检查日期</p>
               <p class="flex items-center gap-2 text-sm font-bold font-mono">
@@ -381,15 +364,13 @@ const handleNotify = () => {
                 {{ record.check_date }}
               </p>
             </div>
-
             <div class="border-l-4 border-amber-500 pl-4 space-y-1">
               <p class="text-[10px] text-slate-400 font-black uppercase">时段 / 天气</p>
               <p class="flex items-center gap-2 text-sm font-bold">
                 <Cloud :size="14" class="text-amber-500" />
-                {{ record.period_name }} · {{ record.weather || '未知' }}
+                {{ record.period_name }} · {{ record.weather }}
               </p>
             </div>
-
             <div class="border-l-4 border-purple-500 pl-4 space-y-1">
               <p class="text-[10px] text-slate-400 font-black uppercase">安全员</p>
               <p class="flex items-center gap-2 text-sm font-bold">
@@ -397,10 +378,10 @@ const handleNotify = () => {
                 {{ record.safety_officer_name }}
               </p>
             </div>
-          </div>
+          </section>
 
           <!-- 备注信息 -->
-          <div v-if="record.remark" class="rounded-xl bg-amber-50 p-4 dark:bg-amber-500/10">
+          <div v-if="hasRemark" class="rounded-xl bg-amber-50 p-4 dark:bg-amber-500/10">
             <p class="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
               <span class="mt-0.5">📝</span>
               <span>{{ record.remark }}</span>
@@ -408,7 +389,7 @@ const handleNotify = () => {
           </div>
 
           <!-- 检查结果概览 -->
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <section class="grid grid-cols-3 gap-3">
             <div class="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3 py-3 lg:px-4">
               <span class="text-[10px] text-emerald-600 font-bold lg:text-xs">✅ 正常</span>
               <span class="text-base text-emerald-600 font-black lg:text-lg">{{ resultStats.normal }}</span>
@@ -421,21 +402,17 @@ const handleNotify = () => {
               <span class="text-[10px] text-slate-500 font-bold lg:text-xs">⊘ 无此项</span>
               <span class="text-base text-slate-500 font-black lg:text-lg">{{ resultStats.notApplicable }}</span>
             </div>
-            <div class="flex items-center justify-between rounded-xl bg-slate-300/10 px-3 py-3 lg:px-4">
-              <span class="text-[10px] text-slate-400 font-bold lg:text-xs">⋯ 未检查</span>
-              <span class="text-base text-slate-400 font-black lg:text-lg">{{ resultStats.unchecked }}</span>
-            </div>
-          </div>
+          </section>
 
           <!-- 检查项目列表 -->
-          <div class="space-y-4">
+          <section class="space-y-4">
             <h4 class="flex items-center gap-2 text-sm font-bold">
               <ListTodo :size="16" class="text-sky-500" />
               检查项目明细
               <span class="ml-auto text-xs text-slate-400 font-normal">共 {{ items.length }} 项</span>
             </h4>
 
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div v-if="hasItems" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
               <div
                 v-for="item in items"
                 :key="item.id"
@@ -447,22 +424,17 @@ const handleNotify = () => {
                       <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-400 font-mono">
                         #{{ item.id }}
                       </span>
-                      <span class="truncate text-xs font-bold">
-                        {{ item.item_name }}
-                      </span>
+                      <span class="truncate text-xs font-bold">{{ item.item_name }}</span>
                     </div>
-                    <!-- 检查标准 -->
                     <p v-if="item.standard" class="mt-1 text-xs text-slate-500 leading-relaxed">
                       📋 {{ item.standard }}
                     </p>
-                    <!-- 问题描述（异常时显示） -->
                     <p
                       v-if="item.problem_desc && item.result === 2"
                       class="mt-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-600 dark:bg-amber-500/10"
                     >
                       ⚠️ {{ item.problem_desc }}
                     </p>
-                    <!-- 处理结果 -->
                     <p
                       v-if="item.handle_result"
                       class="mt-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs text-emerald-600 dark:bg-emerald-500/10"
@@ -471,21 +443,20 @@ const handleNotify = () => {
                     </p>
                   </div>
                   <div class="flex-shrink-0">
-                    <div
+                    <span
                       class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
                       :class="[getCheckResultInfo(item.result).bg, getCheckResultInfo(item.result).color]"
                     >
                       <component :is="getCheckResultInfo(item.result).icon" :size="10" />
                       {{ getCheckResultInfo(item.result).text }}
-                    </div>
+                    </span>
                   </div>
                 </div>
 
-                <!-- 图片预览 -->
-                <div v-if="item.images && item.images.length > 0" class="mt-3 flex flex-wrap gap-2">
+                <div v-if="item.images.length > 0" class="mt-3 flex flex-wrap gap-2">
                   <div
-                    v-for="(img, imgIdx) in item.images"
-                    :key="imgIdx"
+                    v-for="(img, idx) in item.images"
+                    :key="idx"
                     class="h-14 w-14 flex items-center justify-center overflow-hidden border border-slate-200 rounded-lg bg-slate-100"
                   >
                     <img
@@ -500,13 +471,20 @@ const handleNotify = () => {
               </div>
             </div>
 
-            <div v-if="!items.length" class="border border-slate-200 rounded-2xl p-8 text-center dark:border-slate-800">
-              <p class="text-sm text-slate-400">暂无检查项目数据</p>
+            <!-- 无检查项目时的状态 -->
+            <div v-else class="border border-slate-200 rounded-2xl p-8 text-center dark:border-slate-800">
+              <FileText v-if="record.overall_result === 3" :size="48" class="mx-auto text-sky-400" />
+              <p v-if="record.overall_result === 3" class="mt-2 text-sm text-sky-600 font-bold dark:text-sky-400">
+                📋 零风险报告
+              </p>
+              <p class="text-sm text-slate-400">
+                {{ record.overall_result === 3 ? '该报告未包含检查项目明细，认定为零风险状态' : '暂无检查项目数据' }}
+              </p>
             </div>
-          </div>
+          </section>
 
           <!-- 签名区域 -->
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div class="space-y-3">
               <h5 class="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase">
                 <PenTool :size="14" />
@@ -527,7 +505,6 @@ const handleNotify = () => {
                 </div>
               </div>
             </div>
-
             <div class="space-y-3">
               <h5 class="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase">
                 <ShieldCheck :size="14" />
@@ -548,7 +525,7 @@ const handleNotify = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
           <!-- 提交时间 -->
           <div
@@ -561,7 +538,7 @@ const handleNotify = () => {
         </div>
 
         <!-- ==================== 底部操作栏 ==================== -->
-        <div
+        <footer
           class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-4 dark:border-slate-800 lg:p-6"
         >
           <div class="text-[10px] text-slate-400 lg:text-xs">
@@ -579,7 +556,7 @@ const handleNotify = () => {
               关闭
             </NButton>
             <NButton
-              v-if="record.has_hazard === 1"
+              v-if="showNotifyButton"
               type="warning"
               size="small"
               class="rounded-2xl px-6 py-2 text-[10px] font-black uppercase lg:px-8"
@@ -599,7 +576,7 @@ const handleNotify = () => {
               {{ exporting ? '导出中...' : '导出报告' }}
             </NButton>
           </div>
-        </div>
+        </footer>
       </div>
     </NSpin>
   </NModal>
@@ -620,13 +597,6 @@ const handleNotify = () => {
 
 :deep(.n-card) {
   border-radius: 2.5rem !important;
-  overflow: hidden;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 

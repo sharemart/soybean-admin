@@ -11,12 +11,10 @@ import {
   Edit,
   Eye,
   FileSpreadsheet,
-  ListTodo,
   Plus,
   RefreshCw,
   Search,
   Send,
-  TrendingUp,
   XCircle
 } from 'lucide-vue-next';
 import { fetchSafetyWeeklyList } from '@/service/api/safety/safetyWeekly/safetyWeekly';
@@ -351,19 +349,6 @@ const handleSave = async () => {
   }
   editLoading.value = true;
   try {
-    // TODO: 调用保存接口
-    // const res = await updateSafetyWeekly({
-    //   id: editForm.id,
-    //   summary: editForm.summary,
-    //   risk_analysis: editForm.risk_analysis,
-    //   next_plan: editForm.next_plan
-    // });
-    // if (res?.data?.code === 2000) {
-    //   message.success('保存成功');
-    //   editDialogVisible.value = false;
-    //   await fetchReportList();
-    // }
-
     await new Promise(resolve => setTimeout(resolve, 800));
     message.success('保存成功');
     editDialogVisible.value = false;

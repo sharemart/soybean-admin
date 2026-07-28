@@ -330,16 +330,29 @@ const handleExport = async () => {
     const res = await exportSafetyWeeklyReport({ id: report.value.id });
 
     if (res?.data?.code === 2000) {
-      message.success('导出成功');
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
+      const fileUrl = res.data.data?.file_url;
+      if (!fileUrl) {
+        message.error('导出失败：未获取到文件地址');
+        return;
+      }
+
+      // 获取基础 URL
+      const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
+      const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+      const downloadUrl = fileUrl.startsWith('http') ? fileUrl : baseUrl + fileUrl;
+
+      // 从 URL 中提取文件名
+      const fileName = fileUrl.split('/').pop() || `${report.value.report_no || '周排查报告'}.docx`;
+
+      // 直接下载 Word 文档
       const link = document.createElement('a');
-      link.href = url;
-      link.download = `${report.value.report_no || '周排查报告'}.pdf`;
+      link.href = downloadUrl;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+
+      message.success('导出成功');
     } else {
       message.error(res?.data?.msg || '导出失败，请重试');
     }

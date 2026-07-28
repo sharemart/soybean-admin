@@ -103,7 +103,6 @@ const fetchDistrictList = async (city_id: number) => {
     if (response.data?.code === 2000) {
       districtList.value = response.data.data || [];
 
-      // 修复：只在没有初始数据时设置默认值
       if (!props.initialData && districtList.value.length > 0) {
         const currentDistrictName = formData.district;
         const districtExists = districtList.value.some(item => item.name === currentDistrictName);
@@ -145,18 +144,15 @@ const fetchCityList = async (province_id: number) => {
     cityList.value = response.data.data || [];
     districtList.value = [];
 
-    // 只在没有初始数据时处理
     if (!props.initialData && cityList.value.length > 0) {
       const currentCityName = formData.city;
       const cityExists = cityList.value.some(item => item.name === currentCityName);
 
       if (!cityExists) {
-        // 选择第一个城市
         const firstCity = cityList.value[0];
         formData.city = firstCity.name;
         await fetchDistrictList(firstCity.value);
       } else {
-        // 保留当前城市，更新区县
         const targetCity = cityList.value.find(item => item.name === currentCityName);
         if (targetCity) {
           await fetchDistrictList(targetCity.value);
@@ -184,8 +180,6 @@ const getDefaultDate = (daysLater = 30) => {
   return `${year}-${month}-${day}`;
 };
 
-// ==================== 辅助函数 ====================
-
 const findProvinceByName = (name: string) => {
   if (!name || provinceList.value.length === 0) return null;
   return provinceList.value.find(item => item.name === name) || null;
@@ -205,11 +199,8 @@ const setDistrictIfExists = (districtName: string) => {
   }
 };
 
-// ==================== 主函数 ====================
-
 const resetFormData = async (initData?: any | null) => {
   if (initData) {
-    // 有初始数据：解析并填充
     const parsedData = JSON.parse(JSON.stringify(initData));
     parsedData.expiration = formatToValidDate(parsedData.expiration);
     parsedData.password = '';
@@ -218,7 +209,6 @@ const resetFormData = async (initData?: any | null) => {
 
     Object.assign(formData, parsedData);
 
-    // 处理省市区级联
     const province = findProvinceByName(targetProvince);
     if (province) {
       await fetchCityList(province.value);
@@ -256,7 +246,6 @@ const resetFormData = async (initData?: any | null) => {
       licensing_time: ''
     });
 
-    // 加载默认省市区
     if (provinceList.value.length > 0) {
       await fetchCityList(provinceList.value[0].value);
       if (cityList.value.length > 0) {
@@ -265,6 +254,7 @@ const resetFormData = async (initData?: any | null) => {
     }
   }
 };
+
 const fetchProvinceList = async () => {
   try {
     isProvinceLoading.value = true;
@@ -273,7 +263,6 @@ const fetchProvinceList = async () => {
     if (response.data?.code === 2000) {
       provinceList.value = response.data.data || [];
 
-      // 修复：只在没有初始数据且没有选中省份时设置默认值
       if (!props.initialData && !formData.province && provinceList.value.length > 0) {
         formData.province = provinceList.value[0].name;
         await fetchCityList(provinceList.value[0].value);
@@ -371,13 +360,8 @@ const handleClose = () => {
 
 const REQUIRED_FIELDS = [
   { key: 'name', msg: '请填写单位名称' },
-  { key: 'credit_code', msg: '请填写社会信用代码' },
-  { key: 'contact', msg: '请填写联系人' },
-  { key: 'phone', msg: '请填写联系电话' },
-  { key: 'province', msg: '请选择省份' },
-  { key: 'city', msg: '请选择城市' },
-  { key: 'district', msg: '请选择区县' },
-  { key: 'address', msg: '请填写详细街道地址' }
+  { key: 'type', msg: '请选择单位类别' },
+  { key: 'credit_code', msg: '请填写社会信用代码' }
 ] as const;
 
 const validateRequired = (): boolean => {
@@ -418,8 +402,6 @@ const validateUser = (): boolean => {
   return true;
 };
 
-// ==================== 数据函数 ====================
-
 const getLocationIds = () => {
   const findId = (list: any[], name: string) => list.find(item => item.name === name)?.value || 0;
 
@@ -432,10 +414,11 @@ const getLocationIds = () => {
 
 const buildSubmitData = (expiration: string) => {
   const { provinceId, cityId, districtId } = getLocationIds();
+  const isUpdate = Boolean(props.initialData);
+
   const data: any = {
     name: formData.name,
     type: Number(formData.type),
-    credit_code: formData.credit_code,
     legal_name: formData.legal_name || '',
     contact: formData.contact,
     phone: formData.phone,
@@ -453,6 +436,10 @@ const buildSubmitData = (expiration: string) => {
     licensing_time: formData.licensing_time || ''
   };
 
+  if (!isUpdate) {
+    data.credit_code = formData.credit_code;
+  }
+
   if (formData.is_user) {
     data.user_name = formData.user_name;
     if (formData.password) data.password = formData.password;
@@ -461,8 +448,6 @@ const buildSubmitData = (expiration: string) => {
 
   return data;
 };
-
-// ==================== API 调用 ====================
 
 const submitApi = async (data: any) => {
   const isUpdate = Boolean(props.initialData);
@@ -483,24 +468,19 @@ const submitApi = async (data: any) => {
   return false;
 };
 
-// ==================== 主函数 ====================
-
 const handleSubmit = async () => {
-  // 验证
   if (!validateRequired()) return;
   if (!validateUser()) return;
 
   const expiration = validateExpiration();
   if (!expiration) return;
 
-  // 验证省市区
   const { provinceId, cityId, districtId } = getLocationIds();
   if (provinceId === 0 || cityId === 0 || districtId === 0) {
     message.error('省/市/区数据异常，请重新选择');
     return;
   }
 
-  // 提交
   try {
     await submitApi(buildSubmitData(expiration));
   } catch (error: any) {
@@ -544,6 +524,7 @@ const handleSubmit = async () => {
       <div class="flex-1 overflow-y-auto p-10">
         <form id="company-form" class="space-y-10" @submit.prevent="handleSubmit">
           <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <!-- 单位名称 - 必填 -->
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
@@ -555,6 +536,7 @@ const handleSubmit = async () => {
               <input v-model="formData.name" required class="edit-input" placeholder="输入单位全称" />
             </div>
 
+            <!-- 社会信用代码 - 必填 -->
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
@@ -572,14 +554,17 @@ const handleSubmit = async () => {
               />
             </div>
 
+            <!-- 单位类别 - 必填 -->
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
               >
+                <span class="text-rose-500">*</span>
                 <Layout :size="10" class="text-slate-300" />
                 单位类别
               </label>
-              <select v-model="formData.type" class="edit-input">
+              <select v-model="formData.type" required class="edit-input">
+                <option value="">请选择单位类别</option>
                 <option value="1">政府机构</option>
                 <option value="2">物业公司</option>
                 <option value="3">维保公司</option>
@@ -587,9 +572,11 @@ const handleSubmit = async () => {
                 <option value="5">事业单位</option>
                 <option value="6">普通企业</option>
                 <option value="7">个人</option>
+                <option value="8">安装公司</option>
               </select>
             </div>
 
+            <!-- 单位有效期 - 非必填 -->
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
@@ -600,7 +587,6 @@ const handleSubmit = async () => {
               <input
                 v-model="formData.expiration"
                 type="date"
-                required
                 class="edit-input"
                 :min="props.initialData ? undefined : new Date().toISOString().split('T')[0]"
                 placeholder="选择有效期（YYYY-MM-DD）"
@@ -608,6 +594,7 @@ const handleSubmit = async () => {
             </div>
           </div>
 
+          <!-- 维保公司/制造厂家 扩展字段 -->
           <div
             v-if="formData.type === '3' || formData.type === '4'"
             class="animate-slide-in-from-top-4 grid grid-cols-1 gap-6 border border-sky-500/10 rounded-[2rem] bg-sky-500/5 p-8 lg:grid-cols-3 md:grid-cols-2"
@@ -660,6 +647,7 @@ const handleSubmit = async () => {
             </template>
           </div>
 
+          <!-- 联系信息 -->
           <div class="grid grid-cols-1 gap-6 pt-4 md:grid-cols-3">
             <div class="text-left space-y-1.5">
               <label
@@ -674,35 +662,33 @@ const handleSubmit = async () => {
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
               >
-                <span class="text-rose-500">*</span>
                 <User :size="10" class="text-slate-300" />
                 联系人
               </label>
-              <input v-model="formData.contact" required class="edit-input" />
+              <input v-model="formData.contact" class="edit-input" />
             </div>
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
               >
-                <span class="text-rose-500">*</span>
                 <Phone :size="10" class="text-slate-300" />
                 联系电话
               </label>
-              <input v-model="formData.phone" required type="tel" class="edit-input" />
+              <input v-model="formData.phone" type="tel" class="edit-input" />
             </div>
           </div>
 
+          <!-- 地址信息 -->
           <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
               >
-                <span class="text-rose-500">*</span>
                 <MapPin :size="10" class="text-slate-300" />
                 地址（省/市/区/县）
               </label>
               <div class="grid grid-cols-3 gap-2">
-                <select v-model="formData.province" class="edit-input text-xs" required :disabled="isProvinceLoading">
+                <select v-model="formData.province" class="edit-input text-xs" :disabled="isProvinceLoading">
                   <option value="" disabled>请选择省份</option>
                   <option v-for="province in provinceList" :key="province.value" :value="province.name">
                     {{ province.name }}
@@ -711,7 +697,6 @@ const handleSubmit = async () => {
                 <select
                   v-model="formData.city"
                   class="edit-input text-xs"
-                  required
                   :disabled="isCityLoading || !formData.province"
                 >
                   <option value="" disabled>请选择城市</option>
@@ -722,7 +707,6 @@ const handleSubmit = async () => {
                 <select
                   v-model="formData.district"
                   class="edit-input text-xs"
-                  required
                   :disabled="isDistrictLoading || !formData.city"
                 >
                   <option value="" disabled>请选择区县</option>
@@ -736,14 +720,14 @@ const handleSubmit = async () => {
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
               >
-                <span class="text-rose-500">*</span>
                 <MapPin :size="10" class="text-slate-300" />
                 详细街道地址
               </label>
-              <input v-model="formData.address" required class="edit-input" placeholder="街道、门牌号、小区等" />
+              <input v-model="formData.address" class="edit-input" placeholder="街道、门牌号、小区等" />
             </div>
           </div>
 
+          <!-- 系统访问账号控制 -->
           <div
             class="border border-slate-100 rounded-[2.5rem] bg-slate-50 p-8 space-y-6 dark:border-slate-800 dark:bg-slate-950/40"
           >
@@ -815,6 +799,7 @@ const handleSubmit = async () => {
             </div>
           </div>
 
+          <!-- 单位备注 -->
           <div class="text-left space-y-1.5">
             <label
               class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
@@ -860,7 +845,6 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
-/* 基础输入框样式 */
 .edit-input {
   @apply w-full bg-[rgba(248,250,252,0.6)] border border-[rgba(226,232,240,0.8)] rounded-[1.25rem] py-[0.875rem] px-[1.25rem] text-[0.8125rem] font-semibold transition-all;
 }
@@ -877,7 +861,6 @@ const handleSubmit = async () => {
   @apply bg-[#0f172a];
 }
 
-/* 动画样式定义 */
 .animate-fade-in {
   animation: fadeIn 0.3s ease forwards;
 }
