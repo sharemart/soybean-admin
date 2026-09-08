@@ -53,6 +53,7 @@ const searchTerm = ref('');
 const severityFilter = ref<EmergencySeverity | 'ALL'>('ALL');
 const statusFilter = ref<EmergencyStatus | 'ALL'>('ALL');
 const isSyncing = ref(false);
+const isLoading = ref(false);
 
 const showAddModal = ref(false);
 const currentElevator = ref<any>(null);
@@ -60,61 +61,54 @@ const showDetailModal = ref(false);
 const currentTaskId = ref<number | null>(null);
 const currentTask = ref<EmergencyTask | null>(null);
 
-// ==================== 分页（完全和代码1一致）====================
+// ==================== 分页（改为接口分页）====================
 const currentPage = ref(1);
 const pageSize = ref(10);
-const paginatedTasks = ref<EmergencyTask[]>([]);
+const totalCount = ref(0);
 
 const pendingCount = computed(() => {
   return tasks.value.filter(t => t.status !== 'CLOSED').length;
 });
-
-const filteredTasks = computed(() => {
-  return tasks.value
-    .filter(t => {
-      const matchSearch = t.elevatorName.includes(searchTerm.value) || t.id.includes(searchTerm.value);
-      const matchSeverity = severityFilter.value === 'ALL' || t.severity === severityFilter.value;
-      const matchStatus = statusFilter.value === 'ALL' || t.status === statusFilter.value;
-      return matchSearch && matchSeverity && matchStatus;
-    })
-    .sort((a, b) => {
-      if (a.severity === 'TRAPPED' && b.severity !== 'TRAPPED') return -1;
-      if (a.severity !== 'TRAPPED' && b.severity === 'TRAPPED') return 1;
-      return b.reportTime.localeCompare(a.reportTime);
-    });
-});
-
-const refreshPagination = () => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  paginatedTasks.value = filteredTasks.value.slice(start, end);
-};
-
-const handlePageChange = (page: number) => {
-  currentPage.value = page;
-  refreshPagination();
-};
-
-watch([searchTerm, severityFilter, statusFilter], () => {
-  currentPage.value = 1;
-  refreshPagination();
-});
-
-watch(filteredTasks, () => {
-  refreshPagination();
-});
-// ==============================================================
 
 const severityMap: Record<string, EmergencySeverity> = {
   故障告警: 'TRAPPED',
   故障记录: 'FAULT'
 };
 
-const getList = async () => {
+// 获取列表数据（支持分页和筛选）
+const getList = async (page = currentPage.value) => {
+  if (isLoading.value) return;
+
   try {
-    const res = await fetchUrgentTaskList({ page: 1, limit: 999, keyword: '' });
+    isLoading.value = true;
+
+    // 构建请求参数
+    const params: any = {
+      page,
+      limit: pageSize.value
+    };
+
+    // 如果有搜索关键词，添加到参数中
+    if (searchTerm.value) {
+      params.keyword = searchTerm.value;
+    }
+
+    // 如果有等级筛选，添加到参数中（这里需要根据实际接口调整）
+    if (severityFilter.value !== 'ALL') {
+      // params.severity = severityFilter.value;
+    }
+
+    // 如果有状态筛选，添加到参数中（这里需要根据实际接口调整）
+    if (statusFilter.value !== 'ALL') {
+      // params.status = statusFilter.value;
+    }
+
+    const res = await fetchUrgentTaskList(params);
+
     if (res?.data?.code === 2000) {
       const list = res.data.data.list || [];
+      totalCount.value = res.data.data.total || 0;
+
       tasks.value = list.map((item: any) => ({
         id: item.task_id || `ER-${item.elevator_id}`,
         elevatorId: `${item.elevator_id}`,
@@ -137,14 +131,26 @@ const getList = async () => {
     }
   } catch (err) {
     console.error('获取急修任务失败', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 
+// 处理页码变化
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+  getList(page);
+};
+
+// 监听筛选条件变化（重置到第一页并重新请求）
+watch([searchTerm, severityFilter, statusFilter], () => {
+  currentPage.value = 1;
+  getList(1);
+});
+
+// 初始化加载
 onMounted(() => {
-  getList();
-  setTimeout(() => {
-    refreshPagination();
-  }, 0);
+  getList(1);
 });
 
 const getSeverityStyle = (severity: EmergencySeverity) => {
@@ -183,6 +189,8 @@ const handleUpdateTask = (updated: EmergencyTask) => {
   const idx = tasks.value.findIndex(t => t.id === updated.id);
   if (idx !== -1) tasks.value[idx] = updated;
   showDetailModal.value = false;
+  // 更新后重新加载当前页
+  getList(currentPage.value);
 };
 
 const handleAddTaskClick = () => {
@@ -192,13 +200,16 @@ const handleAddTaskClick = () => {
 
 const handleConfirmTask = () => {
   showAddModal.value = false;
-  getList();
+  // 新增后刷新当前页
+  getList(currentPage.value);
 };
 
 const handleSyncClick = () => {
   isSyncing.value = true;
   setTimeout(() => {
     isSyncing.value = false;
+    // 同步后刷新当前页
+    getList(currentPage.value);
   }, 800);
 };
 
@@ -207,7 +218,6 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
 </script>
 
 <template>
-  <!-- 单个根节点，修复 Transition 报错 -->
   <div class="animate-in fade-in h-full flex flex-col text-left duration-500">
     <div class="px-4 pb-20 space-y-6 lg:px-8 md:px-6">
       <div
@@ -224,7 +234,8 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <div
+          <!--
+ <div
             class="flex items-center gap-2 border border-slate-200 rounded-2xl bg-slate-50 px-4 py-1.5 dark:border-slate-800 dark:bg-slate-950"
           >
             <ShieldAlert :size="14" class="text-rose-500" />
@@ -237,8 +248,9 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
               <option value="FAULT">二级 (停运)</option>
               <option value="WARNING">三级 (异响)</option>
             </select>
-          </div>
-
+          </div> 
+-->
+          <!-- 
           <div
             class="flex items-center gap-2 border border-slate-200 rounded-2xl bg-slate-50 px-4 py-1.5 dark:border-slate-800 dark:bg-slate-950"
           >
@@ -253,7 +265,8 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
               <option value="ARRIVED">现场处理中</option>
               <option value="RESOLVED">待复核结案</option>
             </select>
-          </div>
+          </div> 
+-->
 
           <button
             class="flex items-center gap-2 rounded-2xl bg-rose-500 px-6 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-600"
@@ -272,10 +285,16 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
         </div>
       </div>
 
-      <div class="custom-scrollbar overflow-y-auto" style="max-height: calc(100vh - 260px)">
+      <!-- 加载状态 -->
+      <div v-if="isLoading" class="flex items-center justify-center py-12">
+        <RefreshCw :size="32" class="animate-spin text-rose-500" />
+        <span class="ml-3 text-sm text-slate-500 font-medium">加载数据中...</span>
+      </div>
+
+      <div v-else class="custom-scrollbar overflow-y-auto" style="max-height: calc(100vh - 260px)">
         <div class="grid grid-cols-1 gap-3">
           <div
-            v-for="task in paginatedTasks"
+            v-for="task in tasks"
             :key="task.id"
             :class="`group relative bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer flex flex-col md:flex-row items-stretch ${task.severity === 'TRAPPED' ? 'border-rose-500/30' : ''}`"
             style="min-height: 140px; max-height: 140px; width: 100%"
@@ -290,11 +309,6 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
                   <span class="text-[10px] text-slate-400 font-black tracking-tighter font-mono uppercase">
                     {{ task.id }}
                   </span>
-                  <div
-                    :class="`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${getSeverityStyle(task.severity)}`"
-                  >
-                    {{ task.severity === 'TRAPPED' ? '特级困人' : task.severity === 'FAULT' ? '二级停运' : '三级异响' }}
-                  </div>
                 </div>
                 <h4
                   class="mb-1 text-base text-slate-800 font-black transition-colors dark:text-white group-hover:text-rose-500"
@@ -381,7 +395,7 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
           </div>
 
           <div
-            v-if="paginatedTasks.length === 0"
+            v-if="tasks.length === 0 && !isLoading"
             class="flex flex-col items-center justify-center border-2 border-slate-200 rounded-[3rem] border-dashed py-32 opacity-20 dark:border-slate-800"
             style="min-height: 140px"
           >
@@ -407,7 +421,7 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
       <div class="scale-90">
         <PagePagination
           v-model:current="currentPage"
-          :total="filteredTasks.length"
+          :total="totalCount"
           :page-size="pageSize"
           @change="handlePageChange"
         />

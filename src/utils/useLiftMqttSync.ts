@@ -31,7 +31,7 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
     heartbeatTimers.length = 0;
   };
 
-  // 断开连接（安全）
+  // 安全断开连接
   const disconnect = () => {
     if (isDestroyed) return;
 
@@ -40,12 +40,146 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
     if (client) {
       try {
         client.end(true);
-      } catch {}
+      } catch {
+        // 忽略断开错误
+      }
       client = null;
     }
 
     isConnecting = false;
     console.log('[MQTT] 断开成功');
+  };
+
+  const mapDirection = (status: string): 'up' | 'down' | 'idle' => {
+    if (status === 'up') return 'up';
+    if (status === 'down') return 'down';
+    return 'idle';
+  };
+
+  // 门状态映射函数
+  const mapDoorStatus = (door: number): 'open' | 'closed' => {
+    return door === 1 ? 'open' : 'closed';
+  };
+
+  const parseMessage = (message: Buffer | Uint8Array, system: number) => {
+    // 系统1：二进制解析
+    if (system === 1) {
+      const parsed = parseMqttBinary(message);
+      return binaryToRunInfo(parsed);
+    }
+
+    // 系统3/4：JSON 解析
+    const rawData = JSON.parse(message.toString());
+
+    // 系统4：字段映射
+    if (system === 4) {
+      console.log('[MQTT] 系统4原始数据:', rawData);
+
+      const mappedData = {
+        // 楼层信息
+        floor: rawData.floor,
+        mqttFloor: rawData.floor,
+        targetFloor: rawData.floor,
+
+        // 方向（从 elestatus 推断）
+        direction: mapDirection(rawData.elestatus),
+
+        // 门状态（door: 1=开, 0=关）
+        doorStatus: mapDoorStatus(rawData.door),
+
+        // 速度
+        maxSpeed: rawData.speed,
+        speed: rawData.vel,
+
+        // 荷载（通过 az 估算，az≈9.8 时为空载）
+        load: Math.round((rawData.az / 9.8) * 1000),
+
+        // 楼层范围
+        totalFloor: rawData.floormax,
+        floormin: rawData.floormin,
+        floormax: rawData.floormax,
+
+        // 电源状态
+        powerStatus: rawData.DCout > 5,
+
+        // 其他状态
+        hasFault: false,
+        hasPeople: rawData.az < 9.7,
+        safetyCircuit: true,
+        isLeveling: rawData.vel === 0 && rawData.door === 0,
+        alarmButton: false,
+
+        // 运行统计（系统4无这些数据）
+        runCount: 0,
+        runTime: 0,
+        distance: 0,
+
+        // 保留原始数据
+        rawData
+      };
+
+      return mappedData;
+    }
+
+    // 系统3：字段映射
+    if (system === 3) {
+      console.log('[MQTT] 系统3原始数据:', rawData);
+
+      const mappedData = {
+        // 楼层信息
+        floor: rawData.floor,
+        mqttFloor: rawData.floor,
+        targetFloor: rawData.floor,
+
+        // 方向
+        direction: rawData.direction || 'idle',
+
+        // 门状态
+        doorStatus: rawData.doorStatus ?? 'closed',
+
+        // 速度
+        maxSpeed: rawData.maxSpeed ?? 0,
+        speed: rawData.maxSpeed ?? 0,
+
+        // 荷载
+        load: rawData.load ?? 0,
+
+        // 楼层范围
+        totalFloor: rawData.totalFloor ?? 10,
+        floormin: rawData.floormin ?? 0,
+        floormax: rawData.floormax ?? 10,
+
+        // 电源状态
+        powerStatus: rawData.powerStatus ?? true,
+
+        // 其他状态
+        hasFault: rawData.hasFault ?? false,
+        hasPeople: rawData.hasPeople ?? false,
+        safetyCircuit: rawData.safetyCircuit ?? true,
+        isLeveling: rawData.isLeveling ?? true,
+        alarmButton: rawData.alarmButton ?? false,
+
+        // 运行统计
+        runCount: rawData.runCount ?? 0,
+        runTime: rawData.runTime ?? 0,
+        distance: rawData.distance ?? 0,
+
+        // 保留原始数据
+        rawData
+      };
+
+      return mappedData;
+    }
+
+    // 其他系统：直接返回原始数据
+    return rawData;
+  };
+
+  // 计算订阅主题（提取公共逻辑）
+  const getTopic = (system: number, elevatorNumber: string | number, registerCode: string) => {
+    if (system === 1) return `monitor/view/${elevatorNumber}`;
+    if (system === 4) return `wit/realtime/862323089242419/up`;
+    return `status/${registerCode}`;
   };
 
   // 连接 MQTT（独立实例）
@@ -59,6 +193,7 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
 
     isConnecting = true;
     disconnect();
+    1;
 
     // 构建连接
     const clientId = `web_${Math.random().toString(16).slice(2, 10)}`;
@@ -88,7 +223,7 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
       return;
     }
 
-    const topic = system === 1 ? `monitor/view/${elevatorNumber}` : `status/${registerCode}`;
+    const topic = getTopic(system, elevatorNumber, registerCode);
 
     // 心跳
     const publishPageAccess = (code: '10' | '30') => {
@@ -103,7 +238,9 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
       });
       try {
         client.publish('pageaccess', payload);
-      } catch {}
+      } catch {
+        // 忽略发布错误
+      }
     };
 
     // 连接成功
@@ -116,7 +253,9 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
         client.subscribe(topic, (err: Error) => {
           if (err) console.error('[MQTT] 订阅失败', err);
         });
-      } catch {}
+      } catch {
+        // 忽略订阅错误
+      }
 
       if (system === 1) {
         publishPageAccess('10');
@@ -134,14 +273,8 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
       if (isDestroyed || !message) return;
 
       try {
-        if (system === 1) {
-          const parsed = parseMqttBinary(message);
-          const update = binaryToRunInfo(parsed);
-          runInfo.value = { ...runInfo.value, ...update };
-        } else {
-          const data = JSON.parse(message.toString());
-          runInfo.value = { ...runInfo.value, ...data };
-        }
+        const update = parseMessage(message, system);
+        runInfo.value = { ...runInfo.value, ...update };
       } catch (e) {
         console.error('[MQTT] 解析失败', e);
       }

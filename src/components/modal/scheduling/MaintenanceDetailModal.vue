@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { NButton, NModal } from 'naive-ui';
-import { Camera, FileText, MapPin, PenTool, ShieldCheck } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { NButton, NModal, useMessage } from 'naive-ui';
+import { Camera, Download, FileText, MapPin, PenTool, ShieldCheck } from 'lucide-vue-next';
+import { exportMaintenanceDetail } from '@/service/api/scheduling/schedulingApi';
 
 export type TaskStatus = 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' | 'OVERDUE';
 
@@ -48,6 +49,9 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
+const message = useMessage();
+const exporting = ref(false);
+
 const dimensionConfig = Object.freeze([
   { key: 'moon', label: '月度维保', tagColor: 'bg-blue-500' },
   { key: 'quarter', label: '季度维保', tagColor: 'bg-purple-500' },
@@ -82,7 +86,13 @@ const maintainStatusText = computed(
   () => maintainStatusMap[maintainInfo.value.is_maintain as keyof typeof maintainStatusMap] ?? '未知状态'
 );
 
-const signatureImgOne = computed(() => formatImageUrl(maintainInfo.value.signature_img_one));
+const signatureImgOne = computed(() => {
+  const imgThree = maintainInfo.value.signature_img_three;
+  if (imgThree) {
+    return formatImageUrl(imgThree);
+  }
+  return formatImageUrl(maintainInfo.value.signature_img_one);
+});
 const signatureImgTwo = computed(() => formatImageUrl(maintainInfo.value.signature_img_two));
 const clockinImg = computed(() => formatImageUrl(maintainInfo.value.clockin_img));
 
@@ -104,6 +114,40 @@ const groupedProjects = computed<DimensionGroup[]>(() => {
     return res;
   }, [] as DimensionGroup[]);
 });
+
+const exportWord = async () => {
+  if (!props.task) {
+    message.warning('暂无数据可导出');
+    return;
+  }
+
+  exporting.value = true;
+  try {
+    const res = await exportMaintenanceDetail({ bill_id: Number(props.task.id) });
+
+    if (res?.data?.code === 2000) {
+      const fileUrl = res.data.data.file_url;
+      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${BASE_URL}${fileUrl}`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = fullUrl;
+      document.body.appendChild(iframe);
+
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 5000);
+
+      message.success('导出成功');
+    } else {
+      message.error(res?.data?.msg || '导出失败');
+    }
+  } catch (error) {
+    message.error(`导出失败，请重试${error}`);
+  } finally {
+    exporting.value = false;
+  }
+};
 </script>
 
 <template>
@@ -116,7 +160,6 @@ const groupedProjects = computed<DimensionGroup[]>(() => {
     @close="emit('close')"
   >
     <div v-if="task" class="max-h-[85vh] flex flex-col overflow-hidden">
-      <!-- 头部 -->
       <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-8 dark:border-slate-800">
         <div class="flex items-center gap-4">
           <div class="rounded-2xl p-3 text-white shadow-lg" :class="statusClass">
@@ -178,7 +221,6 @@ const groupedProjects = computed<DimensionGroup[]>(() => {
           </div>
         </div>
 
-        <!-- 维保表格 -->
         <div class="space-y-6">
           <div
             v-for="group in groupedProjects"
@@ -233,7 +275,6 @@ const groupedProjects = computed<DimensionGroup[]>(() => {
           </div>
         </div>
 
-        <!-- 签名区域 -->
         <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div class="space-y-4">
             <h5 class="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase">
@@ -283,12 +324,21 @@ const groupedProjects = computed<DimensionGroup[]>(() => {
         </div>
       </div>
 
-      <!-- 底部 -->
       <div class="flex justify-end gap-4 border-t p-8 dark:border-slate-800">
         <NButton tertiary class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase" @click="emit('close')">
           关闭
         </NButton>
-        <NButton type="primary" class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase">导出 PDF</NButton>
+        <NButton
+          type="primary"
+          class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase"
+          :loading="exporting"
+          @click="exportWord"
+        >
+          <template #icon>
+            <Download :size="14" />
+          </template>
+          导出 Word
+        </NButton>
       </div>
     </div>
   </NModal>

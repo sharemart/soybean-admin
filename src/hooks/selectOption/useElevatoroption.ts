@@ -1,3 +1,4 @@
+// 电梯列表
 import { computed, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { fetchElevatorList } from '@/service/api/component/component';
@@ -5,12 +6,18 @@ import { fetchElevatorList } from '@/service/api/component/component';
 export interface ElevatorOption {
   label: string;
   value: string | number;
+  // ✅ 新增：保存完整数据
+  company_id3?: number;
+  group_id?: number;
+  elevator_id?: number;
 }
 
 export interface ElevatorItem {
   elevator_id: number;
   elevator_name: string;
   elevator_number: string | number;
+  company_id3?: number; // ✅ 新增
+  group_id?: number; // ✅ 新增
 }
 
 export interface ElevatorListParams {
@@ -31,14 +38,17 @@ export function useElevatorSelector() {
   const total = ref(0);
   const hasMore = ref(true);
 
-  // 👇 滚动加载需要的页码
   const currentPage = ref(1);
   const pageSize = ref(20);
 
   const elevatorOptions = computed<ElevatorOption[]>(() => {
     return elevatorList.value.map(item => ({
       label: `${item.elevator_name}（${item.elevator_number || ''}）`,
-      value: item.elevator_id
+      value: item.elevator_id,
+      // ✅ 新增：保存完整数据到 options 中
+      company_id3: item.company_id3,
+      group_id: item.group_id,
+      elevator_id: item.elevator_id
     }));
   });
 
@@ -56,7 +66,7 @@ export function useElevatorSelector() {
       }
 
       hasMore.value = elevatorList.value.length < total.value;
-      currentPage.value = params.page || 1; // 保存当前页
+      currentPage.value = params.page || 1;
     } catch (err) {
       console.error('获取电梯失败', err);
       message.error('获取电梯列表失败');
@@ -65,7 +75,6 @@ export function useElevatorSelector() {
     }
   };
 
-  // 搜索
   const handleSearch = (keyword: string) => {
     fetchElevatorListData({
       elevator_name: keyword,
@@ -74,7 +83,6 @@ export function useElevatorSelector() {
     });
   };
 
-  // 👇 滚动加载更多（关键）
   const loadMore = () => {
     if (!hasMore.value || elevatorLoading.value) return;
     fetchElevatorListData({
@@ -91,6 +99,7 @@ export function useElevatorSelector() {
     fetchElevatorListData,
     handleSearch,
     loadMore,
-    currentPage
+    currentPage,
+    elevatorList
   };
 }

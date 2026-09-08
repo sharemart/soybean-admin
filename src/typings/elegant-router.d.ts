@@ -20,6 +20,7 @@ declare module "@elegant-router/types" {
     "403": "/403";
     "404": "/404";
     "500": "/500";
+    "annual": "/annual";
     "business": "/business";
     "business_repair": "/business/repair";
     "business_report": "/business/report";
@@ -90,6 +91,7 @@ declare module "@elegant-router/types" {
     | "403"
     | "404"
     | "500"
+    | "annual"
     | "business"
     | "custom"
     | "emergency"
@@ -125,6 +127,7 @@ declare module "@elegant-router/types" {
     | "500"
     | "iframe-page"
     | "login"
+    | "annual"
     | "business_repair"
     | "business_report"
     | "custom_workbench"

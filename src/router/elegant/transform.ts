@@ -166,6 +166,7 @@ const routeMap: RouteMap = {
   "403": "/403",
   "404": "/404",
   "500": "/500",
+  "annual": "/annual",
   "business": "/business",
   "business_repair": "/business/repair",
   "business_report": "/business/report",

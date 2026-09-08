@@ -5,9 +5,7 @@ import { NTag } from 'naive-ui';
 import {
   Activity,
   AlertCircle,
-  ArrowDown,
   ArrowLeft,
-  ArrowUp,
   BarChart3,
   ChevronRight,
   Database,
@@ -33,6 +31,7 @@ import MaintenanceWidget from '@/components/modal/monitoring/MaintenanceWidget.v
 import StatsWidget from '@/components/modal/monitoring/StatsWidget.vue';
 import InfoWidget from '@/components/modal/monitoring/InfoWidget.vue';
 import WarningWidget from '@/components/modal/monitoring/WarningWidget.vue';
+import ElevatorShaftSimulation from '@/components/elevator/ElevatorShaftSimulation.vue';
 
 const router = useRouter();
 const routeId = useRoute().query.id as string;
@@ -41,7 +40,6 @@ const id = ref(routeId);
 const navigateTo = (path: string) => router.push(path);
 
 const elevatorInfo = ref<any>({});
-// 接口返回 总楼层
 const totalFloor = ref(10);
 
 const runInfo = ref<Record<string, any>>({});
@@ -57,39 +55,39 @@ const { connect, disconnect } = useLiftMqttSync({
   runInfo
 });
 
-// ===================== 【✅ 适配你真实MQTT】映射层 =====================
-const liveData = computed(() => ({
+const getBaseState = () => ({
   floor: runInfo.value.floor ?? 1,
   mqttFloor: runInfo.value.mqttFloor ?? 1,
   targetFloor: runInfo.value.targetFloor ?? 1,
   levelingFloor: runInfo.value.levelingFloor ?? 0,
   directionArrow: runInfo.value.directionArrow ?? 0,
-  direction:
-    runInfo.value.direction ||
-    (runInfo.value.status === 'up' ? 'up' : runInfo.value.status === 'down' ? 'down' : 'idle'),
+  direction: runInfo.value.direction ?? 'idle',
   doorStatus: runInfo.value.doorStatus ?? 'closed',
-  speed: runInfo.value.maxSpeed ?? 0,
+  speed: runInfo.value.speed ?? 0,
   status: runInfo.value.status ?? 'stop',
   distance: runInfo.value.distance ?? 0,
   hasFault: runInfo.value.hasFault ?? false,
   errorCode: runInfo.value.errorCode ?? 0,
-
-  // 荷载：MQTT覆盖接口值
-  load: runInfo.value.load ?? elevatorInfo.value.load ?? 0,
+  load: runInfo.value.load ?? 0,
   hasPeople: runInfo.value.hasPeople ?? false,
   safetyCircuit: runInfo.value.safetyCircuit ?? true,
   powerStatus: runInfo.value.powerStatus ?? true,
   isLeveling: runInfo.value.isLeveling ?? true,
-  alarmButton: runInfo.value.alarmButton ?? false,
+  alarmButton: runInfo.value.alarmButton ?? false
+});
 
-  // ==========  Fcode=05 ==========
+const getRunStats = () => ({
   totalRunCount: runInfo.value.runCount ?? 0,
   totalRunTime: runInfo.value.runTime ?? 0,
   totalMileage: (runInfo.value.distance ?? 0) / 1000,
-
   todayRunCount: 0,
   totalDoorCount: 0,
   avgResponseTime: 0
+});
+
+const liveData = computed(() => ({
+  ...getBaseState(),
+  ...getRunStats()
 }));
 
 // ========== ✅ 时间格式化工具 ==========
@@ -99,52 +97,6 @@ const formatSeconds = (seconds: number) => {
   const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
   const s = String(seconds % 60).padStart(2, '0');
   return `${h}:${m}:${s}`;
-};
-
-const formatFloorLabel = (floor: number) => {
-  if (floor < 0) return `B${Math.abs(floor)}`;
-  return `${floor}F`;
-};
-
-const undergroundFloorCount = ref(2);
-
-const autoStep = computed(() => {
-  const totalAllFloor = totalFloor.value + undergroundFloorCount.value;
-  if (totalAllFloor <= 10) {
-    return 1;
-  }
-  return 3;
-});
-
-const floorList = computed(() => {
-  const minFloor = -undergroundFloorCount.value;
-  const maxFloor = totalFloor.value;
-  const floors = [];
-  // 从最高层 → 最底层 全部显示（真实井道）
-  for (let i = maxFloor; i >= minFloor; i--) {
-    floors.push(i);
-  }
-  return floors;
-});
-
-const shouldShowFloorLabel = (floor: number) => {
-  const minFloor = -undergroundFloorCount.value;
-  const maxFloor = totalFloor.value;
-  const step = autoStep.value;
-  const currentFloor = liveData.value.floor;
-
-  if (floor === currentFloor) {
-    return true;
-  }
-  if (floor < 0) {
-    return true;
-  }
-  if (floor >= maxFloor - 2 || floor <= minFloor + 2) {
-    return true;
-  }
-  if (Math.abs(floor - currentFloor) <= 5) {
-    return floor % step === 0;
-  }
 };
 
 // ===================== 状态计算 =====================
@@ -163,21 +115,16 @@ const powerStatus = computed(() => liveData.value.powerStatus);
 const isLeveling = computed(() => liveData.value.isLeveling);
 const alarmButton = computed(() => liveData.value.alarmButton);
 
-const getCarPosition = (floor: number) => {
-  const minFloor = -undergroundFloorCount.value; // 最低楼层（如 -2）
-  const maxFloor = totalFloor.value; // 最高楼层（如 30）
+// ===================== 地下楼层计算（适配系统4） =====================
+const undergroundFloorCount = computed(() => {
+  // 系统4的 floormin 为 1，说明没有地下楼层
+  if (runInfo.value.floormin && runInfo.value.floormin > 0) {
+    return 0;
+  }
+  // 默认2层地下
+  return 2;
+});
 
-  // 总层数 = 负楼层数 + 正楼层数
-  const totalLevels = maxFloor - minFloor;
-
-  // 当前楼层在总区间里的百分比（0% ~ 100%）
-  const percent = (floor - minFloor) / totalLevels;
-
-  // 井道可用高度 92%（留出顶部安全间距，不溢出容器）
-  return percent * 92;
-};
-
-// ===================== 【✅ 控制模式自动映射】适配 hasFault =====================
 const controlModes = ref([
   { label: 'autoMode', text: '自动模式', active: false },
   { label: 'overload', text: '超载锁定', active: false },
@@ -208,7 +155,12 @@ watch(
 watch(
   runInfo,
   val => {
-    console.log('全部MQTT 原始值:', val);
+    console.log('val', val);
+
+    // 同步 totalFloor（系统4的 floormax）
+    if (val.floormax) {
+      totalFloor.value = val.floormax;
+    }
   },
   { deep: true }
 );
@@ -249,9 +201,9 @@ onMounted(async () => {
     const res = await fetchElevatorDetail({ elevator_id: Number(id.value) });
     if (res?.data?.code === 2000) {
       elevatorInfo.value = res.data.data || {};
-      // 读取接口返回的总楼层
       totalFloor.value =
         elevatorInfo.value.total_floor && elevatorInfo.value.total_floor > 0 ? elevatorInfo.value.total_floor : 10;
+      // liftInfo.value.system = 4;
       liftInfo.value.system = elevatorInfo.value.system ?? 3;
       liftInfo.value.elevatorNumber = elevatorInfo.value.elevator_number ?? '';
       liftInfo.value.registerCode = elevatorInfo.value.register_code ?? '';
@@ -328,69 +280,17 @@ onUnmounted(() => {
     </div>
 
     <div class="grid grid-cols-1 min-h-0 flex-1 gap-6 lg:grid-cols-12">
-      <div
-        class="glass-panel flex flex-col items-center border border-slate-200 rounded-[3rem] p-6 lg:col-span-3 dark:border-slate-800"
-      >
-        <h3 class="mb-8 w-full text-center text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">
-          井道物理仿真 (Digital Twin)
-        </h3>
-        <div
-          class="relative h-[500px] w-32 flex flex-col justify-between overflow-hidden border border-slate-200 rounded-3xl bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-950/80"
-        >
-          <div
-            class="absolute inset-y-4 right-2 flex flex-col justify-between text-[8px] text-slate-400 font-bold font-mono"
-          >
-            <span
-              v-for="f in floorList"
-              v-show="shouldShowFloorLabel(f)"
-              :key="f"
-              :class="{ 'text-sky-500': f === liveFloor }"
-            >
-              {{ formatFloorLabel(f) }}
-            </span>
-          </div>
-
-          <div
-            class="absolute left-1/2 h-24 w-20 flex flex-col items-center justify-center border-2 border-sky-500 rounded-xl bg-white shadow-[0_0_30px_rgba(14,165,233,0.2)] transition-all duration-[2000ms] ease-in-out -translate-x-1/2 dark:bg-slate-800"
-            :style="{ bottom: `${getCarPosition(liveData.floor)}%` }"
-          >
-            <div class="mb-1 text-sky-500">
-              <ArrowUp v-if="direction === 'up'" :size="16" class="animate-bounce" />
-              <ArrowDown v-else-if="direction === 'down'" :size="16" class="animate-bounce" />
-              <div v-else class="h-4 w-4 border-2 border-sky-400/30 rounded-full"></div>
-            </div>
-            <span class="text-2xl font-black leading-none font-mono">{{ liveFloor }}</span>
-            <span class="text-[8px] font-bold uppercase opacity-40">Floor</span>
-            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div
-                class="h-full bg-sky-500/10 transition-all duration-700"
-                :class="doorStatus === 'open' ? 'w-0' : 'w-full border-x border-sky-500/20'"
-              ></div>
-            </div>
-          </div>
-          <div class="absolute inset-x-0 bottom-0 h-2 bg-slate-200 dark:bg-slate-800"></div>
-        </div>
-
-        <div
-          class="mt-8 flex items-center gap-6 border border-slate-100 rounded-2xl bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
-        >
-          <div class="text-center">
-            <p class="mb-1 text-[10px] text-slate-400 font-black tracking-widest uppercase">实时速度</p>
-            <p class="text-xl text-sky-500 font-black font-mono">
-              {{ speed.toFixed(2) }}
-              <span class="ml-1 text-[10px]">m/s</span>
-            </p>
-          </div>
-          <div class="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
-          <div class="text-center">
-            <p class="mb-1 text-[10px] text-slate-400 font-black tracking-widest uppercase">当前荷载</p>
-            <p class="text-xl text-indigo-500 font-black font-mono">
-              {{ load }}
-              <span class="ml-1 text-[10px]">kg</span>
-            </p>
-          </div>
-        </div>
-      </div>
+      <!-- 【替换】使用独立的井道仿真组件 -->
+      <ElevatorShaftSimulation
+        class="lg:col-span-3"
+        :current-floor="liveFloor"
+        :direction="direction"
+        :door-status="doorStatus"
+        :speed="speed"
+        :load="load"
+        :total-floor="totalFloor"
+        :underground-floor-count="undergroundFloorCount"
+      />
 
       <div class="custom-scrollbar flex flex-col gap-6 overflow-y-auto text-left lg:col-span-9">
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-6 md:grid-cols-4">
@@ -654,20 +554,6 @@ onUnmounted(() => {
         </div>
       </div>
     </Teleport>
-
-    <footer
-      class="fixed bottom-0 left-64 right-0 z-10 flex items-center justify-between border-t bg-slate-50/80 px-8 py-3 text-[9px] text-slate-400 backdrop-blur-md dark:bg-slate-950/80"
-    >
-      <div class="flex items-center gap-6">
-        <span class="flex items-center gap-2">
-          <div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
-          数据链路：{{ id }} @ MQTT实时通道
-        </span>
-        <span>更新频率：100ms</span>
-        <span class="text-sky-500">同步延迟：24ms</span>
-      </div>
-      <div class="text-slate-300">Powered by ElevatorPulse v3.2</div>
-    </footer>
   </div>
 </template>
 

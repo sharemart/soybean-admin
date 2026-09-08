@@ -392,3 +392,16 @@ export interface UpdatePlanGroupData {
   message: string;
 }
 export type UpdatePlanGroupResponse = ApiResponse<UpdatePlanGroupData>;
+
+// ====================== 导出维保详情 Word ======================
+export interface ExportMaintenanceDetailParams {
+  /** 维保单ID */
+  bill_id: number;
+}
+
+export interface ExportMaintenanceDetailResponse {
+  /** 导出 Word 文件 URL */
+  file_url: string;
+}
+
+export type ExportMaintenanceDetailResult = ApiResponse<ExportMaintenanceDetailResponse>;

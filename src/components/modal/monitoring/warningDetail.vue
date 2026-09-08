@@ -1,7 +1,24 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue';
-import { ChevronDown, ChevronUp, Database, Info, Play, Save, Settings, ShieldAlert, X } from 'lucide-vue-next';
+import { useMessage } from 'naive-ui';
 import {
+  Activity,
+  ArrowUp,
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  Database,
+  Gauge,
+  Info,
+  Play,
+  Ruler,
+  Save,
+  Settings,
+  ShieldAlert,
+  X
+} from 'lucide-vue-next';
+import {
+  fetchAlgorithmResult,
   fetchFaultTemplateCauses,
   fetchFaultTemplateComponents,
   fetchSubmitFaultTemplate,
@@ -10,7 +27,11 @@ import {
   fetchWarningCalculateAccel,
   fetchWarningSoundList
 } from '@/service/api/Warning/warning';
-import type { FaultTemplateCauseItem, FaultTemplateComponentItem } from '@/service/api/Warning/warning.d';
+import type {
+  AlgorithmResultData,
+  FaultTemplateCauseItem,
+  FaultTemplateComponentItem
+} from '@/service/api/Warning/warning.d';
 import WarningWaveChart from '@/components/composables/useWarningChart.vue';
 
 const props = defineProps<{
@@ -22,6 +43,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:show': [val: boolean];
 }>();
+
+// 诊断结果数据
+const diagnosisData = ref<AlgorithmResultData | null>(null);
+const diagnosisLoading = ref(false);
 
 const analyzeResult = ref<any[]>([]);
 const componentList = ref<FaultTemplateComponentItem[]>([]);
@@ -39,6 +64,18 @@ const currentRecord = ref<any>(null);
 const waveData = ref<any[]>([]);
 const isSpeedChart = ref(false);
 
+const ElMessage = useMessage();
+
+const pauseAllAudio = () => {
+  document.querySelectorAll('audio').forEach(a => {
+    try {
+      a.pause();
+    } catch (e) {
+      console.error('暂停音频失败', e);
+    }
+  });
+};
+
 const closeModal = () => {
   pauseAllAudio();
   emit('update:show', false);
@@ -47,14 +84,7 @@ const closeModal = () => {
   selectedComponentId.value = '';
   selectedCauseId.value = '';
   noteText.value = '';
-};
-
-const pauseAllAudio = () => {
-  document.querySelectorAll('audio').forEach(a => {
-    try {
-      a.pause();
-    } catch (e) {}
-  });
+  diagnosisData.value = null;
 };
 
 const playAudio = (sUrl: string) => {
@@ -69,7 +99,7 @@ const getSoundList = async () => {
   if (!sn || !trouble_code) return;
   loading.value = true;
   try {
-    const res = await fetchWarningSoundList({ sn, trouble_code, days: 1000 });
+    const res = await fetchWarningSoundList({ sn, trouble_code, days: 14 });
     if (res.data?.code === 2000) {
       soundList.value = res.data.data.sounds_list || [];
     }
@@ -84,12 +114,62 @@ const loadAnalyzeData = async (record: any) => {
   try {
     const res = await fetchWarningAnalyze({
       url: record.a_url,
-      elevator_id: props.elevatorId
+      elevator_id: Number(props.elevatorId)
     });
     analyzeResult.value = res.data?.code === 2000 && res.data.data?.candidates ? res.data.data.candidates : [];
   } catch (err) {
     console.error('分析失败', err);
     analyzeResult.value = [];
+  }
+};
+
+/**
+ * 获取AI算法诊断结果
+ */
+const loadAlgorithmResult = async (taskId: string) => {
+  if (!taskId) {
+    diagnosisData.value = null;
+    return;
+  }
+  diagnosisLoading.value = true;
+  try {
+    const res = await fetchAlgorithmResult({ task_id: taskId, simple: 1 });
+    console.log('AI算法诊断结果:', res.data);
+    const responseData = res?.data?.data;
+
+    if (responseData) {
+      diagnosisData.value = {
+        task_id: responseData.task_id,
+        status: responseData.status,
+        message: responseData.message,
+        result: responseData
+      };
+    } else {
+      diagnosisData.value = null;
+      console.warn('⚠️ 获取诊断结果失败: 数据为空');
+    }
+  } catch (err) {
+    console.error('❌ 获取诊断结果异常:', err);
+    diagnosisData.value = null;
+  } finally {
+    diagnosisLoading.value = false;
+  }
+};
+
+const loadFaultTemplateCauses = async (cid: number | string) => {
+  if (!cid) {
+    causeList.value = [];
+    selectedCauseId.value = '';
+    return;
+  }
+  try {
+    const res = await fetchFaultTemplateCauses({ component_id: Number(cid) });
+    if (res.data?.code === 2000) {
+      causeList.value = res.data.data || [];
+      selectedCauseId.value = causeList.value[0]?.id || '';
+    }
+  } catch (err) {
+    console.error(err);
   }
 };
 
@@ -102,23 +182,6 @@ const loadFaultTemplateComponents = async () => {
         selectedComponentId.value = componentList.value[0].id;
         await loadFaultTemplateCauses(selectedComponentId.value);
       }
-    }
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const loadFaultTemplateCauses = async (cid: number | string) => {
-  if (!cid) {
-    causeList.value = [];
-    selectedCauseId.value = '';
-    return;
-  }
-  try {
-    const res = await fetchFaultTemplateCauses({ component_id: +cid });
-    if (res.data?.code === 2000) {
-      causeList.value = res.data.data || [];
-      selectedCauseId.value = causeList.value[0]?.id || '';
     }
   } catch (err) {
     console.error(err);
@@ -139,9 +202,9 @@ const handleSubmit = async () => {
   submitLoading.value = true;
   try {
     const params = {
-      elevator_id: +props.elevatorId!,
-      component_id: +selectedComponentId.value,
-      cause_id: +selectedCauseId.value,
+      elevator_id: props.elevatorId,
+      component_id: selectedComponentId.value,
+      cause_id: selectedCauseId.value,
       direction_code: directionCode.value,
       note: noteText.value,
       s_url: currentRecord.value?.s_url || '',
@@ -157,7 +220,7 @@ const handleSubmit = async () => {
       ElMessage.error(res.data?.message || '失败');
     }
   } catch (err) {
-    ElMessage.error('异常');
+    ElMessage.error(`异常${err}`);
   } finally {
     submitLoading.value = false;
   }
@@ -170,6 +233,7 @@ const handleClickRecord = async (record: any) => {
     expandedId.value = null;
     analyzeResult.value = [];
     waveData.value = [];
+    diagnosisData.value = null;
     return;
   }
   pauseAllAudio();
@@ -177,6 +241,7 @@ const handleClickRecord = async (record: any) => {
   currentRecord.value = record;
   analyzeResult.value = [];
   waveData.value = [];
+  diagnosisData.value = null;
 
   try {
     const troubleCode = props.warningData?.trouble_code;
@@ -193,7 +258,10 @@ const handleClickRecord = async (record: any) => {
     console.error(e);
   }
 
-  loadAnalyzeData(record);
+  // 并行请求：故障模板匹配 + AI算法诊断结果
+  await loadAnalyzeData(record);
+  await loadAlgorithmResult(record.algo_remote_task_id || '');
+
   loadFaultTemplateComponents();
 };
 
@@ -280,13 +348,14 @@ onUnmounted(() => {});
               </div>
 
               <div v-if="expandedId === String(record.id)" class="animate-in slide-in-from-top-4 px-6 pb-6 space-y-6">
-                <!-- 👇 复用图表组件，超简洁 -->
+                <!-- 波形图表 -->
                 <div
                   class="h-64 w-full border border-slate-100 rounded-2xl bg-white p-4 shadow-inner dark:border-slate-800 dark:bg-slate-900/50"
                 >
                   <WarningWaveChart :data="waveData" :is-speed="isSpeedChart" height="100%" />
                 </div>
 
+                <!-- 音频播放 -->
                 <div class="flex items-center gap-4 border border-white/5 rounded-2xl bg-slate-900 p-4">
                   <button
                     class="h-10 w-10 flex items-center justify-center rounded-full bg-sky-500 text-white shadow-lg"
@@ -393,6 +462,130 @@ onUnmounted(() => {});
                     </div>
                     <div v-if="analyzeResult.length === 0" class="py-6 text-center text-sm text-slate-400">
                       AI 未匹配到故障模板
+                    </div>
+
+                    <!-- AI 算法诊断结果卡片 - 4个版块 -->
+                    <div
+                      v-if="diagnosisData && diagnosisData.result"
+                      class="mt-4 border border-slate-200 rounded-2xl from-slate-50/80 to-white bg-gradient-to-br p-5 dark:border-slate-700 dark:from-slate-800/60 dark:to-slate-900/40"
+                    >
+                      <div class="mb-4 flex items-center gap-2">
+                        <Activity :size="16" class="text-emerald-500" />
+                        <h4 class="text-xs text-slate-400 font-black tracking-wider uppercase">AI 算法诊断结果</h4>
+                      </div>
+
+                      <!-- 4个版块：2x2 网格布局 -->
+                      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <!-- 版块1: 最终诊断结果 -->
+                        <div
+                          class="border border-slate-200/80 rounded-xl bg-white/60 p-4 dark:border-slate-700/60 dark:bg-slate-800/30"
+                        >
+                          <p class="flex items-center gap-1 text-[10px] text-slate-400 font-black uppercase">
+                            <ShieldAlert :size="12" class="text-rose-500" />
+                            最终诊断结果
+                          </p>
+                          <p class="mt-1 text-lg text-rose-600 font-bold dark:text-rose-400">
+                            {{ diagnosisData.result?.fault_name || '-' }}
+                          </p>
+                          <p class="mt-0.5 text-[10px] text-slate-400">
+                            模型原始结果：{{
+                              diagnosisData.result?.neural_network?.fault_name ||
+                              diagnosisData.result?.fault_name ||
+                              '-'
+                            }}
+                          </p>
+                        </div>
+
+                        <!-- 版块2: 可靠度评分 -->
+                        <!--
+ <div
+                          class="border border-slate-200/80 rounded-xl bg-white/60 p-4 dark:border-slate-700/60 dark:bg-slate-800/30"
+                        >
+                          <div class="flex items-center justify-between">
+                            <p class="flex items-center gap-1 text-[10px] text-slate-400 font-black uppercase">
+                              <Gauge :size="12" class="text-blue-500" />
+                              可靠度评分
+                            </p>
+                            <span class="text-[9px] text-slate-400">距离可靠度，仅作辅助参考</span>
+                          </div>
+                          <div class="mt-1 flex items-center gap-3">
+                            <span class="text-2xl text-blue-600 font-black dark:text-blue-400">
+                              {{ diagnosisData.result?.confidence ?? 0 }}%
+                            </span>
+                            <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                              <div
+                                class="h-full rounded-full bg-blue-500 transition-all"
+                                :style="{ width: (diagnosisData.result?.confidence ?? 0) + '%' }"
+                              ></div>
+                            </div>
+                          </div>
+                        </div> 
+-->
+
+                        <!-- 版块3: 距离判别 -->
+                        <div
+                          class="border border-slate-200/80 rounded-xl bg-white/60 p-4 dark:border-slate-700/60 dark:bg-slate-800/30"
+                        >
+                          <p class="flex items-center gap-1 text-xs text-slate-400 font-black uppercase">
+                            <Ruler :size="14" class="text-purple-500" />
+                            距离判别
+                          </p>
+                          <div class="grid grid-cols-3 mt-2 gap-3">
+                            <div>
+                              <p class="text-[10px] text-slate-400 font-medium">正常</p>
+                              <p class="text-base text-emerald-600 font-bold dark:text-emerald-400">
+                                d₁={{ (diagnosisData.result?.distance_normal ?? 0).toFixed(2) }}
+                              </p>
+                            </div>
+                            <div>
+                              <p class="text-[10px] text-slate-400 font-medium">轨靴磨损</p>
+                              <p class="text-base text-amber-600 font-bold dark:text-amber-400">
+                                d₂={{ (diagnosisData.result?.distance_shoe ?? 0).toFixed(2) }}
+                              </p>
+                            </div>
+                            <div>
+                              <p class="text-[10px] text-slate-400 font-medium">张力不均</p>
+                              <p class="text-base text-rose-600 font-bold dark:text-rose-400">
+                                d₃={{ (diagnosisData.result?.distance_tension ?? 0).toFixed(2) }}
+                              </p>
+                            </div>
+                          </div>
+                          <p class="mt-2 text-[10px] text-slate-400">正常不修正；故障距离按系数修正后取最小</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 加载中状态 -->
+                    <div v-else-if="diagnosisLoading" class="mt-4 flex items-center justify-center py-8">
+                      <div class="flex items-center gap-3 text-slate-400">
+                        <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24">
+                          <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                            fill="none"
+                          />
+                          <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        <span class="text-sm font-medium">AI 诊断结果加载中...</span>
+                      </div>
+                    </div>
+
+                    <!-- 无诊断结果 -->
+                    <div
+                      v-else-if="!diagnosisData && !diagnosisLoading"
+                      class="mt-4 border border-slate-200 rounded-2xl bg-slate-50/50 p-6 text-center dark:border-slate-700 dark:bg-slate-800/20"
+                    >
+                      <Activity :size="24" class="mx-auto mb-2 text-slate-300" />
+                      <p class="text-sm text-slate-400">暂无 AI 算法诊断结果</p>
+                      <p class="mt-0.5 text-[10px] text-slate-400">请确认该记录已通过算法分析</p>
                     </div>
                   </div>
                 </div>

@@ -281,12 +281,12 @@ const varietyOptions = [
   { label: '3110曳引驱动乘客电梯', value: 1 },
   { label: '3120曳引驱动载货电梯', value: 2 },
   { label: '3130强制驱动载货电梯', value: 3 },
-  { label: '3220液压乘客电梯', value: 5 },
+  { label: '3220液压货梯', value: 5 },
   { label: '3410防爆电梯', value: 6 },
   { label: '3420消防员电梯', value: 7 },
-  { label: '3310杂物电梯', value: 8 },
+  { label: '3310自动扶梯', value: 8 },
   { label: '3500自动扶梯', value: 9 },
-  { label: '3600自动人行道', value: 10 }
+  { label: '3320自动人行道', value: 10 }
 ];
 
 const typeOptions = [
@@ -298,7 +298,8 @@ const typeOptions = [
 const systemOptions = [
   { label: '玖玖系统', value: 1 },
   { label: '非玖玖系统', value: 2 },
-  { label: '浅水系统', value: 3 }
+  { label: '浅水系统', value: 3 },
+  { label: '维特系统', value: 4 }
 ];
 
 const placeTypeOptions = [

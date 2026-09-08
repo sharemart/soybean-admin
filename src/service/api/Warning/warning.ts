@@ -1,5 +1,7 @@
 import { request } from '../../request';
 import type {
+  AlgorithmResultParams,
+  AlgorithmResultResponse,
   FaultTemplateCausesParams,
   FaultTemplateCausesResponse,
   FaultTemplateComponentsResponse,
@@ -110,6 +112,20 @@ export function fetchFaultTemplateCauses(params: FaultTemplateCausesParams) {
 export function fetchSubmitFaultTemplate(params: SubmitFaultTemplateParams) {
   return request<SubmitFaultTemplateResponse>({
     url: '/dashboard/warningRecord/submitFaultTemplate',
+    method: 'post',
+    data: params,
+    headers: {}
+  });
+}
+/**
+ * 获取AI算法诊断结果
+ * POST /algorithm/Algorithm/result
+ * @param params 请求参数
+ * @returns 诊断结果
+ */
+export function fetchAlgorithmResult(params: AlgorithmResultParams) {
+  return request<AlgorithmResultResponse>({
+    url: '/algorithm/Algorithm/result',
     method: 'post',
     data: params,
     headers: {}

@@ -1,3 +1,4 @@
+// 单位列表
 import { reactive, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { getCompanyList } from '@/service/api/community/community';
@@ -38,6 +39,8 @@ export function useCompanySelector() {
   const message = useMessage();
   const companyOptions = ref<CompanyOption[]>([]);
   const hasMore = ref(true);
+  const currentPage = ref(1);
+  const pageSize = ref(20);
 
   const loading = reactive({
     companyLoading: false
@@ -47,26 +50,32 @@ export function useCompanySelector() {
     try {
       loading.companyLoading = true;
 
-      const res = await getCompanyList(params);
+      const res = await getCompanyList({
+        ...params,
+        page: params.page || currentPage.value,
+        limit: params.limit || pageSize.value
+      });
       const data = res?.data?.data?.list || [];
-      console.log('ces', data);
+      const total = res?.data?.data?.total || 0;
+      console.log('获取公司列表数据:', data);
 
-      if (params.page === 1) {
-        companyOptions.value = data.map(item => ({
-          label: item.name,
-          value: item.id
-        }));
+      const newItems = data.map((item: any) => ({
+        label: item.name,
+        value: item.id
+      }));
+
+      if (params.page === 1 || !params.page) {
+        companyOptions.value = newItems;
       } else {
-        const newItems = data.map(item => ({
-          label: item.name,
-          value: item.id
-        }));
         companyOptions.value = [...companyOptions.value, ...newItems];
       }
 
-      hasMore.value = data.length >= (params.limit || 100);
+      hasMore.value = companyOptions.value.length < total;
+      if (hasMore.value) {
+        currentPage.value = (params.page || currentPage.value) + 1;
+      }
     } catch (error) {
-      message.error('获取单位列表失败');
+      message.error(`获取单位列表失败${error}`);
       hasMore.value = false;
     } finally {
       loading.companyLoading = false;
@@ -75,10 +84,20 @@ export function useCompanySelector() {
 
   // 搜索
   const handleSearch = (keyword: string) => {
+    currentPage.value = 1;
     fetchCompanyListData({
       search: keyword,
       page: 1,
-      limit: 100
+      limit: pageSize.value
+    });
+  };
+
+  // 加载更多
+  const loadMore = () => {
+    if (!hasMore.value || loading.companyLoading) return;
+    fetchCompanyListData({
+      page: currentPage.value,
+      limit: pageSize.value
     });
   };
 
@@ -86,7 +105,10 @@ export function useCompanySelector() {
     companyOptions,
     loading,
     hasMore,
+    currentPage,
+    pageSize,
     fetchCompanyListData,
-    handleSearch
+    handleSearch,
+    loadMore
   };
 }

@@ -6,6 +6,8 @@ import type {
   CreateMaintenanceScheduleResponse,
   DeletePlanParams,
   DeletePlanResponse,
+  ExportMaintenanceDetailParams,
+  ExportMaintenanceDetailResult,
   GetElevatorSimpleListParams,
   GetElevatorSimpleListResponse,
   GetLatestRecordParams,
@@ -180,5 +182,19 @@ export function updatePlanGroup(data: UpdatePlanGroupParams) {
     url: '/dashboard/schedule/updatePlanGroup',
     method: 'POST',
     data
+  });
+}
+
+/**
+ * 导出维保详情 Word
+ *
+ * @param params - 维保单ID
+ * @returns Word 文件 URL
+ */
+export function exportMaintenanceDetail(params: ExportMaintenanceDetailParams) {
+  return request<ExportMaintenanceDetailResult>({
+    url: '/dashboard/schedule/exportDetail',
+    method: 'get',
+    params // GET 请求使用 params 传递（自动拼接为 URL Query）
   });
 }

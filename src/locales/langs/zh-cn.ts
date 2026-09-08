@@ -226,6 +226,7 @@ const local: App.I18n.Schema = {
     'iframe-page': '外链页面',
     home: '综合监测中心',
     scheduling: '维保排班',
+    annual: '年审排班',
     monitoring: '实时监控',
     management: '档案管理',
     emergency: '急修调度中心',

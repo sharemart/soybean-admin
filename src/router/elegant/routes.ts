@@ -44,6 +44,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'annual',
+    path: '/annual',
+    component: 'layout.base$view.annual',
+    meta: {
+      title: 'annual',
+      i18nKey: 'route.annual'
+    }
+  },
+  {
     name: 'business',
     path: '/business',
     component: 'layout.base',

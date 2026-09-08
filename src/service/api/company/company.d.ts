@@ -32,6 +32,15 @@ export interface GroupSimpleUserItem {
   /** 姓名 */
   realname: string;
 }
+/**
+ * 获取维保小组列表 - 请求参数
+ */
+export interface GetMaintainGroupListParams {
+  /** 公司ID（筛选指定公司的维保小组） */
+  company_id?: number;
+  /** 小组名称（模糊搜索） */
+  name?: string;
+}
 
 /** 维保小组统计单项 */
 export interface MaintainGroupStatItem {

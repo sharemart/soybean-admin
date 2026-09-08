@@ -233,6 +233,9 @@ const handleLeaderAudit = async (pass: number) => {
       emit('refresh');
       auditType.value = '';
       rejectReason.value = '';
+    } else {
+      const errorMsg = data?.msg || '操作失败，请重试';
+      window.$message?.error(errorMsg);
     }
   } catch (err) {
     window.$message?.error(`操作失败${err}`);
