@@ -14,7 +14,12 @@ import {
   Trash2,
   Upload
 } from 'lucide-vue-next';
-import { batchDeleteElevators, deleteElevator, fetchElevatorList } from '@/service/api/component/component';
+import {
+  batchDeleteElevators,
+  deleteElevator,
+  exportElevatorMaintainRecordsZip,
+  fetchElevatorList
+} from '@/service/api/component/component';
 import { useMaintainCompanySelector } from '@/hooks/selectOption/useMaintainCompanySelector';
 import { useVillageSelector } from '@/hooks/selectOption/useCommunitySelector';
 import ElevatorEditModal from '@/components/modal/component/ElevatorEditModal.vue';
@@ -122,6 +127,10 @@ const assets = ref<ElevatorAsset[]>([]);
 const selectedIds = ref<number[]>([]); // ⭐ 改为 number[] 类型
 const isLoading = ref(false);
 const isSyncing = ref(false);
+const exportDialogOpen = ref(false);
+const exportLoading = ref(false);
+const exportYear = ref(new Date().getFullYear());
+const exportAsset = ref<ElevatorAsset | null>(null);
 
 // 弹窗状态
 const editModalOpen = ref(false);
@@ -136,6 +145,10 @@ const totalItems = ref(0);
 
 // 计算属性
 const tableData = computed(() => assets.value);
+const yearOptions = computed(() => {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 8 }, (_, index) => currentYear - 5 + index);
+});
 
 // 获取电梯列表
 const loadElevatorList = async () => {
@@ -333,6 +346,61 @@ const openImportModal = () => {
   importModalOpen.value = true;
 };
 
+const openExportMaintainRecordsDialog = (asset: ElevatorAsset) => {
+  exportAsset.value = asset;
+  exportYear.value = new Date().getFullYear();
+  exportDialogOpen.value = true;
+};
+
+const getDownloadUrl = (fileUrl: string) => {
+  const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+
+  return fileUrl.startsWith('http') ? fileUrl : baseUrl + fileUrl;
+};
+
+const confirmExportMaintainRecords = async () => {
+  const elevatorId = exportAsset.value?.elevator_id;
+
+  if (!elevatorId) {
+    showMessage('缺少电梯ID，无法导出维保记录', 'error');
+    return;
+  }
+
+  try {
+    exportLoading.value = true;
+    const res = await exportElevatorMaintainRecordsZip({
+      elevator_id: elevatorId,
+      year: exportYear.value
+    });
+
+    if (res?.data?.code === 2000) {
+      const fileUrl = res.data.data?.file_url;
+      if (!fileUrl) {
+        showMessage('导出成功，但未返回下载地址', 'error');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = getDownloadUrl(fileUrl);
+      link.download = `维保记录_${exportAsset.value?.elevator_name || elevatorId}_${exportYear.value}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showMessage('维保记录压缩包导出成功');
+      exportDialogOpen.value = false;
+    } else {
+      showMessage(res?.data?.msg || res?.data?.message || '维保记录压缩包导出失败', 'error');
+    }
+  } catch (error) {
+    console.error('维保记录压缩包导出异常:', error);
+    showMessage('导出异常，请稍后重试', 'error');
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
 // 页面跳转
 const navigate = (path: string) => router.push(path);
 
@@ -367,7 +435,7 @@ defineExpose({ OnlineStatus });
           <input
             v-model="searchName"
             type="text"
-            placeholder="搜索电梯名称"
+            placeholder="搜索电梯名称或注册编号"
             class="w-full border border-slate-200 rounded-2xl bg-slate-50 py-2.5 pl-11 pr-4 text-xs font-medium"
             @keydown.enter="handleSearchKeydown"
           />
@@ -457,12 +525,6 @@ defineExpose({ OnlineStatus });
       <div
         class="flex items-center gap-2 border-t border-slate-200 pt-4 xl:border-l xl:border-t-0 dark:border-slate-700 xl:pl-4 xl:pt-0"
       >
-        <button
-          class="rounded-xl bg-slate-50 p-2.5 text-slate-400 transition-colors dark:bg-slate-800 hover:text-sky-500"
-          title="导出设置"
-        >
-          <Download :size="18" />
-        </button>
         <button
           class="rounded-xl bg-slate-50 p-2.5 text-slate-400 transition-all dark:bg-slate-800"
           :class="isSyncing || isLoading ? 'animate-spin text-sky-500' : ''"
@@ -602,6 +664,13 @@ defineExpose({ OnlineStatus });
                     <ExternalLink :size="14" />
                   </button>
                   <button
+                    class="rounded-lg p-2 text-slate-400 transition-all hover:bg-emerald-500 hover:text-white"
+                    title="导出维保记录"
+                    @click="() => openExportMaintainRecordsDialog(asset)"
+                  >
+                    <Download :size="14" />
+                  </button>
+                  <button
                     class="rounded-lg p-2 text-slate-400 transition-all hover:bg-rose-500 hover:text-white"
                     title="删除记录"
                     @click="() => handleDelete(asset)"
@@ -654,6 +723,39 @@ defineExpose({ OnlineStatus });
 
     <!-- 批量导入弹窗 -->
     <BatchImportElevatorModal :show="importModalOpen" @close="importModalOpen = false" @success="loadElevatorList" />
+
+    <NModal
+      v-model:show="exportDialogOpen"
+      class="export-maintain-records-modal"
+      preset="dialog"
+      title="导出维保记录压缩包"
+    >
+      <div class="py-4">
+        <label class="mb-2 block text-xs text-slate-500 font-bold">选择年份</label>
+        <select
+          v-model.number="exportYear"
+          class="w-full border border-slate-200 rounded-xl bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition-colors dark:border-slate-700 focus:border-sky-500 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <option v-for="item in yearOptions" :key="item" :value="item">{{ item }}年</option>
+        </select>
+      </div>
+      <template #action>
+        <button
+          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold dark:border-slate-700"
+          :disabled="exportLoading"
+          @click="exportDialogOpen = false"
+        >
+          取消
+        </button>
+        <button
+          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold disabled:opacity-50"
+          :disabled="exportLoading"
+          @click="confirmExportMaintainRecords"
+        >
+          {{ exportLoading ? '导出中...' : '确认导出' }}
+        </button>
+      </template>
+    </NModal>
   </div>
 </template>
 
@@ -715,5 +817,9 @@ defineExpose({ OnlineStatus });
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #475699;
+}
+
+:global(.export-maintain-records-modal) {
+  width: 420px;
 }
 </style>

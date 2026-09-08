@@ -497,6 +497,27 @@ export interface ExportElevatorResponseData {
  */
 export type ExportElevatorResponse = ApiResponse<ExportElevatorResponseData>;
 
+// ====================== 导出电梯维保记录压缩包 ======================
+/**
+ * 导出电梯维保记录压缩包请求参数
+ */
+export interface ExportElevatorMaintainRecordsZipParams {
+  /** 电梯ID */
+  elevator_id: number;
+  /** 年份，如 2026 */
+  year: number;
+}
+
+/** 导出电梯维保记录压缩包响应数据 */
+export interface ExportElevatorMaintainRecordsZipData {
+  file_url: string;
+}
+
+/**
+ * 导出电梯维保记录压缩包 - 响应体
+ */
+export type ExportElevatorMaintainRecordsZipResponse = ApiResponse<ExportElevatorMaintainRecordsZipData>;
+
 // ====================== 导入电梯数据 ======================
 /**
  * 导入电梯数据请求参数

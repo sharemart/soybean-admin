@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NTag } from 'naive-ui';
+import { NTag, useMessage } from 'naive-ui';
 import {
   Activity,
   AlertCircle,
@@ -11,6 +11,7 @@ import {
   Database,
   DoorClosed,
   DoorOpen,
+  Download,
   Gauge,
   History,
   MapPin,
@@ -24,7 +25,7 @@ import {
   X,
   Zap
 } from 'lucide-vue-next';
-import { fetchElevatorDetail } from '@/service/api/component/component';
+import { exportElevatorMaintainRecordsZip, fetchElevatorDetail } from '@/service/api/component/component';
 import { useLiftMqttSync } from '@/utils/useLiftMqttSync';
 import FaultWidget from '@/components/modal/monitoring/FaultWidget.vue';
 import MaintenanceWidget from '@/components/modal/monitoring/MaintenanceWidget.vue';
@@ -36,6 +37,7 @@ import ElevatorShaftSimulation from '@/components/elevator/ElevatorShaftSimulati
 const router = useRouter();
 const routeId = useRoute().query.id as string;
 const id = ref(routeId);
+const message = useMessage();
 
 const navigateTo = (path: string) => router.push(path);
 
@@ -195,6 +197,67 @@ const closeWidgetModal = () => {
   currentWidgetId.value = null;
 };
 
+const exportDialogOpen = ref(false);
+const exportLoading = ref(false);
+const exportYear = ref(new Date().getFullYear());
+const yearOptions = computed(() => {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 8 }, (_, index) => currentYear - 5 + index);
+});
+
+const openExportMaintainRecordsDialog = () => {
+  exportYear.value = new Date().getFullYear();
+  exportDialogOpen.value = true;
+};
+
+const getDownloadUrl = (fileUrl: string) => {
+  const BASE_URL = import.meta.env.VITE_SERVICE_BASE_URL || '';
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+
+  return fileUrl.startsWith('http') ? fileUrl : baseUrl + fileUrl;
+};
+
+const confirmExportMaintainRecords = async () => {
+  const elevatorId = Number(id.value);
+
+  if (!elevatorId) {
+    message.error('缺少电梯ID，无法导出维保记录');
+    return;
+  }
+
+  try {
+    exportLoading.value = true;
+    const res = await exportElevatorMaintainRecordsZip({
+      elevator_id: elevatorId,
+      year: exportYear.value
+    });
+
+    if (res?.data?.code === 2000) {
+      const fileUrl = res.data.data?.file_url;
+      if (!fileUrl) {
+        message.error('导出成功，但未返回下载地址');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = getDownloadUrl(fileUrl);
+      link.download = `维保记录_${elevatorInfo.value.elevator_name || elevatorId}_${exportYear.value}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      message.success('维保记录压缩包导出成功');
+      exportDialogOpen.value = false;
+    } else {
+      message.error(res?.data?.msg || res?.data?.message || '维保记录压缩包导出失败');
+    }
+  } catch {
+    message.error('导出异常，请稍后重试');
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
 // ===================== 生命周期 =====================
 onMounted(async () => {
   try {
@@ -270,6 +333,13 @@ onUnmounted(() => {
         >
           <Video :size="14" />
           5G 视频救援
+        </button>
+        <button
+          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-emerald-500/20 shadow-lg transition-all lg:flex-none hover:bg-emerald-600"
+          @click="openExportMaintainRecordsDialog"
+        >
+          <Download :size="14" />
+          导出维保记录
         </button>
         <button
           class="border border-slate-200 rounded-2xl bg-white p-2.5 text-slate-400 transition-all dark:border-slate-700 dark:bg-slate-800 hover:text-sky-500"
@@ -554,6 +624,47 @@ onUnmounted(() => {
         </div>
       </div>
     </Teleport>
+
+    <NModal
+      v-model:show="exportDialogOpen"
+      class="export-maintain-records-modal"
+      preset="dialog"
+      title="导出维保记录压缩包"
+    >
+      <div class="py-4">
+        <div class="mb-4 rounded-2xl bg-slate-50 p-4 text-xs text-slate-500 dark:bg-slate-800/60">
+          <div class="mb-1 text-slate-700 font-bold dark:text-slate-200">
+            {{ elevatorInfo.elevator_name || '当前电梯' }}
+          </div>
+          <div>电梯ID：{{ id }}</div>
+          <div v-if="elevatorInfo.elevator_number">电梯编码：{{ elevatorInfo.elevator_number }}</div>
+        </div>
+
+        <label class="mb-2 block text-xs text-slate-500 font-bold">选择年份</label>
+        <select
+          v-model.number="exportYear"
+          class="w-full border border-slate-200 rounded-xl bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition-colors dark:border-slate-700 focus:border-sky-500 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <option v-for="item in yearOptions" :key="item" :value="item">{{ item }}年</option>
+        </select>
+      </div>
+      <template #action>
+        <button
+          class="border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold dark:border-slate-700"
+          :disabled="exportLoading"
+          @click="exportDialogOpen = false"
+        >
+          取消
+        </button>
+        <button
+          class="rounded-xl bg-sky-500 px-6 py-2 text-xs text-white font-bold disabled:opacity-50"
+          :disabled="exportLoading"
+          @click="confirmExportMaintainRecords"
+        >
+          {{ exportLoading ? '导出中...' : '确认导出' }}
+        </button>
+      </template>
+    </NModal>
   </div>
 </template>
 
@@ -622,5 +733,9 @@ onUnmounted(() => {
   50% {
     opacity: 0.5;
   }
+}
+
+:global(.export-maintain-records-modal) {
+  width: 420px;
 }
 </style>

@@ -12,6 +12,8 @@ import type {
   CreateElevatorResponse,
   DeleteElevatorParams,
   DeleteElevatorResponse,
+  ExportElevatorMaintainRecordsZipParams,
+  ExportElevatorMaintainRecordsZipResponse,
   ExportElevatorParams,
   ExportElevatorResponse,
   GetElevatorDetailParams,
@@ -126,6 +128,22 @@ export function exportElevator(params?: ExportElevatorParams) {
     headers: {
       /** 登录令牌 | 格式：Bearer_token值或直接token值 */
       authorization: '' // 实际使用时替换为真实token（如localStorage.getItem('token')）
+    }
+  });
+}
+/**
+ * 按电梯和年份导出维保记录压缩包
+ *
+ * @param params - 导出维保记录压缩包的请求参数
+ * @returns 导出结果（包含压缩包文件URL）
+ */
+export function exportElevatorMaintainRecordsZip(params: ExportElevatorMaintainRecordsZipParams) {
+  return request<ExportElevatorMaintainRecordsZipResponse>({
+    url: '/dashboard/elevator/exportMaintainRecords',
+    method: 'post',
+    data: params,
+    headers: {
+      authorization: ''
     }
   });
 }
