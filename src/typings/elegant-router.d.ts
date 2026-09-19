@@ -26,6 +26,7 @@ declare module "@elegant-router/types" {
     "business_report": "/business/report";
     "custom": "/custom";
     "custom_workbench": "/custom/workbench";
+    "dashboard": "/dashboard";
     "emergency": "/emergency";
     "historical": "/historical";
     "home": "/home";
@@ -52,6 +53,7 @@ declare module "@elegant-router/types" {
     "scheduling": "/scheduling";
     "system": "/system";
     "system_customworkbench": "/system/customworkbench";
+    "system_maintainparams": "/system/maintainparams";
     "system_menu": "/system/menu";
     "system_operations": "/system/operations";
     "system_person": "/system/person";
@@ -94,6 +96,7 @@ declare module "@elegant-router/types" {
     | "annual"
     | "business"
     | "custom"
+    | "dashboard"
     | "emergency"
     | "historical"
     | "home"
@@ -121,6 +124,7 @@ declare module "@elegant-router/types" {
    */
   export type LastLevelRouteKey = Extract<
     RouteKey,
+    | "dashboard"
     | "workbench"
     | "403"
     | "404"
@@ -153,6 +157,7 @@ declare module "@elegant-router/types" {
     | "safetysystem_weeklycontrol"
     | "scheduling"
     | "system_customworkbench"
+    | "system_maintainparams"
     | "system_menu"
     | "system_operations"
     | "system_person"

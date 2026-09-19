@@ -92,12 +92,20 @@ const localFormData = reactive<Record<string, any>>({
   // 日期字段 - 使用时间戳（NDatePicker 需要）
   make_time: null as number | null,
   installs_time: null as number | null,
-  contract_start_time: null as number | null
+  contract_start_time: null as number | null,
+
+  // 维特系统专用
+  wit_device_key: ''
 });
 
 // 判断是否为扶梯或人行道
 const isEscalatorOrWalkway = computed(() => {
   return localFormData.variety === 9 || localFormData.variety === 10;
+});
+
+// 判断是否为维特系统
+const isWitSystem = computed(() => {
+  return localFormData.system === 4;
 });
 
 // 监听品种变化，自动设置扶梯默认值
@@ -156,7 +164,8 @@ watch(
       'station',
       'factory_code',
       'certificate_code',
-      'ce_img'
+      'ce_img',
+      'wit_device_key'
     ];
     stringFields.forEach(field => {
       data[field] = toSafeString(newVal[field]);
@@ -251,7 +260,10 @@ watch(
       // 日期字段 - 时间戳转字符串
       make_time: toDateString(localFormData.make_time),
       installs_time: toDateString(localFormData.installs_time),
-      contract_start_time: toDateString(localFormData.contract_start_time)
+      contract_start_time: toDateString(localFormData.contract_start_time),
+
+      // 维特系统专用
+      wit_device_key: localFormData.wit_device_key
     };
 
     emit('update:formData', syncData);
@@ -430,6 +442,21 @@ onMounted(() => {
             v-model:value="localFormData.system"
             :options="systemOptions"
             clearable
+            class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+          />
+        </div>
+
+        <!-- 维特系统 IMEI（system=4 时显示） -->
+        <div v-if="isWitSystem" class="space-y-1.5">
+          <div class="flex items-center justify-between pl-1">
+            <label class="flex items-center gap-1.5 text-[10px] text-slate-400 font-black tracking-widest uppercase">
+              <span class="text-rose-500">*</span>
+              维特IMEI
+            </label>
+          </div>
+          <NInput
+            v-model:value="localFormData.wit_device_key"
+            placeholder="请输入维特IMEI"
             class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
           />
         </div>

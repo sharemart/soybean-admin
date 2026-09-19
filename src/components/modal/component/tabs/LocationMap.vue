@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { nextTick, onUnmounted, reactive, ref, watch } from 'vue';
 import { NButton, NInput, NSelect, useMessage } from 'naive-ui';
 import { Map, RefreshCw, Search } from 'lucide-vue-next';
 import { useAreaSelector } from '@/utils/composables/useAreaSelector';
@@ -120,7 +120,6 @@ const loadTMapScript = () => {
   });
 };
 
-// 【修复】地图初始化（核心修复）
 const initMap = async () => {
   if (mapInited.value || !mapContainer.value) return;
   await nextTick();

@@ -15,6 +15,7 @@ export const layouts: Record<RouteLayout, RouteComponent | (() => Promise<RouteC
 };
 
 export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<RouteComponent>)> = {
+  dashboard: () => import("@/views/Dashboard/index.vue"),
   workbench: () => import("@/views/Workbench/index.vue"),
   403: () => import("@/views/_builtin/403/index.vue"),
   404: () => import("@/views/_builtin/404/index.vue"),
@@ -47,6 +48,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   safetysystem_weeklycontrol: () => import("@/views/safetySystem/weeklyControl/index.vue"),
   scheduling: () => import("@/views/scheduling/index.vue"),
   system_customworkbench: () => import("@/views/system/customWorkbench/index.vue"),
+  system_maintainparams: () => import("@/views/system/maintainParams/index.vue"),
   system_menu: () => import("@/views/system/menu/index.vue"),
   system_operations: () => import("@/views/system/operations/index.vue"),
   system_person: () => import("@/views/system/person/index.vue"),

@@ -156,7 +156,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
           realname: loginResponse.data.realname || '',
           roleId: loginResponse.data.role_id || Date.now().toString(), // 存储角色ID
           roles: [],
-          buttons: []
+          buttons: [],
+          company_type: loginResponse.data.company_type || '',
+          company_id: loginResponse.data.company_id || ''
         };
         Object.assign(userInfo, user);
         localStg.set('userInfo', user);

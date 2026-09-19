@@ -109,6 +109,19 @@ export const generatedRoutes: GeneratedRoute[] = [
     ]
   },
   {
+    name: 'dashboard',
+    path: '/dashboard',
+    component: 'layout.blank$view.dashboard',
+    meta: {
+      title: 'dashboard',
+      i18nKey: 'route.dashboard',
+      constant: true,
+      hideInMenu: true,
+      fullScreen: true,
+      keepAlive: false
+    }
+  },
+  {
     name: 'emergency',
     path: '/emergency',
     component: 'layout.base$view.emergency',
@@ -394,6 +407,17 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'system_customworkbench',
           i18nKey: 'route.system_customworkbench'
+        }
+      },
+      {
+        name: 'system_maintainparams',
+        path: '/system/maintainparams',
+        component: 'view.system_maintainparams',
+        meta: {
+          title: 'system_maintainparams',
+          i18nKey: 'route.system_maintainparams',
+          icon: 'mdi:cog-clockwise',
+          keepAlive: true
         }
       },
       {

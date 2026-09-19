@@ -245,9 +245,11 @@ const local: App.I18n.Schema = {
     system_operations: '维保标准配置',
     system_menu: '菜单管理',
     system_customworkbench: '自定义工作台',
+    system_maintainparams: '维保参数管理',
     monitoring_demo: '实时监控演示',
     monitoring_detail: '实时监控详情',
     workbench: '工作台首页',
+    dashboard: '可视化大屏',
     historical: '历史通知中心',
     safetysystem: '安全责任体系',
     safetysystem_checklist: '风险管控清单',
@@ -256,7 +258,18 @@ const local: App.I18n.Schema = {
     safetysystem_monthcontrol: '月管控',
     safetysystem_weeklycontrol: '周管控',
     safetysystem_archive: '归档',
-    safetysystem_training: '培训与考核'
+    safetysystem_training: '培训与考核',
+    safety_compliance: '74号令合规',
+    safety_personnel: '安全人员',
+    safety_checklist: '安全检查清单',
+    safety_daily: '安全日管控',
+    safety_hazard: '隐患排查',
+    safety_weekly: '安全周管控',
+    safety_monthly: '安全月管控',
+    safety_training: '安全培训',
+    safety_archive: '安全归档',
+    management_community_detail: '小区详情',
+    system_maintenance_param: '维保参数管理'
   },
   page: {
     login: {

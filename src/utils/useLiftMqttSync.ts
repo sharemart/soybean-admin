@@ -6,6 +6,7 @@ type LiftInfoLike = {
   system?: number;
   elevatorNumber?: string | number;
   registerCode?: string;
+  wit_device_key?: string;
 };
 
 type RunInfoLike = Record<string, any>;
@@ -176,9 +177,9 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
   };
 
   // 计算订阅主题（提取公共逻辑）
-  const getTopic = (system: number, elevatorNumber: string | number, registerCode: string) => {
+  const getTopic = (system: number, elevatorNumber: string | number, registerCode: string, witDeviceKey: string) => {
     if (system === 1) return `monitor/view/${elevatorNumber}`;
-    if (system === 4) return `wit/realtime/862323089242419/up`;
+    if (system === 4) return `wit/realtime/${witDeviceKey}/up`;
     return `status/${registerCode}`;
   };
 
@@ -215,15 +216,23 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
     const system = Number(currentLift.system ?? 3);
     const registerCode = currentLift.registerCode;
     const elevatorNumber = currentLift.elevatorNumber;
+    const witDeviceKey = currentLift.wit_device_key ?? '';
 
-    if (system !== 1 && !registerCode) {
+    if (system !== 1 && system !== 4 && !registerCode) {
       console.warn('[MQTT] 缺少 registerCode，无法连接');
       isConnecting = false;
       client = null;
       return;
     }
 
-    const topic = getTopic(system, elevatorNumber, registerCode);
+    if (system === 4 && !witDeviceKey) {
+      console.warn('[MQTT] 缺少 wit_device_key，无法连接');
+      isConnecting = false;
+      client = null;
+      return;
+    }
+
+    const topic = getTopic(system, elevatorNumber, registerCode, witDeviceKey);
 
     // 心跳
     const publishPageAccess = (code: '10' | '30') => {

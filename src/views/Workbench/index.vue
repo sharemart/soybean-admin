@@ -21,6 +21,7 @@ import {
   DatabaseZap,
   GitBranch,
   LayoutGrid,
+  MonitorDot,
   Play,
   Settings,
   Shield,
@@ -35,6 +36,11 @@ import { getMyWorkbench } from '@/service/api/menu/menu';
 import { getSoybeanMenus } from '@/service/api/menu/menuApi';
 
 const router = useRouter();
+
+const goToVisualDashboard = async () => {
+  await document.documentElement.requestFullscreen?.();
+  router.push('/dashboard');
+};
 
 // 时钟
 const currentTime = ref('');
@@ -240,9 +246,19 @@ const goToPage = (path: string) => path && router.push(path);
             </div>
           </div>
 
-          <div class="rounded-xl bg-white/50 px-6 py-3 text-center backdrop-blur-sm dark:bg-slate-800/50">
-            <p class="text-xs text-gray-500 font-medium dark:text-gray-400">系统时间</p>
-            <p class="text-2xl text-gray-800 font-bold font-mono md:text-3xl dark:text-white">{{ currentTime }}</p>
+          <div class="flex items-center gap-4">
+            <div class="rounded-xl bg-white/50 px-6 py-3 text-center backdrop-blur-sm dark:bg-slate-800/50">
+              <p class="text-xs text-gray-500 font-medium dark:text-gray-400">系统时间</p>
+              <p class="text-2xl text-gray-800 font-bold font-mono md:text-3xl dark:text-white">{{ currentTime }}</p>
+            </div>
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm text-white font-semibold shadow-lg transition-all dark:bg-sky-500 hover:bg-sky-600 dark:text-slate-950 hover:shadow-sky-500/30 dark:hover:bg-sky-400"
+              @click="goToVisualDashboard"
+            >
+              <MonitorDot :size="18" />
+              可视化大屏
+            </button>
           </div>
         </div>
       </div>

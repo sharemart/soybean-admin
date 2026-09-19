@@ -201,7 +201,8 @@ const createElevatorMqtt = (item: any) => {
   const liftInfo = ref({
     system: 3,
     elevatorNumber: item.elevator_number || '',
-    registerCode: item.register_code || ''
+    registerCode: item.register_code || '',
+    wit_device_key: ''
   });
   const runInfo = ref({});
   const { connect, disconnect } = useLiftMqttSync({ liftInfo, runInfo });

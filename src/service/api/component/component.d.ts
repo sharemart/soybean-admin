@@ -141,6 +141,7 @@ export interface ElevatorDetailItem {
   elevator_phone: number;
   system: string;
   inverter: string;
+  wit_device_key: string;
 
   // ========== 扶梯/人行道专用字段 ==========
   nominal_speed?: number;
@@ -227,6 +228,7 @@ export interface CreateElevatorParams {
   elevator_phone: number;
   system: string;
   inverter: string;
+  wit_device_key: string;
   station: number;
   speed: number;
   load: number;
@@ -324,6 +326,7 @@ export interface UpdateElevatorParams {
   elevator_phone: number;
   system: string;
   inverter: string;
+  wit_device_key: string;
   station: string;
   speed: number;
   load: number;

@@ -120,6 +120,7 @@ const defaultFormData = {
   certificate_code: '',
   ce_img: '',
   register_authority: '',
+  wit_device_key: '',
 
   // 数组类型
   parts: [],
@@ -175,7 +176,8 @@ const getChangedFields = (): Record<string, any> => {
     'latitude',
     'register_authority',
     'install_company',
-    'transform_company'
+    'transform_company',
+    'wit_device_key'
   ];
   stringFields.forEach(field => {
     const key = field as keyof typeof defaultFormData;
@@ -304,6 +306,7 @@ const loadElevatorDetail = async (id: number) => {
         certificate_code: toString(data.certificate_code),
         ce_img: toString(data.ce_img),
         register_authority: toString((data as any).register_authority),
+        wit_device_key: toString((data as any).wit_device_key),
         parts: (data as any).parts || [],
         floors: (data as any).floors || []
       };
@@ -366,7 +369,8 @@ const buildBaseSubmitData = () => {
     nominal_speed: getNumberValue(formData.nominal_speed),
     nominal_width: getNumberValue(formData.nominal_width),
     tilt_angle: getNumberValue(formData.tilt_angle),
-    lift_length: getNumberValue(formData.lift_length)
+    lift_length: getNumberValue(formData.lift_length),
+    wit_device_key: getStringValue(formData.wit_device_key)
   };
 };
 

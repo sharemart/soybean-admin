@@ -48,7 +48,8 @@ const runInfo = ref<Record<string, any>>({});
 const liftInfo = ref({
   system: 3,
   elevatorNumber: '',
-  registerCode: ''
+  registerCode: '',
+  wit_device_key: ''
 });
 
 // ===================== MQTT 连接 =====================
@@ -270,6 +271,7 @@ onMounted(async () => {
       liftInfo.value.system = elevatorInfo.value.system ?? 3;
       liftInfo.value.elevatorNumber = elevatorInfo.value.elevator_number ?? '';
       liftInfo.value.registerCode = elevatorInfo.value.register_code ?? '';
+      liftInfo.value.wit_device_key = elevatorInfo.value.wit_device_key ?? '';
       connect();
     }
   } catch (err) {
