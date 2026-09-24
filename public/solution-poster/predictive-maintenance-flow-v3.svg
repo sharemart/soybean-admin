@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1536" height="1024" viewBox="0 0 1536 1024">
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#139cf4"/>
+      <stop offset="1" stop-color="#0056cf"/>
+    </linearGradient>
+    <linearGradient id="light" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f4fcff"/>
+      <stop offset="1" stop-color="#d9f2ff"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0759b9"/>
+      <stop offset="1" stop-color="#00245d"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#1466ae" flood-opacity=".18"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <clipPath id="top"><rect width="1536" height="158"/></clipPath>
+    <clipPath id="bottom"><rect y="780" width="1536" height="244"/></clipPath>
+    <clipPath id="machine"><rect x="26" y="282" width="278" height="356" rx="16"/></clipPath>
+    <clipPath id="worker"><rect x="1242" y="286" width="260" height="330" rx="16"/></clipPath>
+    <clipPath id="phone"><rect x="1012" y="256" width="170" height="365" rx="18"/></clipPath>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10Z" fill="#0b8dec"/>
+    </marker>
+    <style>
+      .cn { font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; }
+      .tag { fill: #0758bb; font-size: 17px; font-weight: 700; }
+      .mini { fill: #236293; font-size: 14px; font-weight: 600; }
+      .fine { fill: #4b7da6; font-size: 12px; font-weight: 500; }
+    </style>
+  </defs>
+
+  <!-- Retained artwork: original brand header and scheme-advantages footer. -->
+  <rect width="1536" height="1024" fill="#fff"/>
+  <image xlink:href="reference-poster-v3.png" width="1536" height="1024" clip-path="url(#top)"/>
+  <image xlink:href="reference-poster-v3.png" width="1536" height="1024" clip-path="url(#bottom)"/>
+
+  <!-- One continuous process canvas. -->
+  <rect y="158" width="1536" height="622" fill="#fbfeff"/>
+  <path d="M0 195 C222 156 414 189 599 168 C847 140 1160 166 1536 200 V780 H0Z" fill="#f6fcff"/>
+  <ellipse cx="762" cy="495" rx="478" ry="186" fill="#e9f8ff" opacity=".72"/>
+  <path d="M34 704 C290 651 546 751 775 698 C1035 637 1284 683 1504 726" fill="none" stroke="#d5efff" stroke-width="31" opacity=".86"/>
+
+  <!-- Large flow line, deliberately continuous instead of boxed stages. -->
+  <path d="M286 479 C352 479 369 441 432 441 S519 482 579 482 S663 418 733 418 S856 456 928 456 S971 405 1014 405 S1198 466 1244 466"
+        fill="none" stroke="#9bdcff" stroke-width="12" stroke-linecap="round" opacity=".72"/>
+  <path d="M286 479 C352 479 369 441 432 441 S519 482 579 482 S663 418 733 418 S856 456 928 456 S971 405 1014 405 S1198 466 1244 466"
+        fill="none" stroke="#0b8dec" stroke-width="4" stroke-linecap="round" stroke-dasharray="7 10" marker-end="url(#arrow)"/>
+
+  <!-- Equipment installation photo: retained original image. -->
+  <g filter="url(#shadow)">
+    <rect x="18" y="274" width="294" height="372" rx="18" fill="white" stroke="#b6e5ff"/>
+    <svg x="26" y="282" width="278" height="356" viewBox="0 400 300 350" preserveAspectRatio="xMidYMid slice">
+      <image xlink:href="reference-poster-v3.png" width="1536" height="1024"/>
+    </svg>
+    <rect x="41" y="294" width="150" height="38" rx="19" fill="url(#blue)"/>
+    <circle cx="63" cy="313" r="10" fill="white"/>
+    <path d="M58 313 l4 4 7 -9" fill="none" stroke="#0987e7" stroke-width="2"/>
+    <text x="81" y="319" class="cn" fill="white" font-size="15" font-weight="700">监测设备</text>
+  </g>
+  <text x="84" y="679" class="cn tag">电梯现场采集</text>
+  <text x="63" y="703" class="cn fine">振动 · 声音 · 运行状态</text>
+
+  <!-- Sensor and 4G signal form a visual bridge. -->
+  <g transform="translate(320 359)" filter="url(#shadow)">
+    <circle cx="75" cy="97" r="71" fill="url(#light)" stroke="#bfe8ff"/>
+    <rect x="54" y="81" width="42" height="37" rx="7" fill="#174467"/>
+    <circle cx="75" cy="99" r="9" fill="#ffb71a"/>
+    <path d="M51 72 C65 57 85 57 99 72 M43 61 C62 41 88 41 107 61" fill="none" stroke="#118deb" stroke-width="4" stroke-linecap="round"/>
+    <path d="M75 148 V194 M75 148 L48 191 M75 148 L102 191 M44 195 H106" fill="none" stroke="#087fdf" stroke-width="4" stroke-linecap="round"/>
+    <path d="M48 190 L56 198 M102 190 L94 198" stroke="#087fdf" stroke-width="4" stroke-linecap="round"/>
+    <text x="53" y="224" class="cn mini">4G 信号</text>
+  </g>
+
+  <!-- Cloud / algorithm focal point. -->
+  <g transform="translate(531 248)" filter="url(#shadow)">
+    <path d="M52 172 C17 172 10 126 38 111 C23 68 74 44 104 70 C128 29 192 43 200 88 C236 89 248 145 212 163 C200 169 191 172 179 172Z"
+          fill="url(#blue)"/>
+    <path d="M52 172 C17 172 10 126 38 111 C23 68 74 44 104 70 C128 29 192 43 200 88 C236 89 248 145 212 163 C200 169 191 172 179 172Z"
+          fill="none" stroke="#66c8ff" stroke-width="2"/>
+    <text x="67" y="121" class="cn" fill="white" font-size="21" font-weight="700">AI 算法平台</text>
+    <text x="91" y="145" class="cn" fill="#ccefff" font-size="13">实时诊断</text>
+    <circle cx="48" cy="122" r="5" fill="#83e1ff"/><circle cx="222" cy="139" r="5" fill="#83e1ff"/>
+  </g>
+
+  <!-- Central health dashboard, linked to cloud above. -->
+  <g filter="url(#shadow)">
+    <rect x="555" y="424" width="350" height="232" rx="16" fill="url(#screen)" stroke="#2fa8fa" stroke-width="2"/>
+    <text x="580" y="453" class="cn" fill="white" font-size="17" font-weight="700">设备健康诊断</text>
+    <rect x="577" y="472" width="118" height="140" rx="9" fill="#04468f"/>
+    <text x="591" y="496" class="cn" fill="#bde8ff" font-size="12">多维数据分析</text>
+    <path d="M592 531 C603 512 613 552 625 527 S646 511 658 536 S674 548 684 519" fill="none" stroke="#24c8e9" stroke-width="3"/>
+    <path d="M592 568 C602 558 612 578 624 563 S651 553 684 570" fill="none" stroke="#ffb921" stroke-width="3"/>
+    <circle cx="596" cy="593" r="4" fill="#21bc70"/><text x="607" y="598" class="cn" fill="#c5ecff" font-size="12">实时状态</text>
+    <path d="M733 494 L775 470 L817 494 V564 L775 588 L733 564Z" fill="#147fce"/>
+    <path d="M775 470 V588 M733 494 L775 518 L817 494" stroke="#a8ecff" stroke-width="2"/>
+    <rect x="836" y="474" width="48" height="23" rx="11" fill="#14b66c"/>
+    <text x="848" y="491" class="cn" fill="white" font-size="11">正常</text>
+    <rect x="836" y="513" width="48" height="23" rx="11" fill="#ffae1b"/>
+    <text x="848" y="530" class="cn" fill="white" font-size="11">预警</text>
+    <rect x="836" y="552" width="48" height="23" rx="11" fill="#14b66c"/>
+    <text x="848" y="569" class="cn" fill="white" font-size="11">正常</text>
+  </g>
+  <path d="M733 417 C733 398 741 387 752 380" fill="none" stroke="#0b8dec" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <!-- Smartphone uses the provided actual alert screen. -->
+  <g filter="url(#shadow)">
+    <rect x="992" y="237" width="210" height="403" rx="30" fill="#102744"/>
+    <rect x="1000" y="246" width="194" height="385" rx="24" fill="white"/>
+    <image xlink:href="warning-detail-v3.jpg" x="1012" y="256" width="170" height="365" preserveAspectRatio="xMidYMin slice" clip-path="url(#phone)"/>
+    <circle cx="1097" cy="250" r="3.5" fill="#8da2b8"/>
+    <rect x="1059" y="650" width="79" height="30" rx="15" fill="#e8f7ff"/>
+    <text x="1073" y="670" class="cn mini">预警推送</text>
+  </g>
+
+  <!-- Maintenance photo: retained original image. -->
+  <g filter="url(#shadow)">
+    <rect x="1234" y="278" width="276" height="346" rx="18" fill="white" stroke="#b6e5ff"/>
+    <svg x="1242" y="286" width="260" height="330" viewBox="1240 286 285 310" preserveAspectRatio="xMidYMid slice">
+      <image xlink:href="reference-poster-v3.png" width="1536" height="1024"/>
+    </svg>
+    <rect x="1250" y="566" width="156" height="35" rx="17" fill="url(#blue)" opacity=".95"/>
+    <path d="M1266 584 l5 5 9 -11" fill="none" stroke="white" stroke-width="2.5"/>
+    <text x="1288" y="590" class="cn" fill="white" font-size="14" font-weight="700">精准维保闭环</text>
+  </g>
+  <text x="1272" y="671" class="cn tag">现场处置完成</text>
+  <text x="1263" y="695" class="cn fine">风险提前发现 · 维保更精准</text>
+
+  <!-- Minimal small labels strengthen orientation without reintroducing a five-step list. -->
+  <g>
+    <rect x="292" y="184" width="119" height="30" rx="15" fill="#e9f7ff"/><text x="318" y="205" class="cn mini">采集数据</text>
+    <rect x="660" y="184" width="120" height="30" rx="15" fill="#e9f7ff"/><text x="686" y="205" class="cn mini">智能分析</text>
+    <rect x="1038" y="184" width="120" height="30" rx="15" fill="#e9f7ff"/><text x="1064" y="205" class="cn mini">移动预警</text>
+  </g>
+</svg>

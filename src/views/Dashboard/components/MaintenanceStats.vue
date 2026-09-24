@@ -539,7 +539,7 @@ defineExpose({ refresh: loadData });
 }
 .metric-card small {
   display: block;
-  color: #7189a7;
+  color: #a5c0db;
   font-size: 9px;
   line-height: 1;
 }
@@ -551,7 +551,7 @@ defineExpose({ refresh: loadData });
   line-height: 1;
 }
 .metric-card em {
-  color: #87a0bc;
+  color: #9bb5cf;
   font-size: 9px;
   font-style: normal;
   margin-left: 1px;

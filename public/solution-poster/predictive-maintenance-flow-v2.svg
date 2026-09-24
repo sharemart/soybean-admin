@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1536" height="1024" viewBox="0 0 1536 1024">
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0879e8"/>
+      <stop offset="1" stop-color="#0054c7"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#effaff"/>
+      <stop offset="1" stop-color="#d4efff"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#003d91"/>
+      <stop offset="1" stop-color="#001a55"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0757a7" flood-opacity=".18"/>
+    </filter>
+    <clipPath id="topClip"><rect width="1536" height="158"/></clipPath>
+    <clipPath id="bottomClip"><rect y="780" width="1536" height="244"/></clipPath>
+    <clipPath id="photoOne"><rect x="25" y="294" width="258" height="316" rx="14"/></clipPath>
+    <clipPath id="photoFive"><rect x="1256" y="294" width="258" height="316" rx="14"/></clipPath>
+    <clipPath id="phoneClip"><rect x="1014" y="280" width="154" height="325" rx="18"/></clipPath>
+    <style>
+      .cn { font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; }
+      .title { fill: #073f91; font-size: 21px; font-weight: 700; }
+      .body { fill: #234b78; font-size: 14px; font-weight: 500; }
+      .small { fill: #3970a2; font-size: 12px; font-weight: 500; }
+      .step { fill: white; font-size: 27px; font-weight: 800; }
+      .pill { fill: white; font-size: 15px; font-weight: 700; }
+      .caption { fill: #0d5fc2; font-size: 13px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- Preserve original header and benefits/footer artwork. -->
+  <rect width="1536" height="1024" fill="#fff"/>
+  <image xlink:href="reference-poster.png" width="1536" height="1024" clip-path="url(#topClip)"/>
+  <image xlink:href="reference-poster.png" width="1536" height="1024" clip-path="url(#bottomClip)"/>
+
+  <rect y="158" width="1536" height="622" fill="#fff"/>
+  <path d="M0 175 C250 145 440 183 662 160 S1120 156 1536 180 L1536 780 L0 780Z" fill="#f8fcff"/>
+  <path d="M30 758 C310 700 522 765 778 722 S1222 698 1505 745" fill="none" stroke="#d7efff" stroke-width="30" opacity=".8"/>
+
+  <!-- connectors -->
+  <path d="M289 462 H315 M594 462 H620 M901 462 H927 M1207 462 H1233" stroke="#23a8f5" stroke-width="4" stroke-dasharray="6 8"/>
+  <path d="M303 451 l14 11 -14 11 M608 451 l14 11 -14 11 M915 451 l14 11 -14 11 M1221 451 l14 11 -14 11" fill="none" stroke="#1687e8" stroke-width="4"/>
+
+  <!-- Step 1: sensor installed in elevator machine room -->
+  <g filter="url(#shadow)">
+    <rect x="15" y="184" width="280" height="520" rx="16" fill="white" stroke="#b9e4ff"/>
+    <rect x="28" y="197" width="254" height="45" rx="22" fill="url(#blue)"/>
+    <circle cx="51" cy="220" r="22" fill="#0868d7" stroke="white" stroke-width="3"/>
+    <text x="43" y="230" class="cn step">1</text>
+    <text x="84" y="226" class="cn pill">安装监测设备</text>
+    <svg x="25" y="268" width="258" height="316" viewBox="0 318 300 398" preserveAspectRatio="xMidYMid slice">
+      <image xlink:href="reference-poster.png" width="1536" height="1024"/>
+    </svg>
+    <rect x="43" y="541" width="167" height="40" rx="8" fill="#0877dc" opacity=".94"/>
+    <text x="56" y="565" class="cn" fill="white" font-size="14" font-weight="700">监测盒固定在曳引机旁</text>
+    <text x="31" y="622" class="cn title">实物安装</text>
+    <text x="31" y="648" class="cn body">适配电梯机房与井道设备</text>
+    <text x="31" y="673" class="cn small">振动、声音传感器同步就位</text>
+  </g>
+
+  <!-- Step 2: live data collection -->
+  <g filter="url(#shadow)">
+    <rect x="315" y="184" width="280" height="520" rx="16" fill="white" stroke="#b9e4ff"/>
+    <rect x="328" y="197" width="254" height="45" rx="22" fill="url(#blue)"/>
+    <circle cx="351" cy="220" r="22" fill="#0868d7" stroke="white" stroke-width="3"/>
+    <text x="343" y="230" class="cn step">2</text>
+    <text x="384" y="226" class="cn pill">采集电梯运行数据</text>
+    <rect x="337" y="268" width="236" height="316" rx="13" fill="url(#cyan)"/>
+    <rect x="368" y="315" width="73" height="170" rx="5" fill="#a8bdca" stroke="#5d7d97" stroke-width="3"/>
+    <path d="M383 324 V474 M404 324 V474 M425 324 V474" stroke="#eaf5fc" stroke-width="4"/>
+    <rect x="380" y="392" width="48" height="42" rx="5" fill="#233c52"/>
+    <circle cx="404" cy="413" r="11" fill="#ffba17"/>
+    <path d="M457 354 C475 342 495 342 513 354 M457 372 C475 360 495 360 513 372 M457 390 C475 378 495 378 513 390" fill="none" stroke="#128bed" stroke-width="4"/>
+    <circle cx="454" cy="405" r="6" fill="#19b36b"/>
+    <path d="M462 412 C486 412 497 431 519 431" fill="none" stroke="#1687e8" stroke-width="3" stroke-dasharray="4 5"/>
+    <rect x="471" y="440" width="73" height="73" rx="36" fill="#e5f5ff"/>
+    <path d="M495 479 V452 M510 479 V446 M525 479 V456 M489 480 H530" stroke="#0879e8" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="495" cy="450" r="5" fill="#18af69"/><circle cx="510" cy="444" r="5" fill="#18af69"/><circle cx="525" cy="454" r="5" fill="#18af69"/>
+    <text x="349" y="622" class="cn title">设备实时采集</text>
+    <text x="349" y="648" class="cn body">振动、噪声与运行状态</text>
+    <text x="349" y="673" class="cn small">4G 传输至云端算法平台</text>
+  </g>
+
+  <!-- Step 3: algorithm diagnosis -->
+  <g filter="url(#shadow)">
+    <rect x="615" y="184" width="280" height="520" rx="16" fill="white" stroke="#b9e4ff"/>
+    <rect x="628" y="197" width="254" height="45" rx="22" fill="url(#blue)"/>
+    <circle cx="651" cy="220" r="22" fill="#0868d7" stroke="white" stroke-width="3"/>
+    <text x="643" y="230" class="cn step">3</text>
+    <text x="684" y="226" class="cn pill">算法分析设备状态</text>
+    <rect x="637" y="268" width="236" height="316" rx="13" fill="url(#screen)"/>
+    <text x="654" y="294" class="cn" fill="white" font-size="14" font-weight="700">设备健康诊断</text>
+    <rect x="652" y="309" width="92" height="105" rx="7" fill="#064c9b"/>
+    <path d="M662 338 H733 M662 363 H733 M662 388 H733" stroke="#197dd0" stroke-width="1"/>
+    <path d="M663 340 C676 315 682 372 692 348 S709 331 721 359 S730 365 736 338" fill="none" stroke="#28c6ed" stroke-width="2"/>
+    <path d="M663 389 C674 377 684 397 694 381 S713 374 733 387" fill="none" stroke="#ffbc32" stroke-width="2"/>
+    <rect x="757" y="310" width="96" height="205" rx="7" fill="#064c9b"/>
+    <text x="767" y="337" class="cn" fill="#b9e6ff" font-size="12">曳引机</text>
+    <rect x="812" y="322" width="30" height="17" rx="8" fill="#18ae69"/>
+    <text x="817" y="335" class="cn" fill="white" font-size="10">正常</text>
+    <text x="767" y="374" class="cn" fill="#b9e6ff" font-size="12">制动器</text>
+    <rect x="812" y="359" width="30" height="17" rx="8" fill="#f6a71c"/>
+    <text x="817" y="372" class="cn" fill="white" font-size="10">预警</text>
+    <text x="767" y="411" class="cn" fill="#b9e6ff" font-size="12">门机</text>
+    <rect x="812" y="396" width="30" height="17" rx="8" fill="#18ae69"/>
+    <text x="817" y="409" class="cn" fill="white" font-size="10">正常</text>
+    <path d="M693 441 L727 421 L760 441 V500 L727 519 L693 500Z" fill="#0e8fdc" opacity=".7"/>
+    <path d="M727 421 V519 M693 441 L727 462 L760 441" stroke="#a5eaff" stroke-width="2"/>
+    <text x="649" y="622" class="cn title">云端智能诊断</text>
+    <text x="649" y="648" class="cn body">算法比对多维运行特征</text>
+    <text x="649" y="673" class="cn small">识别异常并生成故障预警</text>
+  </g>
+
+  <!-- Step 4: actual mobile warning interface -->
+  <g filter="url(#shadow)">
+    <rect x="915" y="184" width="280" height="520" rx="16" fill="white" stroke="#b9e4ff"/>
+    <rect x="928" y="197" width="254" height="45" rx="22" fill="url(#blue)"/>
+    <circle cx="951" cy="220" r="22" fill="#0868d7" stroke="white" stroke-width="3"/>
+    <text x="943" y="230" class="cn step">4</text>
+    <text x="984" y="226" class="cn pill">预警结果推送维保人员</text>
+    <rect x="1001" y="263" width="180" height="348" rx="24" fill="#102642"/>
+    <rect x="1008" y="271" width="166" height="332" rx="18" fill="white"/>
+    <image xlink:href="warning-detail-reference.jpg" x="1014" y="280" width="154" height="325" preserveAspectRatio="xMidYMin slice" clip-path="url(#phoneClip)"/>
+    <circle cx="1090" cy="272" r="3" fill="#65748b"/>
+    <text x="948" y="637" class="cn title">移动端即时触达</text>
+    <text x="948" y="663" class="cn body">真实预警详情与诊断曲线</text>
+    <text x="948" y="684" class="cn small">维保人员直接查看并处置</text>
+  </g>
+
+  <!-- Step 5: maintenance completion -->
+  <g filter="url(#shadow)">
+    <rect x="1215" y="184" width="306" height="520" rx="16" fill="white" stroke="#b9e4ff"/>
+    <rect x="1228" y="197" width="280" height="45" rx="22" fill="url(#blue)"/>
+    <circle cx="1251" cy="220" r="22" fill="#0868d7" stroke="white" stroke-width="3"/>
+    <text x="1243" y="230" class="cn step">5</text>
+    <text x="1284" y="226" class="cn pill">实现精准预测维保</text>
+    <svg x="1239" y="268" width="258" height="316" viewBox="1240 286 285 430" preserveAspectRatio="xMidYMid slice">
+      <image xlink:href="reference-poster.png" width="1536" height="1024"/>
+    </svg>
+    <circle cx="1255" cy="619" r="10" fill="#14ad68"/><path d="M1250 619 l4 4 7 -9" fill="none" stroke="white" stroke-width="2"/>
+    <text x="1274" y="624" class="cn caption">提前发现隐患，安排精准维保</text>
+    <text x="1231" y="657" class="cn small">降低停梯风险与维护成本</text>
+    <text x="1231" y="681" class="cn small">形成“监测 - 诊断 - 处置”闭环</text>
+  </g>
+</svg>

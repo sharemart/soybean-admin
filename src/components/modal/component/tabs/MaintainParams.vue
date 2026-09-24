@@ -1,17 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue';
 import { NDatePicker, NInputNumber, NSelect } from 'naive-ui';
-import {
-  AlertTriangle,
-  Briefcase,
-  Calendar,
-  Clock8,
-  History,
-  Landmark,
-  ShieldCheck,
-  User,
-  Users
-} from 'lucide-vue-next';
+import { AlertTriangle, Briefcase, Calendar, Clock8, History, ShieldCheck, User, Users } from 'lucide-vue-next';
 import { getMaintainCompanyList, getMaintainGroupList } from '@/service/api/company/company';
 
 interface Props {
@@ -293,9 +283,9 @@ onMounted(async () => {
           <NSelect
             :value="localFormData.maintain_type"
             :options="[
-              { label: '维保中', value: 0 },
-              { label: '维保完成', value: 1 },
-              { label: '延保中', value: 2 }
+              { label: '正常', value: 1 },
+              { label: '停保', value: 2 },
+              { label: '临时停保', value: 3 }
             ]"
             class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
             @update:value="val => updateField('maintain_type', val)"
@@ -331,20 +321,6 @@ onMounted(async () => {
             placeholder="请输入维保年限"
             class="w-full rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
             @update:value="val => updateField('maintain_year', val)"
-          />
-        </div>
-
-        <!-- 登记机关 -->
-        <div class="space-y-1.5">
-          <label class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase">
-            <Landmark :size="12" class="text-slate-300" />
-            登记机关
-          </label>
-          <NSelect
-            :value="localFormData.register_authority"
-            :options="[{ label: '上海市市场监督管理局', value: '上海市市场监督管理局' }]"
-            class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
-            @update:value="val => updateField('register_authority', val)"
           />
         </div>
       </div>

@@ -168,7 +168,7 @@ onUnmounted(() => {
 
     <footer class="dashboard-footer">
       <span>
-        <Sparkles :size="13" />
+        <Sparkles :size="14" />
         小马养梯（SMT）数字化特种设备服务平台
       </span>
       <i></i>
@@ -183,7 +183,7 @@ onUnmounted(() => {
         <b class="green-text">18ms</b>
       </span>
       <span class="user-status">
-        <UserRound :size="13" />
+        <UserRound :size="14" />
         当前值守：调度中心
       </span>
     </footer>
@@ -209,6 +209,12 @@ onUnmounted(() => {
   --blue: #2d78ff;
   --green: #00d89a;
 
+  /* 布局尺寸（供 grid-lines 等统一引用）*/
+  --topbar-h: clamp(64px, 6vh, 88px);
+  --footer-h: clamp(28px, 3vh, 38px);
+  --content-gap: clamp(8px, 1vw, 18px);
+  --content-pad: clamp(8px, 1.4vw, 24px);
+
   /* 关键：用 height 锁死整页高度，杜绝整页滚动条 */
   height: 100vh;
   overflow: hidden;
@@ -224,23 +230,23 @@ onUnmounted(() => {
 
 .dashboard-grid-lines {
   position: fixed;
-  inset: 82px 0 34px;
+  inset: var(--topbar-h) 0 var(--footer-h);
   pointer-events: none;
   opacity: 0.28;
   background-image:
     linear-gradient(rgba(67, 130, 172, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(67, 130, 172, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
+  background-size: clamp(36px, 3vw, 56px) clamp(36px, 3vw, 56px);
 }
 
 .dashboard-topbar {
   position: relative;
   z-index: 1;
-  height: 82px;
+  height: var(--topbar-h);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 clamp(14px, 1.6vw, 32px);
   border-bottom: 1px solid rgba(56, 112, 163, 0.35);
   background: rgba(7, 16, 36, 0.9);
 }
@@ -260,8 +266,8 @@ onUnmounted(() => {
 }
 
 .brand-logo {
-  width: 142px;
-  height: 72px;
+  width: clamp(110px, 10vw, 160px);
+  height: clamp(54px, 5.5vh, 80px);
   object-fit: contain;
   display: block;
   user-select: none;
@@ -270,14 +276,14 @@ onUnmounted(() => {
 }
 
 .brand-name {
-  font-size: 15px;
+  font-size: clamp(15px, 1.9vw, 22px);
   font-weight: 800;
   letter-spacing: 0.4px;
 }
 .brand-subtitle {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: clamp(10px, 1.2vw, 14px);
 }
 .back-button,
 .top-icon-button {
@@ -302,21 +308,21 @@ onUnmounted(() => {
 }
 .top-actions {
   justify-content: flex-end;
-  gap: 10px;
+  gap: clamp(6px, 0.8vw, 12px);
 }
 .system-pill {
   gap: 6px;
-  padding: 7px 11px;
+  padding: clamp(5px, 0.6vh, 9px) clamp(8px, 0.8vw, 14px);
   color: var(--green);
   border: 1px solid rgba(0, 216, 154, 0.35);
   border-radius: 18px;
   background: rgba(0, 216, 154, 0.08);
-  font-size: 11px;
+  font-size: clamp(11px, 1.1vw, 14px);
 }
 .top-icon-button {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: clamp(30px, 2.5vw, 38px);
+  height: clamp(30px, 2.5vw, 38px);
   justify-content: center;
   border-radius: 8px;
 }
@@ -343,7 +349,7 @@ onUnmounted(() => {
   color: white;
   border-radius: 50%;
   background: #ff3f72;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* ===== 关键：内容区用 height，且不给 padding 额外撑高的机会 ===== */
@@ -351,19 +357,19 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(270px, 1.05fr) minmax(520px, 2.2fr) minmax(270px, 1.08fr);
-  gap: 16px;
-  height: calc(100vh - 116px); /* 82 topbar + 34 footer */
-  padding: 20px;
-  overflow: hidden; /* 防止 grid 行被内容撑高 */
+  grid-template-columns: minmax(260px, 1.05fr) minmax(500px, 2.2fr) minmax(260px, 1.08fr);
+  gap: var(--content-gap);
+  height: calc(100vh - var(--topbar-h) - var(--footer-h));
+  padding: var(--content-pad);
+  overflow: hidden;
 }
 
 .dashboard-column {
   display: grid;
-  gap: 16px;
+  gap: var(--content-gap);
   min-width: 0;
-  min-height: 0; /* 关键：允许 grid 子项收缩 */
-  overflow: hidden; /* 面板内部自己处理溢出 */
+  min-height: 0;
+  overflow: hidden;
 }
 .left-column {
   grid-template-rows: 1.08fr 0.92fr;
@@ -378,21 +384,22 @@ onUnmounted(() => {
 .dashboard-footer {
   position: relative;
   z-index: 1;
-  height: 34px;
+  height: var(--footer-h);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding: 0 20px;
+  gap: clamp(8px, 1vw, 16px);
+  padding: 0 clamp(10px, 1.2vw, 24px);
   color: #7790ac;
   border-top: 1px solid rgba(56, 112, 163, 0.3);
   background: rgba(5, 13, 29, 0.92);
-  font-size: 10px;
+  font-size: clamp(11px, 1.2vw, 14px);
 }
 .dashboard-footer span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: clamp(3px, 0.4vw, 6px);
+  white-space: nowrap;
 }
 .dashboard-footer b {
   color: var(--cyan);
@@ -400,8 +407,9 @@ onUnmounted(() => {
 }
 .dashboard-footer i {
   width: 1px;
-  height: 12px;
+  height: clamp(10px, 1.1vh, 14px);
   background: rgba(92, 132, 171, 0.4);
+  flex-shrink: 0;
 }
 .green-text {
   color: var(--green) !important;
@@ -625,14 +633,17 @@ onUnmounted(() => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
+.light-mode :deep(.metric-label),
 .light-mode :deep(.metric-card small) {
   color: #486a82;
 }
 
+.light-mode :deep(.metric-num),
 .light-mode :deep(.metric-card b) {
   color: #1d5780;
 }
 
+.light-mode :deep(.metric-num em),
 .light-mode :deep(.metric-card b em) {
   color: #55758a;
 }
@@ -797,7 +808,31 @@ onUnmounted(() => {
   color: #52738a;
 }
 
-/* 小屏适配：此时允许页面滚动，交给用户 */
+/* ========== 响应式适配 ========== */
+
+/* 大屏 (≥1800px)：适度放大间距 */
+@media (min-width: 1800px) {
+  .dashboard-shell {
+    --content-gap: clamp(18px, 1.2vw, 26px);
+    --content-pad: clamp(22px, 1.4vw, 36px);
+  }
+}
+
+/* 中小笔记本 (≤1440px / 1366×768)：收紧间距、压缩最小列宽 */
+@media (max-width: 1440px) {
+  .dashboard-shell {
+    --content-gap: clamp(6px, 0.8vw, 12px);
+    --content-pad: clamp(6px, 1vw, 16px);
+  }
+  .dashboard-content {
+    grid-template-columns: minmax(220px, 1fr) minmax(380px, 2.2fr) minmax(220px, 1fr);
+  }
+  .dashboard-footer {
+    gap: clamp(4px, 0.6vw, 10px);
+  }
+}
+
+/* 平板 / 窄屏 (≤1120px)：双列 + 允许滚动 */
 @media (max-width: 1120px) {
   .dashboard-shell {
     height: auto;
@@ -825,6 +860,7 @@ onUnmounted(() => {
   }
 }
 
+/* 手机 (≤720px)：单列 */
 @media (max-width: 720px) {
   .dashboard-topbar {
     display: flex;

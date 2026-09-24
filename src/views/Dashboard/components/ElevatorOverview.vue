@@ -500,4 +500,432 @@ onUnmounted(() => {
   color: #5c748f;
   font-size: 10px;
 }
+
+/* ===== 响应式适配 ===== */
+
+/* 1440-1599px：适中桌面 */
+@media (max-width: 1599px) and (min-width: 1440px) {
+  .chart-area {
+    height: 130px;
+  }
+  .overlay-rate {
+    font-size: 26px;
+  }
+  .kpi-card {
+    padding: 9px 11px;
+    gap: 4px;
+  }
+  .kpi-icon-box {
+    width: 28px;
+    height: 28px;
+  }
+  .kpi-big {
+    font-size: 19px;
+  }
+}
+
+/* 1280-1439px：标准笔记本 */
+@media (max-width: 1439px) and (min-width: 1280px) {
+  .panel {
+    padding: 12px 14px;
+  }
+  .panel-rule {
+    margin: 8px 0;
+  }
+  .body {
+    gap: 8px;
+  }
+  .main-section {
+    grid-template-columns: 125px 1fr;
+    gap: 8px;
+    padding: 2px 0;
+  }
+  .chart-area {
+    height: 120px;
+  }
+  .overlay-rate {
+    font-size: 24px;
+  }
+  .overlay-label {
+    margin-top: 2px;
+    font-size: 9px;
+  }
+  .stats-stack {
+    gap: 8px;
+    padding: 2px 0;
+  }
+  .stat-row {
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  .stat-num {
+    font-size: 18px;
+  }
+  .kpi-card {
+    padding: 8px 10px;
+    gap: 4px;
+  }
+  .kpi-icon-box {
+    width: 26px;
+    height: 26px;
+  }
+  .kpi-big {
+    font-size: 18px;
+  }
+}
+
+/* 1024-1279px：小平板 / 小屏笔记本 */
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .panel {
+    padding: 10px 12px;
+  }
+  .panel-rule {
+    margin: 6px 0;
+  }
+  .body {
+    gap: 6px;
+  }
+  .main-section {
+    grid-template-columns: 110px 1fr;
+    gap: 6px;
+    padding: 0;
+  }
+  .chart-area {
+    height: 105px;
+  }
+  .overlay-rate {
+    font-size: 22px;
+  }
+  .overlay-label {
+    margin-top: 1px;
+    font-size: 8px;
+  }
+  .stats-stack {
+    gap: 5px;
+    padding: 0;
+  }
+  .stat-row {
+    gap: 5px;
+    padding: 7px 10px;
+  }
+  .stat-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+  .stat-num {
+    font-size: 16px;
+  }
+  .stat-unit {
+    font-size: 9px;
+  }
+  .kpi-top,
+  .kpi-bottom {
+    gap: 5px;
+  }
+  .kpi-card {
+    padding: 7px 8px;
+    gap: 3px;
+  }
+  .kpi-icon-box {
+    width: 24px;
+    height: 24px;
+  }
+  .kpi-big {
+    font-size: 16px;
+  }
+  .kpi-big em {
+    font-size: 9px;
+  }
+  .kpi-label {
+    font-size: 9px;
+  }
+  .kpi-footnote {
+    font-size: 9px;
+  }
+}
+
+/* 768-1023px：平板竖向 */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .panel {
+    padding: 10px 12px;
+  }
+  .panel-rule {
+    margin: 6px 0;
+  }
+  .body {
+    gap: 6px;
+  }
+  .main-section {
+    grid-template-columns: 100px 1fr;
+    gap: 6px;
+    padding: 0;
+  }
+  .chart-area {
+    height: 100px;
+  }
+  .overlay-rate {
+    font-size: 20px;
+  }
+  .overlay-label {
+    margin-top: 0;
+    font-size: 8px;
+  }
+  .stats-stack {
+    gap: 4px;
+    padding: 0;
+  }
+  .stat-row {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+  .stat-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+  }
+  .stat-label {
+    font-size: 10px;
+  }
+  .stat-num {
+    font-size: 15px;
+  }
+  .stat-unit {
+    font-size: 9px;
+  }
+  .kpi-top,
+  .kpi-bottom {
+    gap: 4px;
+  }
+  .kpi-bottom {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kpi-card {
+    padding: 6px 8px;
+    gap: 3px;
+  }
+  .kpi-icon-box {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+  }
+  .kpi-big {
+    font-size: 15px;
+  }
+  .kpi-big em {
+    font-size: 9px;
+  }
+  .kpi-label {
+    font-size: 9px;
+  }
+  .kpi-footnote {
+    font-size: 9px;
+  }
+}
+
+/* 520-767px：大屏手机 */
+@media (max-width: 767px) and (min-width: 520px) {
+  .panel {
+    padding: 8px 10px;
+  }
+  .title-left strong {
+    font-size: 14px;
+  }
+  .date-range {
+    font-size: 10px;
+  }
+  .title-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .panel-rule {
+    margin: 5px 0;
+  }
+  .body {
+    gap: 5px;
+  }
+  .main-section {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 0;
+  }
+  .chart-area {
+    height: 85px;
+    margin: 0 auto;
+    width: 85px;
+  }
+  .overlay-rate {
+    font-size: 18px;
+  }
+  .overlay-label {
+    font-size: 8px;
+    margin-top: 0;
+  }
+  .stats-stack {
+    flex-direction: row;
+    gap: 4px;
+    padding: 0;
+  }
+  .stat-row {
+    flex: 1;
+    gap: 4px;
+    padding: 5px 8px;
+  }
+  .stat-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  .stat-label {
+    font-size: 10px;
+  }
+  .stat-num {
+    font-size: 14px;
+  }
+  .stat-unit {
+    font-size: 8px;
+  }
+  .kpi-top,
+  .kpi-bottom {
+    gap: 4px;
+  }
+  .kpi-bottom {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kpi-card {
+    padding: 5px 6px;
+    gap: 2px;
+  }
+  .kpi-icon-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+  }
+  .kpi-big {
+    font-size: 14px;
+  }
+  .kpi-big em {
+    font-size: 8px;
+    margin-left: 2px;
+  }
+  .kpi-label {
+    font-size: 8px;
+  }
+  .kpi-footnote {
+    font-size: 8px;
+  }
+  .loading-hint {
+    margin-top: 4px;
+    font-size: 9px;
+  }
+}
+
+/* <520px：小屏手机 */
+@media (max-width: 519px) {
+  .panel {
+    padding: 6px 8px;
+  }
+  .title-left strong {
+    font-size: 13px;
+  }
+  .date-range {
+    font-size: 9px;
+  }
+  .title-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .panel-rule {
+    margin: 4px 0;
+  }
+  .body {
+    gap: 4px;
+  }
+  .main-section {
+    grid-template-columns: 1fr;
+    gap: 3px;
+    padding: 0;
+  }
+  .chart-area {
+    height: 70px;
+    margin: 0 auto;
+    width: 70px;
+  }
+  .overlay-rate {
+    font-size: 16px;
+  }
+  .overlay-label {
+    font-size: 7px;
+    margin-top: 0;
+  }
+  .stats-stack {
+    flex-direction: row;
+    gap: 3px;
+    padding: 0;
+  }
+  .stat-row {
+    flex: 1;
+    gap: 3px;
+    padding: 4px 6px;
+  }
+  .stat-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .stat-label {
+    font-size: 9px;
+  }
+  .stat-num {
+    font-size: 13px;
+  }
+  .stat-unit {
+    font-size: 8px;
+  }
+  .kpi-top {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+  .kpi-bottom {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+  .kpi-card {
+    padding: 4px 6px;
+    gap: 2px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .kpi-icon-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+  }
+  .kpi-info {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .kpi-big {
+    font-size: 13px;
+  }
+  .kpi-big em {
+    font-size: 8px;
+    margin-left: 2px;
+  }
+  .kpi-label {
+    font-size: 8px;
+  }
+  .kpi-footnote {
+    width: 100%;
+    font-size: 8px;
+  }
+  .loading-hint {
+    margin-top: 3px;
+    font-size: 8px;
+  }
+}
 </style>

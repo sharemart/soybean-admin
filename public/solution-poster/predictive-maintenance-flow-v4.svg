@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1536" height="1024" viewBox="0 0 1536 1024">
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#159df2"/>
+      <stop offset="1" stop-color="#0756c8"/>
+    </linearGradient>
+    <linearGradient id="canvas" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbfeff"/>
+      <stop offset="1" stop-color="#effaff"/>
+    </linearGradient>
+    <linearGradient id="dashboard" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#075abe"/>
+      <stop offset="1" stop-color="#00285f"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#1466ae" flood-opacity=".17"/>
+    </filter>
+    <clipPath id="top"><rect width="1536" height="158"/></clipPath>
+    <clipPath id="bottom"><rect y="780" width="1536" height="244"/></clipPath>
+    <clipPath id="phone"><rect x="1003" y="257" width="172" height="365" rx="17"/></clipPath>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="8.5" refY="5.5" orient="auto">
+      <path d="M0,0 L11,5.5 L0,11Z" fill="#158eeb"/>
+    </marker>
+    <marker id="return-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10Z" fill="#8dccf3"/>
+    </marker>
+    <style>
+      .cn { font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; }
+      .label { fill: #0758b8; font-size: 16px; font-weight: 700; }
+      .small { fill: #2c6e9f; font-size: 13px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <!-- Unchanged source artwork: header and scheme-advantages section. -->
+  <rect width="1536" height="1024" fill="#fff"/>
+  <image xlink:href="reference-poster-v3.png" width="1536" height="1024" clip-path="url(#top)"/>
+  <image xlink:href="reference-poster-v3.png" width="1536" height="1024" clip-path="url(#bottom)"/>
+
+  <!-- A single, unbroken light-blue workflow canvas. -->
+  <rect y="158" width="1536" height="622" fill="url(#canvas)"/>
+  <path d="M0 202 C280 152 497 194 735 167 C996 137 1274 173 1536 205 V780 H0Z" fill="#f8fdff"/>
+  <ellipse cx="769" cy="472" rx="585" ry="182" fill="#e6f7ff" opacity=".68"/>
+  <path d="M0 684 C256 633 448 737 715 690 C1002 640 1231 694 1536 726 V780 H0Z" fill="#dff3ff" opacity=".9"/>
+  <path d="M17 734 C311 674 552 761 832 700 C1052 652 1259 684 1514 736" fill="none" stroke="#c6eaff" stroke-width="24" opacity=".72"/>
+
+  <!-- Continuous outbound data stream, intentionally not divided into cards. -->
+  <path d="M285 453 C340 453 350 424 402 424 S483 466 541 466 S612 412 671 412 S788 450 855 450 S918 405 973 405 S1026 458 1084 458 S1191 427 1246 454"
+        fill="none" stroke="#b7e6ff" stroke-width="14" stroke-linecap="round"/>
+  <path d="M285 453 C340 453 350 424 402 424 S483 466 541 466 S612 412 671 412 S788 450 855 450 S918 405 973 405 S1026 458 1084 458 S1191 427 1246 454"
+        fill="none" stroke="#158eeb" stroke-width="4" stroke-linecap="round" stroke-dasharray="7 10" marker-end="url(#arrow)"/>
+
+  <!-- Soft return flow makes the maintenance path visibly closed-loop. -->
+  <path d="M1374 664 C1361 716 1256 729 1147 719 C895 695 626 698 423 716 C326 724 251 710 196 650"
+        fill="none" stroke="#d2edff" stroke-width="12" stroke-linecap="round"/>
+  <path d="M1374 664 C1361 716 1256 729 1147 719 C895 695 626 698 423 716 C326 724 251 710 196 650"
+        fill="none" stroke="#8dccf3" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 10" marker-end="url(#return-arrow)"/>
+  <rect x="723" y="699" width="94" height="27" rx="13.5" fill="#edf9ff"/>
+  <text x="744" y="718" class="cn small">维保反馈</text>
+
+  <!-- Elevator monitoring device: photo cropped from the original poster. -->
+  <g filter="url(#shadow)">
+    <rect x="18" y="270" width="290" height="368" rx="17" fill="#fff" stroke="#b6e5ff"/>
+    <svg x="26" y="278" width="274" height="352" viewBox="0 400 300 350" preserveAspectRatio="xMidYMid slice">
+      <image xlink:href="reference-poster-v3.png" width="1536" height="1024"/>
+    </svg>
+    <rect x="40" y="292" width="138" height="38" rx="19" fill="url(#blue)"/>
+    <circle cx="62" cy="311" r="10" fill="#fff"/>
+    <path d="M57 311 l4 4 7 -9" fill="none" stroke="#118be8" stroke-width="2"/>
+    <text x="80" y="317" class="cn" fill="#fff" font-size="15" font-weight="700">轿顶监测</text>
+  </g>
+  <text x="89" y="670" class="cn label">监测设备</text>
+
+  <!-- 4G bridge. -->
+  <g transform="translate(316 352)" filter="url(#shadow)">
+    <circle cx="76" cy="96" r="70" fill="#effaff" stroke="#bfe8ff"/>
+    <rect x="55" y="80" width="42" height="38" rx="7" fill="#164a72"/>
+    <circle cx="76" cy="98" r="9" fill="#ffb41c"/>
+    <path d="M52 72 C66 57 86 57 100 72 M43 61 C62 41 90 41 109 61" fill="none" stroke="#118deb" stroke-width="4" stroke-linecap="round"/>
+    <path d="M76 149 V191 M76 149 L49 191 M76 149 L103 191 M45 195 H107" fill="none" stroke="#087fdf" stroke-width="4" stroke-linecap="round"/>
+    <path d="M49 190 L57 198 M103 190 L95 198" stroke="#087fdf" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="349" y="584" class="cn label">4G 传输</text>
+
+  <!-- Cloud platform and concise diagnostic display. -->
+  <g transform="translate(526 239)" filter="url(#shadow)">
+    <path d="M55 173 C19 173 11 127 39 111 C24 67 76 43 106 71 C131 28 194 44 203 89 C239 90 250 146 214 164 C201 170 191 173 178 173Z"
+          fill="url(#blue)" stroke="#6bc9ff" stroke-width="2"/>
+    <text x="65" y="122" class="cn" fill="#fff" font-size="20" font-weight="700">小马养梯</text>
+    <text x="83" y="146" class="cn" fill="#d2f0ff" font-size="13">云后台</text>
+    <circle cx="48" cy="123" r="5" fill="#8be4ff"/>
+    <circle cx="224" cy="140" r="5" fill="#8be4ff"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="550" y="416" width="354" height="238" rx="16" fill="url(#dashboard)" stroke="#2fa8fa" stroke-width="2"/>
+    <text x="577" y="447" class="cn" fill="#fff" font-size="17" font-weight="700">设备健康诊断</text>
+    <rect x="576" y="465" width="122" height="145" rx="9" fill="#064b96"/>
+    <text x="590" y="490" class="cn" fill="#c1ebff" font-size="12">实时数据流</text>
+    <path d="M592 528 C602 505 613 554 626 527 S649 508 660 538 S676 547 686 517" fill="none" stroke="#22c9e8" stroke-width="3"/>
+    <path d="M592 566 C602 554 614 578 626 562 S652 552 687 569" fill="none" stroke="#ffba23" stroke-width="3"/>
+    <circle cx="596" cy="592" r="4" fill="#20bb70"/>
+    <text x="607" y="597" class="cn" fill="#c5ecff" font-size="12">状态分析</text>
+    <path d="M736 490 L778 466 L820 490 V562 L778 587 L736 562Z" fill="#1683d2"/>
+    <path d="M778 466 V587 M736 490 L778 516 L820 490" fill="none" stroke="#a8edff" stroke-width="2"/>
+    <rect x="837" y="474" width="48" height="23" rx="11" fill="#14b66c"/>
+    <text x="849" y="491" class="cn" fill="#fff" font-size="11">正常</text>
+    <rect x="837" y="514" width="48" height="23" rx="11" fill="#ffae1b"/>
+    <text x="849" y="531" class="cn" fill="#fff" font-size="11">预警</text>
+    <rect x="837" y="554" width="48" height="23" rx="11" fill="#14b66c"/>
+    <text x="849" y="571" class="cn" fill="#fff" font-size="11">正常</text>
+  </g>
+  <path d="M728 409 C728 391 740 378 754 370" fill="none" stroke="#158eeb" stroke-width="4" marker-end="url(#arrow)"/>
+  <text x="646" y="682" class="cn label">云端诊断</text>
+
+  <!-- Actual alert-detail app screen from the second supplied image. -->
+  <g filter="url(#shadow)">
+    <rect x="982" y="237" width="214" height="405" rx="31" fill="#102744"/>
+    <rect x="991" y="246" width="196" height="387" rx="25" fill="#fff"/>
+    <image xlink:href="warning-detail-v3.jpg" x="1003" y="257" width="172" height="365" preserveAspectRatio="xMidYMin slice" clip-path="url(#phone)"/>
+    <circle cx="1089" cy="251" r="3.5" fill="#8da2b8"/>
+    <rect x="1048" y="649" width="84" height="29" rx="14.5" fill="#e9f8ff"/>
+    <text x="1064" y="669" class="cn small">预警 APP</text>
+  </g>
+
+  <!-- Field technician: original photo crop, with no separate card column. -->
+  <g filter="url(#shadow)">
+    <rect x="1235" y="275" width="275" height="344" rx="17" fill="#fff" stroke="#b6e5ff"/>
+    <svg x="1243" y="283" width="259" height="328" viewBox="1240 286 285 310" preserveAspectRatio="xMidYMid slice">
+      <image xlink:href="reference-poster-v3.png" width="1536" height="1024"/>
+    </svg>
+    <rect x="1250" y="562" width="154" height="35" rx="17.5" fill="url(#blue)" opacity=".96"/>
+    <path d="M1266 580 l5 5 9 -11" fill="none" stroke="#fff" stroke-width="2.5"/>
+    <text x="1288" y="586" class="cn" fill="#fff" font-size="14" font-weight="700">现场处置</text>
+  </g>
+  <text x="1305" y="670" class="cn label">维保工程师</text>
+</svg>

@@ -23,6 +23,10 @@ interface FormData {
   required_duration: number;
   enable_scan_maintain: number | null;
   upload_image_count: number | null;
+  allow_staff_reschedule: number;
+  require_property_sign: number;
+  enable_sms_sign: number;
+  enable_tomorrow_remind: number;
 }
 
 const formData = ref<FormData>({
@@ -33,7 +37,11 @@ const formData = ref<FormData>({
   enable_online_maintain: 0,
   required_duration: 30,
   enable_scan_maintain: null,
-  upload_image_count: null
+  upload_image_count: null,
+  allow_staff_reschedule: 0,
+  require_property_sign: 0,
+  enable_sms_sign: 0,
+  enable_tomorrow_remind: 0
 });
 
 const checkinModeOptions = [
@@ -101,7 +109,11 @@ async function fetchParams(companyId?: number | null) {
         enable_online_maintain: data.enable_online_maintain ?? 0,
         required_duration: data.required_duration ?? 30,
         enable_scan_maintain: data.enable_scan_maintain ?? null,
-        upload_image_count: data.upload_image_count ?? null
+        upload_image_count: data.upload_image_count ?? null,
+        allow_staff_reschedule: data.allow_staff_reschedule ?? 0,
+        require_property_sign: data.require_property_sign ?? 0,
+        enable_sms_sign: data.enable_sms_sign ?? 0,
+        enable_tomorrow_remind: data.enable_tomorrow_remind ?? 0
       };
     } else {
       message.info('暂无维保参数配置，请填写后保存');
@@ -137,6 +149,22 @@ async function handleSave() {
 
     if (formData.value.upload_image_count !== null && formData.value.upload_image_count !== undefined) {
       params.upload_image_count = formData.value.upload_image_count;
+    }
+
+    if (formData.value.allow_staff_reschedule !== null && formData.value.allow_staff_reschedule !== undefined) {
+      params.allow_staff_reschedule = formData.value.allow_staff_reschedule;
+    }
+
+    if (formData.value.require_property_sign !== null && formData.value.require_property_sign !== undefined) {
+      params.require_property_sign = formData.value.require_property_sign;
+    }
+
+    if (formData.value.enable_sms_sign !== null && formData.value.enable_sms_sign !== undefined) {
+      params.enable_sms_sign = formData.value.enable_sms_sign;
+    }
+
+    if (formData.value.enable_tomorrow_remind !== null && formData.value.enable_tomorrow_remind !== undefined) {
+      params.enable_tomorrow_remind = formData.value.enable_tomorrow_remind;
     }
 
     const res = await saveMaintainParams(params as any);
@@ -298,6 +326,42 @@ onMounted(() => {
               <template #suffix>张</template>
             </NInputNumber>
             <span class="ml-2 text-xs text-slate-400">范围：0 ~ 20 张，不传则保留原值</span>
+          </NFormItem>
+
+          <NFormItem label="维保员可否改期" path="allow_staff_reschedule">
+            <NRadioGroup v-model:value="formData.allow_staff_reschedule">
+              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </NRadio>
+            </NRadioGroup>
+            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
+          </NFormItem>
+
+          <NFormItem label="完成维保强制使用单位签" path="require_property_sign">
+            <NRadioGroup v-model:value="formData.require_property_sign">
+              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </NRadio>
+            </NRadioGroup>
+            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
+          </NFormItem>
+
+          <NFormItem label="开放短信签名" path="enable_sms_sign">
+            <NRadioGroup v-model:value="formData.enable_sms_sign">
+              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </NRadio>
+            </NRadioGroup>
+            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
+          </NFormItem>
+
+          <NFormItem label="开启明日维保提醒" path="enable_tomorrow_remind">
+            <NRadioGroup v-model:value="formData.enable_tomorrow_remind">
+              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </NRadio>
+            </NRadioGroup>
+            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
           </NFormItem>
         </NForm>
       </div>

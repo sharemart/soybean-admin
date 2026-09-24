@@ -52,7 +52,7 @@ const renderChart = () => {
         axisPointer: { type: 'line', lineStyle: { color: 'rgba(31, 138, 190, .35)' } },
         backgroundColor: 'rgba(7, 29, 53, .96)',
         borderColor: 'rgba(22, 217, 255, .5)',
-        textStyle: { color: '#d9f3ff', fontSize: 10 },
+        textStyle: { color: '#d9f3ff', fontSize: 12 },
         formatter: (params: unknown) => {
           const list = params as Array<{ dataIndex: number; marker: string; seriesName: string; value: number }>;
           const item = items[list?.[0]?.dataIndex] as FaultTrendItem | undefined;
@@ -77,14 +77,14 @@ const renderChart = () => {
         data: items.map(item => formatDate(item.date)),
         axisLine: { lineStyle: { color: 'rgba(103, 142, 169, .5)' } },
         axisTick: { show: false },
-        axisLabel: { color: '#7695ad', fontSize: 9, interval: Math.max(0, Math.ceil(items.length / 6) - 1) }
+        axisLabel: { color: '#7695ad', fontSize: 10, interval: Math.max(0, Math.ceil(items.length / 6) - 1) }
       },
       yAxis: {
         type: 'value',
         min: 0,
         minInterval: 1,
         splitNumber: 3,
-        axisLabel: { color: '#7695ad', fontSize: 9 },
+        axisLabel: { color: '#7695ad', fontSize: 10 },
         splitLine: { lineStyle: { color: 'rgba(105, 145, 172, .18)', type: 'dashed' } }
       },
       series: [
@@ -290,7 +290,7 @@ onUnmounted(() => {
   display: block;
   margin-top: 3px;
   color: #708ba8;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .title-icon {
@@ -306,12 +306,12 @@ onUnmounted(() => {
 
 .trend-badge {
   gap: 5px;
-  padding: 5px 8px;
+  padding: 5px 9px;
   color: #00dca4;
   border: 1px solid rgba(0, 220, 157, 0.28);
   border-radius: 12px;
   background: rgba(0, 220, 157, 0.08);
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -340,15 +340,15 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding: 8px 7px;
+  padding: 8px 6px;
   border: 1px solid rgba(76, 122, 165, 0.25);
   border-radius: 8px;
   background: rgba(18, 39, 69, 0.7);
 }
 
 .summary-icon {
-  width: 25px;
-  height: 25px;
+  width: 26px;
+  height: 26px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -368,20 +368,22 @@ onUnmounted(() => {
 }
 
 .summary-card small {
-  color: #7794ae;
-  font-size: 8px;
+  color: #b4cee8;
+  font-size: 10px;
+  line-height: 1.3;
 }
 
 .summary-card b {
-  margin-top: 3px;
+  margin-top: 2px;
   color: #e5f4ff;
-  font-size: 15px;
-  line-height: 1;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .summary-card b em {
-  color: #91aac0;
-  font-size: 8px;
+  color: #a5c0da;
+  font-size: 10px;
   font-style: normal;
   font-weight: 400;
 }
@@ -410,7 +412,7 @@ onUnmounted(() => {
   justify-content: space-between;
   margin: 12px 2px 0;
   color: #a5bbcf;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .chart-caption span {
@@ -420,8 +422,8 @@ onUnmounted(() => {
 }
 
 .chart-caption i {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   display: inline-block;
   border-radius: 2px;
   background: #27bce0;
@@ -430,7 +432,7 @@ onUnmounted(() => {
 
 .chart-caption small {
   color: #6885a0;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 /* ===== 图表：吃掉剩余空间，不再写固定 height ===== */
@@ -443,15 +445,15 @@ onUnmounted(() => {
 
 .chart-state {
   color: #ff6687;
-  font-size: 9px;
+  font-size: 11px;
   text-align: center;
 }
 
 .trend-footer {
   gap: 12px;
-  min-height: 18px;
+  min-height: 20px;
   color: #718da7;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .trend-footer span {
