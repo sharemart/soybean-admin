@@ -187,3 +187,167 @@ export interface RealtimeAlertsData {
   list: RealtimeAlertsItem[];
 }
 export type GetRealtimeAlertsResponse = ApiResponse<RealtimeAlertsData>;
+
+// ====================== 维保公司使用统计 ======================
+export interface GetCompanyUsageParams {
+  /** 维保统计开始日 Y-m-d，默认含今天的最近15天 */
+  start_date?: string;
+  /** 维保统计结束日 Y-m-d，默认今天 */
+  end_date?: string;
+  /** 二次筛选维保公司ID（须在可访问范围内） */
+  company_id?: number;
+}
+
+/**
+ * 维保公司使用统计 - usage_list 项
+ * 按电梯档案维保单位。隐患/急修/反馈为累计台数，区间维保为日期内台数
+ */
+export interface CompanyUsageItem {
+  /** 维保公司ID */
+  company_id: number;
+  /** 维保公司 */
+  company_name: string;
+  /** 未删除在保电梯 */
+  elevator_total: number;
+  /** 有可见预警的电梯 */
+  pushed_hazard_elev: number;
+  /** 有未删除急修单的电梯 */
+  repair_elev: number;
+  /** 同时有预警和急修的电梯 */
+  both_hazard_repair: number;
+  /** 做过预警反馈或算法诊断反馈的电梯 */
+  fault_feedback_elev: number;
+  /** 急修已离开待接警的电梯 */
+  repair_handled_elev: number;
+  /** 隐患整改中或已闭环的电梯 */
+  hazard_feedback_elev: number;
+  /** 急修已处理且有隐患反馈的电梯 */
+  handled_and_hazard_fb: number;
+  /** 区间内有维保单的电梯 */
+  maintain_elev: number;
+  /** 区间内有已维保单的电梯 */
+  maintain_done_elev: number;
+  /** 区间内有待维保单的电梯 */
+  maintain_pending_elev: number;
+  /** 区间内有进行中单的电梯 */
+  maintain_doing_elev: number;
+  /** 区间内有逾期签到单的电梯 */
+  maintain_overdue_elev: number;
+}
+
+/**
+ * 维保公司使用统计 - maintain_list 项
+ * 按维保计划所属公司统计区间内单据次数
+ */
+export interface CompanyMaintainListItem {
+  /** 维保公司ID */
+  company_id: number;
+  /** 维保公司 */
+  company_name: string;
+  /** 档案在保电梯（company_id3） */
+  elevator_total: number;
+  /** 维保次数 */
+  bill_cnt: number;
+  /** 已维保次数 */
+  done_cnt: number;
+  /** 待维保次数 */
+  pending_cnt: number;
+  /** 进行中次数 */
+  doing_cnt: number;
+  /** 逾期签到次数 */
+  overdue_cnt: number;
+  /** 其他状态次数 */
+  other_cnt: number;
+  /** 涉及电梯台数 */
+  elevator_cnt: number;
+  /** 完成率百分比 */
+  completion_rate: number;
+}
+
+export interface CompanyUsageData {
+  /** 维保次数统计开始日 */
+  start_date: string;
+  /** 维保次数统计结束日 */
+  end_date: string;
+  /** 按电梯档案维保单位统计 */
+  usage_list: CompanyUsageItem[];
+  /** 按维保计划所属公司统计区间内单据次数 */
+  maintain_list: CompanyMaintainListItem[];
+}
+
+export type GetCompanyUsageResponse = ApiResponse<CompanyUsageData>;
+
+// ====================== 维保公司使用统计导出 ======================
+export interface ExportCompanyUsageParams {
+  /** 维保统计开始日 Y-m-d，默认含今天的最近15天 */
+  start_date?: string;
+  /** 维保统计结束日 Y-m-d，默认今天 */
+  end_date?: string;
+  /** 二次筛选维保公司ID */
+  company_id?: number;
+}
+
+export interface ExportCompanyUsageData {
+  /** Excel 下载路径 */
+  file_url: string;
+  /** 维保次数统计开始日 */
+  start_date: string;
+  /** 维保次数统计结束日 */
+  end_date: string;
+}
+
+export type ExportCompanyUsageResponse = ApiResponse<ExportCompanyUsageData>;
+
+// ====================== 获取电梯公示二维码 ======================
+export interface GetNoticeQrcodeParams {
+  /** 电梯ID */
+  elevator_id: number;
+}
+
+/**
+ * 电梯公示二维码数据
+ */
+export interface NoticeQrcodeData {
+  /** 公示页完整URL，格式：当前域名/notice/加密elevator_id */
+  notice_url: string;
+  /** 加密后的电梯ID */
+  encrypted_elevator_id: string;
+  /** 二维码图片访问路径 */
+  qrcode_url: string;
+}
+
+export type GetNoticeQrcodeResponse = ApiResponse<NoticeQrcodeData>;
+
+// ====================== 开户一次导入 - 下载模板 ======================
+export interface DownloadOnboardingTemplateData {
+  /** 模板文件路径，第2行含电梯地址列 */
+  file_url: string;
+}
+export type DownloadOnboardingTemplateResponse = ApiResponse<DownloadOnboardingTemplateData>;
+
+// ====================== 开户一次导入 - 校验/落库 ======================
+export interface OnboardingImportParams {
+  /** Excel（.xlsx），第3行起一行一台梯 */
+  file: File;
+  /** 维保公司ID，超管必填 */
+  company_id?: number;
+  /** 1仅校验不落库，默认0 */
+  dry_run?: number;
+}
+
+export interface OnboardingImportErrorItem {
+  /** 错误行号 */
+  row?: number;
+  /** 错误信息 */
+  message?: string;
+}
+
+export interface OnboardingImportData {
+  /** 成功行数 */
+  success_count: number;
+  /** 空行 */
+  skipped_empty_rows: number;
+  /** 错误行 */
+  errors: OnboardingImportErrorItem[];
+}
+export type OnboardingImportResponse = ApiResponse<OnboardingImportData>;

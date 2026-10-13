@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { LoaderCircle, LogOut, Maximize2, Moon, RefreshCw, Sparkles, Sun, UserRound } from 'lucide-vue-next';
+import { LoaderCircle, LogOut, Maximize2, Moon, RefreshCw, Sun } from 'lucide-vue-next';
 import { useAuthStore } from '@/store/modules/auth';
 import Header from './components/Header.vue';
 import MaintenanceStats from './components/MaintenanceStats.vue';
@@ -162,11 +162,12 @@ onUnmounted(() => {
       <section class="dashboard-column right-column">
         <TeamList v-if="companyType !== ''" />
         <ElevatorStatusPanel v-else ref="elevatorStatusPanelRef" />
-        <CooperationProjects ref="cooperationProjectsRef" />
+        <CooperationProjects ref="cooperationProjectsRef" :company-type="companyType" />
       </section>
     </main>
 
-    <footer class="dashboard-footer">
+    <!--
+ <footer class="dashboard-footer">
       <span>
         <Sparkles :size="14" />
         小马养梯（SMT）数字化特种设备服务平台
@@ -186,7 +187,8 @@ onUnmounted(() => {
         <UserRound :size="14" />
         当前值守：调度中心
       </span>
-    </footer>
+    </footer> 
+-->
   </div>
 </template>
 
@@ -806,6 +808,141 @@ onUnmounted(() => {
 .light-mode :deep(.empty-row),
 .light-mode :deep(.empty) {
   color: #52738a;
+}
+
+/* ===== 浅色模式 - 子组件文字颜色覆盖 ===== */
+/* 合作公司/维保小组 */
+.light-mode :deep(.company-table) {
+  color: #3d5e78;
+}
+.light-mode :deep(.company-head) {
+  color: #2d4f6b;
+}
+.light-mode :deep(.company-name) {
+  color: #1e3f58;
+}
+.light-mode :deep(.group-company),
+.light-mode :deep(.contact),
+.light-mode :deep(.contact-text) {
+  color: #3d5e78;
+}
+.light-mode :deep(.completed-num) {
+  color: #007a55;
+}
+.light-mode :deep(.total-num) {
+  color: #3d5e78;
+}
+.light-mode :deep(.percent-text) {
+  color: #1e3f58;
+}
+.light-mode :deep(.elevator-count) {
+  color: #0870a0;
+}
+.light-mode :deep(.company-row) {
+  border-top-color: rgba(64, 112, 141, 0.24);
+}
+
+/* 存在问题 WorkOrderList */
+.light-mode :deep(.order-table) {
+  color: #3d5e78;
+}
+.light-mode :deep(.order-no) {
+  color: #1a5cc7;
+}
+.light-mode :deep(.time) {
+  color: #4d6b82;
+}
+.light-mode :deep(.table-row > span) {
+  color: #2d4d67;
+}
+.light-mode :deep(.filter-select) {
+  color: #315d78;
+  border-color: rgba(58, 118, 149, 0.38);
+  background: rgba(224, 240, 247, 0.96);
+}
+.light-mode :deep(.filter-select option) {
+  color: #315d78;
+  background: #eaf4f9;
+}
+.light-mode :deep(.filter-select:hover),
+.light-mode :deep(.filter-select:focus) {
+  color: #1e4d68;
+  border-color: #1a96c1;
+}
+
+/* 调度面板 */
+.light-mode :deep(.person-name) {
+  color: #1e3f58;
+}
+.light-mode :deep(.people-head) {
+  color: #2d4f6b;
+}
+.light-mode :deep(.people-row) {
+  color: #3d5e78;
+}
+.light-mode :deep(.people-list) {
+  color: #3d5e78;
+}
+.light-mode :deep(.dispatch-legend span) {
+  color: #315d77;
+}
+
+/* 维保统计 */
+.light-mode :deep(.stats-footer > div) {
+  color: #2d4d67;
+}
+.light-mode :deep(.group-rate) {
+  color: #1a5cc7;
+}
+.light-mode :deep(.metric-card b.soft) {
+  color: #3d627c;
+}
+.light-mode :deep(.metric-icon.soft) {
+  color: #4d6e89;
+  background: rgba(77, 110, 137, 0.12);
+}
+
+/* 团队趋势 TeamList */
+.light-mode :deep(.summary-card small) {
+  color: #4d6e89;
+}
+.light-mode :deep(.summary-card b) {
+  color: #1d3f5c;
+}
+.light-mode :deep(.summary-card b em) {
+  color: #55758a;
+}
+.light-mode :deep(.trend-footer) {
+  color: #4d6e89;
+}
+
+/* 电梯状态 */
+.light-mode :deep(.village-name) {
+  color: #1e3f58;
+}
+.light-mode :deep(.village-row) {
+  background: rgba(220, 239, 247, 0.7);
+  border-color: rgba(62, 120, 160, 0.2);
+}
+.light-mode :deep(.bar-track) {
+  background: #d4e5ed;
+}
+.light-mode :deep(.bar-fill) {
+  background: linear-gradient(90deg, #2b78e7, #13a8c5);
+}
+
+/* 通用覆盖 */
+.light-mode :deep(.loading-tag) {
+  color: #087ca9;
+  background: rgba(8, 124, 169, 0.08);
+}
+.light-mode :deep(.count-tag) {
+  color: #196b98;
+  border-color: rgba(27, 131, 174, 0.3);
+  background: #dff2f8;
+}
+.light-mode :deep(.kpi-big) {
+  color: #1d4a6e;
 }
 
 /* ========== 响应式适配 ========== */

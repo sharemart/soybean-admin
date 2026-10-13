@@ -158,7 +158,8 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
           roles: [],
           buttons: [],
           company_type: loginResponse.data.company_type || '',
-          company_id: loginResponse.data.company_id || ''
+          company_id: loginResponse.data.company_id || '',
+          company_name: loginResponse.data.company_name || ''
         };
         Object.assign(userInfo, user);
         localStg.set('userInfo', user);

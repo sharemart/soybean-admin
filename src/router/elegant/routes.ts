@@ -65,6 +65,17 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'business_import',
+        path: '/business/import',
+        component: 'view.business_import',
+        meta: {
+          title: 'business_import',
+          i18nKey: 'route.business_import',
+          icon: 'mdi:file-excel',
+          keepAlive: true
+        }
+      },
+      {
         name: 'business_repair',
         path: '/business/repair',
         component: 'view.business_repair',
@@ -84,26 +95,6 @@ export const generatedRoutes: GeneratedRoute[] = [
           i18nKey: 'route.business_report',
           icon: 'mdi:chart-bar',
           keepAlive: true
-        }
-      }
-    ]
-  },
-  {
-    name: 'custom',
-    path: '/custom',
-    component: 'layout.base',
-    meta: {
-      title: 'custom',
-      i18nKey: 'route.custom'
-    },
-    children: [
-      {
-        name: 'custom_workbench',
-        path: '/custom/workbench',
-        component: 'view.custom_workbench',
-        meta: {
-          title: 'custom_workbench',
-          i18nKey: 'route.custom_workbench'
         }
       }
     ]
@@ -298,6 +289,26 @@ export const generatedRoutes: GeneratedRoute[] = [
           icon: 'mdi:file-document',
           hideInMenu: true,
           keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    name: 'report',
+    path: '/report',
+    component: 'layout.base',
+    meta: {
+      title: 'report',
+      i18nKey: 'route.report'
+    },
+    children: [
+      {
+        name: 'report_companyusage',
+        path: '/report/companyusage',
+        component: 'view.report_companyusage',
+        meta: {
+          title: 'report_companyusage',
+          i18nKey: 'route.report_companyusage'
         }
       }
     ]

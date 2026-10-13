@@ -16,8 +16,8 @@ const data = ref<ElevatorStatusData>({
 
 /** ===== 列表滚动参数 ===== */
 const VISIBLE_ROWS = 9; // 最多显示 9 条
-const ROW_SECONDS = 1.4; // 每条停留秒数
-const MIN_DURATION = 12; // 最短滚动时长
+const ROW_SECONDS = 1.8; // 每条停留秒数
+const MIN_DURATION = 16; // 最短滚动时长
 
 const villages = computed(() => data.value.by_village);
 const villageCount = computed(() => villages.value.length);

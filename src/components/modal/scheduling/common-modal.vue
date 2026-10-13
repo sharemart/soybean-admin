@@ -95,11 +95,8 @@ const loadGroupByCompany = async (companyId: string | number) => {
   }
 };
 
-const initData = async () => {
-  await loadElevatorAndCompany();
-  if (form.company_id) {
-    await loadGroupByCompany(form.company_id);
-  }
+const initData = () => {
+  return loadElevatorAndCompany();
 };
 
 watch(

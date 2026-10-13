@@ -288,21 +288,21 @@ onUnmounted(() => {});
         class="animate-in zoom-in-95 relative h-[90vh] max-w-5xl w-full flex flex-col overflow-hidden border border-white/10 rounded-[2.5rem] bg-white shadow-2xl dark:bg-slate-900"
       >
         <div
-          class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-950/30"
+          class="flex items-center justify-between border-b border-sky-100 bg-sky-50/50 p-6 dark:border-sky-900/20 dark:bg-sky-950/20"
         >
           <div class="flex items-center gap-4">
-            <div class="rounded-2xl bg-amber-500/10 p-3 text-amber-500 shadow-inner">
+            <div class="rounded-2xl bg-sky-100 p-3 text-sky-500 shadow-inner dark:bg-sky-500/15">
               <ShieldAlert :size="24" />
             </div>
             <div>
               <h3 class="text-xl font-black tracking-tight">{{ warningData?.trouble_name }} - 异常波形分析记录</h3>
-              <p class="mt-1 text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase">
+              <p class="mt-1 text-[10px] text-slate-400 font-bold tracking-[0.2em] uppercase">
                 Diagnostic Waveform Analysis Terminal
               </p>
             </div>
           </div>
           <button
-            class="rounded-full p-3 transition-all hover:bg-slate-200 dark:hover:bg-slate-800"
+            class="rounded-full p-3 text-slate-400 transition-all hover:bg-sky-100 hover:text-sky-500 dark:hover:bg-sky-500/10"
             @click="closeModal"
           >
             <X :size="24" />

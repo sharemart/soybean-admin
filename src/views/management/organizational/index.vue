@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import {
   BadgeCheck,
-  Briefcase,
   Building2,
   Edit,
-  Factory,
-  Home,
   MapPin,
   Phone,
   Plus,
@@ -18,7 +15,6 @@ import {
   User
 } from 'lucide-vue-next';
 import { getCompanyDetail, getCompanyList, removeCompany } from '@/service/api/organizational/organizational';
-import type { CompanyListItem } from '@/service/api/organizational/organizational.d';
 import AddOrganizational from '@/components/modal/organizational/addOrganizational.vue';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import PagePagination from '@/components/common/PagePagination.vue';
@@ -26,7 +22,8 @@ import PagePagination from '@/components/common/PagePagination.vue';
 interface Company {
   id: string;
   name: string;
-  type: string;
+  company_type: number;
+  use_comtype: number;
   credit_code: string;
   legal_name: string;
   contact: string;
@@ -53,83 +50,96 @@ const message = useMessage();
 const dialog = useDialog();
 const companies = ref<Company[]>([]);
 const searchTerm = ref('');
-const typeFilter = ref('0');
+const companyTypeFilter = ref(0);
 const isSyncing = ref(false);
 const isLoading = ref(false);
 const isEditingLoading = ref(false);
 const isDeletingLoading = ref(false);
 const isSubmittingLoading = ref(false);
 
-// ================== 分页（确定才生效） ==================
+// ================== 分页（后端分页，每页10条） ==================
 const currentPage = ref(1);
 const tempPage = ref(1);
 const pageSize = ref(10);
+const total = ref(0);
 tempPage.value = currentPage.value;
-
-const filteredCompanies = computed(() => {
-  return companies.value.filter(c => {
-    const matchSearch = c.name.includes(searchTerm.value) || c.credit_code.includes(searchTerm.value);
-    const matchType = typeFilter.value === '0' || c.type === typeFilter.value;
-    return matchSearch && matchType;
-  });
-});
-
-const totalCount = computed(() => filteredCompanies.value.length);
-
-const paginatedCompanies = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return filteredCompanies.value.slice(start, end);
-});
 
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   tempPage.value = page;
+  fetchCompanyList(page);
 };
 
-// 搜索/筛选重置页码
-watch([searchTerm, typeFilter], () => {
+// 搜索/筛选重置页码并重新请求
+watch([searchTerm, companyTypeFilter], () => {
   currentPage.value = 1;
   tempPage.value = 1;
+  fetchCompanyList(1);
 });
 // ======================================================
 
 const modalVisible = ref(false);
 const currentOrganizationalData = ref<Company | null>(null);
 
-const getTypeBadge = (type: string) => {
+const getCompanyTypeLabel = (type: number) => {
   switch (type) {
-    case '1':
-      return { label: '政府机构', color: 'bg-indigo-500/10 text-indigo-500', icon: 'shield' };
-    case '2':
-      return { label: '物业公司', color: 'bg-emerald-500/10 text-emerald-500', icon: 'home' };
-    case '3':
-      return { label: '维保公司', color: 'bg-sky-500/10 text-sky-500', icon: 'briefcase' };
-    case '4':
-      return { label: '制造厂家', color: 'bg-amber-500/10 text-amber-500', icon: 'factory' };
-    case '6':
-      return { label: '普通企业', color: 'bg-blue-500/10 text-blue-500', icon: 'building' };
-    case '7':
-      return { label: '个人', color: 'bg-purple-500/10 text-purple-500', icon: 'user' };
+    case 1:
+      return { label: '制造', color: 'bg-amber-500/10 text-amber-500' };
+    case 2:
+      return { label: '使用', color: 'bg-emerald-500/10 text-emerald-500' };
+    case 3:
+      return { label: '维保', color: 'bg-sky-500/10 text-sky-500' };
+    case 4:
+      return { label: '安装', color: 'bg-violet-500/10 text-violet-500' };
+    case 5:
+      return { label: '其他', color: 'bg-slate-500/10 text-slate-500' };
     default:
-      return { label: '其他', color: 'bg-slate-500/10 text-slate-500', icon: 'building' };
+      return { label: '未知', color: 'bg-slate-500/10 text-slate-500' };
   }
 };
 
-const fetchCompanyList = async () => {
+const getUseComtypeLabel = (type: number) => {
+  switch (type) {
+    case 1:
+      return { label: '政府', color: 'bg-indigo-500/10 text-indigo-500' };
+    case 2:
+      return { label: '物业', color: 'bg-teal-500/10 text-teal-500' };
+    case 3:
+      return { label: '地产', color: 'bg-orange-500/10 text-orange-500' };
+    case 4:
+      return { label: '业委会', color: 'bg-cyan-500/10 text-cyan-500' };
+    case 5:
+      return { label: '事业单位', color: 'bg-blue-500/10 text-blue-500' };
+    case 6:
+      return { label: '企业', color: 'bg-rose-500/10 text-rose-500' };
+    case 7:
+      return { label: '个人', color: 'bg-purple-500/10 text-purple-500' };
+    default:
+      return { label: '未知', color: 'bg-slate-500/10 text-slate-500' };
+  }
+};
+
+const fetchCompanyList = async (page: number = currentPage.value) => {
   isLoading.value = true;
   try {
-    const res = await getCompanyList();
-    let validData: CompanyListItem[] = [];
+    const res = await getCompanyList({
+      page,
+      limit: pageSize.value,
+      search: searchTerm.value || undefined,
+      company_type: companyTypeFilter.value === 0 ? undefined : companyTypeFilter.value
+    });
 
-    if (res?.data?.code === 2000 && Array.isArray(res.data.data.list)) {
-      validData = res.data.data.list;
+    if (res?.data?.code === 2000 && res.data.data) {
+      companies.value = res.data.data.list ?? [];
+      total.value = res.data.data.total ?? 0;
+    } else {
+      companies.value = [];
+      total.value = 0;
     }
-
-    companies.value = validData;
   } catch (error) {
     console.error('获取单位列表失败:', error);
     companies.value = [];
+    total.value = 0;
   } finally {
     isLoading.value = false;
   }
@@ -157,8 +167,13 @@ const handleDelete = async (id: string) => {
         const res = await removeCompany({ company_id: companyId });
 
         if (res?.data?.code === 2000) {
-          companies.value = companies.value.filter(c => c.id !== id);
           message.success('删除成功');
+          // 当前页只剩一条且不是第一页时，回退到上一页
+          if (companies.value.length === 1 && currentPage.value > 1) {
+            currentPage.value -= 1;
+            tempPage.value -= 1;
+          }
+          await fetchCompanyList(currentPage.value);
         } else {
           throw new Error(res?.data?.msg || '删除失败');
         }
@@ -209,51 +224,25 @@ const openAddModal = () => {
   modalVisible.value = true;
 };
 
-const createNewCompany = (formData: Partial<Company>): Company => {
-  return {
-    id: `C${String(Date.now()).slice(-6)}`,
-    name: formData.name || '',
-    type: formData.type || '',
-    credit_code: formData.credit_code || '',
-    legal_name: formData.legal_name || '',
-    contact: formData.contact || '',
-    phone: formData.phone || '',
-    email: formData.email || '',
-    province: formData.province || '',
-    city: formData.city || '',
-    district: formData.district || '',
-    address: formData.address || '',
-    expiration: formData.expiration || '',
-    is_user: formData.is_user || false,
-    create_time: new Date().toISOString().split('T')[0],
-    qua_level: formData.qua_level || '',
-    brand: formData.brand || '',
-    company_syn: formData.company_syn || '',
-    cert_number: formData.cert_number || '',
-    licensing_time: formData.licensing_time || ''
-  };
-};
-
-const handleModalConfirm = async (formData: Partial<Company>) => {
+const handleModalConfirm = async (_formData: Partial<Company>) => {
   if (isSubmittingLoading.value) return;
 
   try {
     isSubmittingLoading.value = true;
-
-    if (currentOrganizationalData.value) {
-      // 编辑模式
-      companies.value = companies.value.map(c =>
-        c.id === currentOrganizationalData.value!.id ? { ...c, ...formData, id: c.id } : c
-      );
-    } else {
-      // 新增模式，调用抽离函数
-      const newCompany = createNewCompany(formData);
-      companies.value = [newCompany, ...companies.value];
-    }
+    const isEdit = Boolean(currentOrganizationalData.value);
 
     modalVisible.value = false;
     currentOrganizationalData.value = null;
-    await fetchCompanyList();
+
+    if (isEdit) {
+      // 编辑：刷新当前页
+      await fetchCompanyList(currentPage.value);
+    } else {
+      // 新增：跳转到第一页
+      currentPage.value = 1;
+      tempPage.value = 1;
+      await fetchCompanyList(1);
+    }
   } catch (error) {
     console.error('数据同步失败:', error);
     message.error('数据同步失败');
@@ -268,7 +257,7 @@ const handleModalClose = () => {
 
 const handleSync = () => {
   isSyncing.value = true;
-  fetchCompanyList().finally(() => {
+  fetchCompanyList(currentPage.value).finally(() => {
     isSyncing.value = false;
   });
 };
@@ -295,15 +284,14 @@ onMounted(() => {
 
       <div class="flex items-center gap-3">
         <CustomSelect
-          v-model="typeFilter"
+          v-model="companyTypeFilter"
           :options="[
-            { label: '全部单位类别', value: '0' },
-            { label: '政府机构', value: '1' },
-            { label: '物业公司', value: '2' },
-            { label: '维保公司', value: '3' },
-            { label: '制造厂家', value: '4' },
-            { label: '普通企业', value: '6' },
-            { label: '个人', value: '7' }
+            { label: '全部单位属性', value: 0 },
+            { label: '制造', value: 1 },
+            { label: '使用', value: 2 },
+            { label: '维保', value: 3 },
+            { label: '安装', value: 4 },
+            { label: '其他', value: 5 }
           ]"
           :icon="Building2"
           icon-class="text-indigo-500"
@@ -350,7 +338,7 @@ onMounted(() => {
               class="border-b border-slate-100 bg-slate-50/80 text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase dark:border-slate-800 dark:bg-slate-900/80"
             >
               <th class="px-6 py-5">单位编码 / 名称</th>
-              <th class="px-6 py-5">单位类别</th>
+              <th class="px-6 py-5">单位属性 / 类别</th>
               <th class="px-6 py-5">联系信息</th>
               <th class="px-6 py-5">地理位置</th>
               <th class="px-6 py-5 text-center">系统账号</th>
@@ -358,7 +346,7 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50 dark:divide-slate-800/40">
-            <tr v-for="c in paginatedCompanies" :key="c.id" class="group transition-all hover:bg-sky-500/5">
+            <tr v-for="c in companies" :key="c.id" class="group transition-all hover:bg-sky-500/5">
               <td class="px-6 py-5">
                 <div class="flex flex-col">
                   <span class="mb-1 text-[10px] text-slate-400 font-black tracking-tighter font-mono uppercase">
@@ -372,16 +360,17 @@ onMounted(() => {
                 </div>
               </td>
               <td class="px-6 py-5">
-                <div
-                  :class="`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getTypeBadge(c.type).color}`"
-                >
-                  <ShieldCheck v-if="getTypeBadge(c.type).icon === 'shield'" :size="12" />
-                  <Home v-else-if="getTypeBadge(c.type).icon === 'home'" :size="12" />
-                  <Briefcase v-else-if="getTypeBadge(c.type).icon === 'briefcase'" :size="12" />
-                  <Factory v-else-if="getTypeBadge(c.type).icon === 'factory'" :size="12" />
-                  <User v-else-if="getTypeBadge(c.type).icon === 'user'" :size="12" />
-                  <Building2 v-else :size="12" />
-                  {{ getTypeBadge(c.type).label }}
+                <div class="flex flex-col gap-1.5">
+                  <div
+                    :class="`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${getCompanyTypeLabel(c.company_type).color}`"
+                  >
+                    单位属性：{{ getCompanyTypeLabel(c.company_type).label }}
+                  </div>
+                  <div
+                    :class="`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${getUseComtypeLabel(c.use_comtype).color}`"
+                  >
+                    单位类别：{{ getUseComtypeLabel(c.use_comtype).label }}
+                  </div>
                 </div>
               </td>
               <td class="px-6 py-5">
@@ -445,13 +434,13 @@ onMounted(() => {
               <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500"></div>
               单位管理系统 · 数据已同步
             </span>
-            <span class="text-[10px] text-sky-500 font-bold">单位总数：{{ totalCount }} 个</span>
+            <span class="text-[10px] text-sky-500 font-bold">单位总数：{{ total }} 个</span>
           </div>
 
           <div class="scale-90">
             <PagePagination
               v-model:current="tempPage"
-              :total="totalCount"
+              :total="total"
               :page-size="pageSize"
               @change="handlePageChange"
             />

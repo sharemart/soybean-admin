@@ -16,6 +16,7 @@ import {
   History,
   MapPin,
   Power,
+  QrCode,
   Radio,
   Share2,
   ShieldCheck,
@@ -26,6 +27,7 @@ import {
   Zap
 } from 'lucide-vue-next';
 import { exportElevatorMaintainRecordsZip, fetchElevatorDetail } from '@/service/api/component/component';
+import { getNoticeQrcode } from '@/service/api/dashboard/dashboard';
 import { useLiftMqttSync } from '@/utils/useLiftMqttSync';
 import FaultWidget from '@/components/modal/monitoring/FaultWidget.vue';
 import MaintenanceWidget from '@/components/modal/monitoring/MaintenanceWidget.vue';
@@ -259,6 +261,73 @@ const confirmExportMaintainRecords = async () => {
   }
 };
 
+const handleShareQrcode = async () => {
+  const elevatorId = Number(id.value);
+  if (!elevatorId) {
+    message.error('缺少电梯ID，无法获取二维码');
+    return;
+  }
+
+  try {
+    const res = await getNoticeQrcode({ elevator_id: elevatorId });
+
+    if (res?.data?.code === 2000) {
+      const { qrcode_url, notice_url } = res.data.data || {};
+      const rawUrl = qrcode_url || notice_url;
+
+      if (!rawUrl) {
+        message.error('获取二维码成功，但未返回图片地址');
+        return;
+      }
+
+      qrCodeRawUrl.value = rawUrl;
+      qrCodeUrl.value = getDownloadUrl(rawUrl);
+      qrCodeDialogVisible.value = true;
+    } else {
+      message.error(res?.data?.message || '获取二维码失败');
+    }
+  } catch {
+    message.error('获取二维码异常，请稍后重试');
+  }
+};
+
+const qrCodeDialogVisible = ref(false);
+const qrCodeUrl = ref('');
+const qrCodeRawUrl = ref('');
+const qrDownloadLoading = ref(false);
+
+const downloadQrCode = async () => {
+  const rawUrl = qrCodeRawUrl.value;
+  if (!rawUrl) {
+    message.error('二维码地址为空，无法下载');
+    return;
+  }
+
+  qrDownloadLoading.value = true;
+
+  try {
+    const response = await fetch(rawUrl);
+    if (!response.ok) {
+      message.error('下载失败，请稍后重试');
+      return;
+    }
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = qrCodeRawUrl.value.split('/').pop()?.split('?')[0] || 'qrcode.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    message.error('下载失败，请稍后重试');
+  } finally {
+    qrDownloadLoading.value = false;
+  }
+};
+
 // ===================== 生命周期 =====================
 onMounted(async () => {
   try {
@@ -344,10 +413,72 @@ onUnmounted(() => {
           导出维保记录
         </button>
         <button
-          class="border border-slate-200 rounded-2xl bg-white p-2.5 text-slate-400 transition-all dark:border-slate-700 dark:bg-slate-800 hover:text-sky-500"
+          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-amber-500/20 shadow-lg transition-all lg:flex-none hover:bg-amber-600"
+          @click="handleShareQrcode"
         >
-          <Share2 :size="18" />
+          <QrCode :size="14" />
+          公示二维码
         </button>
+
+        <!-- ★ 二维码弹窗 ★ -->
+        <Teleport to="body">
+          <div v-if="qrCodeDialogVisible" class="fixed inset-0 z-[20300] flex items-center justify-center p-4">
+            <div
+              class="animate-in fade-in absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+              @click="qrCodeDialogVisible = false"
+            />
+
+            <div
+              class="animate-in zoom-in-95 relative max-w-md w-full flex flex-col overflow-hidden border border-white/10 rounded-[2.5rem] bg-white shadow-2xl dark:bg-slate-900"
+            >
+              <div
+                class="flex items-center justify-between border-b border-amber-100 bg-amber-50/50 p-5 dark:border-amber-900/20 dark:bg-amber-950/20"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="rounded-2xl bg-amber-100 p-2.5 text-amber-500 dark:bg-amber-500/15">
+                    <QrCode :size="20" />
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-black tracking-tight">公示二维码</h3>
+                    <p class="mt-0.5 text-[10px] text-slate-400 font-bold tracking-widest uppercase">
+                      Elevator Notice QR
+                    </p>
+                  </div>
+                </div>
+                <button
+                  class="rounded-full p-2 text-slate-400 transition-all hover:bg-amber-100 hover:text-amber-500 dark:hover:bg-amber-500/10"
+                  @click="qrCodeDialogVisible = false"
+                >
+                  <X :size="20" />
+                </button>
+              </div>
+
+              <div class="flex flex-col items-center gap-6 p-8">
+                <div
+                  class="border border-slate-100 rounded-2xl bg-white p-4 shadow-inner dark:border-slate-800 dark:bg-slate-800/40"
+                >
+                  <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="公示二维码" class="h-64 w-64 object-contain" />
+                  <div v-else class="h-64 w-64 flex items-center justify-center text-slate-300">
+                    <div class="h-8 w-8 animate-spin border-2 border-amber-500 border-t-transparent rounded-full" />
+                  </div>
+                </div>
+
+                <button
+                  class="flex items-center gap-2 rounded-2xl bg-amber-500 px-8 py-3 text-xs text-white font-black tracking-widest uppercase shadow-amber-500/20 shadow-lg transition-all active:scale-95 hover:bg-amber-600 disabled:opacity-60"
+                  :disabled="qrDownloadLoading"
+                  @click="downloadQrCode"
+                >
+                  <div
+                    v-if="qrDownloadLoading"
+                    class="h-4 w-4 animate-spin border-2 border-white border-t-transparent rounded-full"
+                  />
+                  <Download v-else :size="16" />
+                  {{ qrDownloadLoading ? '下载中...' : '下载二维码' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Teleport>
       </div>
     </div>
 

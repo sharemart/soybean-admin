@@ -239,6 +239,7 @@ const local: App.I18n.Schema = {
     management_component: 'Elevator Component Management',
     business_repair: 'Repair Management',
     business_report: 'Report Management',
+    business_import: 'Data Import',
     business_scheduling: 'Maintenance Scheduling',
     system: 'System Configuration',
     system_person: 'Personnel Management',

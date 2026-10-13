@@ -1,7 +1,14 @@
 import { request } from '../../request';
 import type {
+  DownloadOnboardingTemplateResponse,
+  ExportCompanyUsageParams,
+  ExportCompanyUsageResponse,
+  GetCompanyUsageParams,
+  GetCompanyUsageResponse,
   GetComponentFailurePredictionResponse,
   GetDashboardStatisticsResponse,
+  GetNoticeQrcodeParams,
+  GetNoticeQrcodeResponse,
   GetOnlineTerminalStatsResponse,
   GetRealtimeAlertsParams,
   GetRealtimeAlertsResponse,
@@ -10,7 +17,9 @@ import type {
   GetTodayWorkResponse,
   GetWorkloadTrendParams,
   GetWorkloadTrendResponse,
-  GetYesterdayPendingResponse
+  GetYesterdayPendingResponse,
+  OnboardingImportParams,
+  OnboardingImportResponse
 } from './dashboard.d';
 /**
  * 获取仪表盘核心统计指标
@@ -104,5 +113,85 @@ export function getRealtimeAlerts(params: GetRealtimeAlertsParams) {
     url: '/dashboard/dashboard/getRealtimeAlerts',
     method: 'get',
     params
+  });
+}
+
+/**
+ * 获取维保公司使用统计
+ *
+ * @param params - 请求参数
+ * @returns 维保公司使用统计信息
+ */
+export function getCompanyUsage(params: GetCompanyUsageParams) {
+  return request<GetCompanyUsageResponse>({
+    url: '/dashboard/report/getCompanyUsage',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 导出维保公司使用统计
+ *
+ * @param params - 请求参数
+ * @returns 导出Excel文件路径
+ */
+export function exportCompanyUsage(params: ExportCompanyUsageParams) {
+  return request<ExportCompanyUsageResponse>({
+    url: '/dashboard/report/exportCompanyUsage',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 获取电梯公示二维码
+ *
+ * @param params - 请求参数
+ * @returns 电梯公示二维码信息
+ */
+export function getNoticeQrcode(params: GetNoticeQrcodeParams) {
+  return request<GetNoticeQrcodeResponse>({
+    url: '/dashboard/elevator/getNoticeQrcode',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 下载开户一次导入模板
+ *
+ * @returns 模板文件路径
+ */
+export function downloadOnboardingTemplate() {
+  return request<DownloadOnboardingTemplateResponse>({
+    url: '/dashboard/onboardingImport/downloadTemplate',
+    method: 'get'
+  });
+}
+
+/**
+ * 开户一次导入（校验/落库）
+ *
+ * @param params - 请求参数（file: Excel文件, company_id: 维保公司ID, dry_run: 1仅校验不落库）
+ * @returns 导入结果（成功行数、空行、错误行）
+ */
+export function onboardingImport(params: OnboardingImportParams) {
+  const formData = new FormData();
+  formData.append('file', params.file);
+  if (params.company_id !== undefined) {
+    formData.append('company_id', String(params.company_id));
+  }
+  if (params.dry_run !== undefined) {
+    formData.append('dry_run', String(params.dry_run));
+  }
+
+  return request<OnboardingImportResponse>({
+    url: '/dashboard/onboardingImport/import',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   });
 }

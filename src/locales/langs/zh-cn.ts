@@ -239,8 +239,12 @@ const local: App.I18n.Schema = {
     business: '业务调度',
     business_repair: '维修管理',
     business_report: '报表统计',
+    business_import: '数据导入',
+    report: '报表统计',
+    report_companyusage: '维保公司使用统计',
     system: '系统配置',
     system_person: '人员管理',
+
     system_roles: '角色管理',
     system_operations: '维保标准配置',
     system_menu: '菜单管理',

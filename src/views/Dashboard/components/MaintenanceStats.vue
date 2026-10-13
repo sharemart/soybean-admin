@@ -58,8 +58,8 @@ const updateTimeText = ref('');
 
 /** ===== 小组列表滚动参数 ===== */
 const GROUP_VISIBLE_ROWS = 5; // 固定显示 5 条
-const GROUP_ROW_SECONDS = 1.6; // 每条停留秒数
-const GROUP_MIN_DURATION = 10; // 最短滚动时长
+const GROUP_ROW_SECONDS = 1.8; // 每条停留秒数
+const GROUP_MIN_DURATION = 16; // 最短滚动时长
 
 /** 是否滚动：数据超过 5 条才滚 */
 const groupShouldScroll = computed(() => byGroup.value.length > GROUP_VISIBLE_ROWS);
@@ -312,54 +312,44 @@ defineExpose({ refresh: loadData });
     <!-- 指标卡 -->
     <div class="metric-grid">
       <div class="metric-card">
-        <span class="metric-icon blue"><Clock :size="13" /></span>
-        <div>
-          <small>任务总数</small>
-          <b>
-            {{ summary.total }}
-            <em>单</em>
-          </b>
-        </div>
+        <span class="metric-icon blue"><Clock :size="20" /></span>
+        <small>任务总数</small>
+        <b>
+          {{ summary.total }}
+          <em>单</em>
+        </b>
       </div>
       <div class="metric-card">
-        <span class="metric-icon green"><CheckCircle2 :size="13" /></span>
-        <div>
-          <small>已完成</small>
-          <b class="green">
-            {{ summary.completed }}
-            <em>单</em>
-          </b>
-        </div>
+        <span class="metric-icon green"><CheckCircle2 :size="20" /></span>
+        <small>已完成</small>
+        <b class="green">
+          {{ summary.completed }}
+          <em>单</em>
+        </b>
       </div>
       <div class="metric-card">
-        <span class="metric-icon cyan"><TrendingUp :size="13" /></span>
-        <div>
-          <small>进行中</small>
-          <b>
-            {{ summary.in_progress }}
-            <em>单</em>
-          </b>
-        </div>
+        <span class="metric-icon cyan"><TrendingUp :size="20" /></span>
+        <small>进行中</small>
+        <b>
+          {{ summary.in_progress }}
+          <em>单</em>
+        </b>
       </div>
       <div class="metric-card">
-        <span class="metric-icon soft"><Clock :size="13" /></span>
-        <div>
-          <small>待维保</small>
-          <b class="soft">
-            {{ summary.pending }}
-            <em>单</em>
-          </b>
-        </div>
+        <span class="metric-icon soft"><Clock :size="20" /></span>
+        <small>待维保</small>
+        <b class="soft">
+          {{ summary.pending }}
+          <em>单</em>
+        </b>
       </div>
       <div class="metric-card">
-        <span class="metric-icon red"><AlertTriangle :size="13" /></span>
-        <div>
-          <small>逾期</small>
-          <b class="red">
-            {{ summary.overdue }}
-            <em>单</em>
-          </b>
-        </div>
+        <span class="metric-icon red"><AlertTriangle :size="20" /></span>
+        <small>逾期</small>
+        <b class="red">
+          {{ summary.overdue }}
+          <em>单</em>
+        </b>
       </div>
     </div>
 
@@ -372,57 +362,6 @@ defineExpose({ refresh: loadData });
       <small>单位：%</small>
     </div>
     <div ref="chartRef" class="bar-chart"></div>
-
-    <!-- 小组进度 -->
-    <div class="group-block">
-      <div class="chart-caption">
-        <span>
-          <i class="purple"></i>
-          各维保小组进度
-        </span>
-      </div>
-
-      <!-- 高度固定为 5 条，不随数据量变化 -->
-      <div class="group-list-wrap">
-        <div
-          class="group-list-inner"
-          :class="{ 'is-scrolling': groupShouldScroll }"
-          :style="{ '--scroll-duration': groupScrollDuration }"
-        >
-          <!-- 第一份 -->
-          <div v-for="g in byGroup" :key="'a-' + g.group_id" class="group-row">
-            <span class="group-name" :title="g.group_name">{{ g.group_name }}</span>
-            <div class="group-bar">
-              <div
-                class="group-bar-inner"
-                :style="{ width: g.completion_rate + '%' }"
-                :class="{ full: g.completion_rate >= 100, low: g.completion_rate < 30 }"
-              ></div>
-            </div>
-            <span class="group-rate">{{ g.completion_rate }}%</span>
-            <span class="group-count">{{ g.completed }}/{{ g.total }}</span>
-          </div>
-
-          <!-- 第二份：无缝滚动用 -->
-          <template v-if="groupShouldScroll">
-            <div v-for="g in byGroup" :key="'b-' + g.group_id" class="group-row">
-              <span class="group-name" :title="g.group_name">{{ g.group_name }}</span>
-              <div class="group-bar">
-                <div
-                  class="group-bar-inner"
-                  :style="{ width: g.completion_rate + '%' }"
-                  :class="{ full: g.completion_rate >= 100, low: g.completion_rate < 30 }"
-                ></div>
-              </div>
-              <span class="group-rate">{{ g.completion_rate }}%</span>
-              <span class="group-count">{{ g.completed }}/{{ g.total }}</span>
-            </div>
-          </template>
-        </div>
-
-        <div v-if="!byGroup.length" class="group-empty">暂无小组数据</div>
-      </div>
-    </div>
   </section>
 </template>
 
@@ -497,70 +436,84 @@ defineExpose({ refresh: loadData });
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 .metric-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 7px 8px;
-  border-radius: 8px;
-  background: rgba(18, 39, 69, 0.7);
-  border: 1px solid rgba(76, 122, 165, 0.25);
+  gap: 8px;
+  padding: 14px 8px 14px;
+  border-radius: 12px;
+  background: rgba(18, 39, 69, 0.85);
+  border: 1px solid rgba(76, 122, 165, 0.3);
+  transition:
+    border-color 0.25s,
+    box-shadow 0.25s,
+    transform 0.2s;
+  cursor: default;
+}
+.metric-card:hover {
+  border-color: rgba(22, 217, 255, 0.55);
+  box-shadow:
+    0 0 20px rgba(22, 217, 255, 0.12),
+    inset 0 0 14px rgba(22, 217, 255, 0.05);
+  transform: translateY(-2px);
 }
 .metric-icon {
-  width: 22px;
-  height: 22px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: 12px;
   flex-shrink: 0;
 }
 .metric-icon.blue {
   color: #4d9bff;
-  background: rgba(77, 155, 255, 0.12);
+  background: rgba(77, 155, 255, 0.2);
 }
 .metric-icon.green {
   color: #00dca8;
-  background: rgba(0, 220, 168, 0.12);
+  background: rgba(0, 220, 168, 0.2);
 }
 .metric-icon.cyan {
   color: #16d9ff;
-  background: rgba(22, 217, 255, 0.12);
+  background: rgba(22, 217, 255, 0.2);
 }
 .metric-icon.soft {
-  color: #7b93ad;
-  background: rgba(123, 147, 173, 0.12);
+  color: #8ea3ba;
+  background: rgba(142, 163, 186, 0.18);
 }
 .metric-icon.red {
   color: #ff5a7a;
-  background: rgba(255, 90, 122, 0.12);
+  background: rgba(255, 90, 122, 0.2);
 }
 .metric-card small {
-  display: block;
-  color: #a5c0db;
-  font-size: 9px;
-  line-height: 1;
+  color: #7e96b0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
 }
 .metric-card b {
-  display: block;
-  margin-top: 3px;
   color: #0de0ff;
-  font-size: 13px;
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
+  font-family: 'SFMono-Regular', Consolas, monospace;
 }
 .metric-card em {
-  color: #9bb5cf;
-  font-size: 9px;
+  color: #6e8ca8;
+  font-size: 12px;
   font-style: normal;
-  margin-left: 1px;
+  font-weight: 500;
+  margin-left: 2px;
 }
 .metric-card b.green {
   color: #00dca8;
 }
 .metric-card b.soft {
-  color: #7b93ad;
+  color: #93a9be;
 }
 .metric-card b.red {
   color: #ff5a7a;
@@ -570,8 +523,8 @@ defineExpose({ refresh: loadData });
 .chart-caption {
   justify-content: space-between;
   color: #8299b5;
-  font-size: 10px;
-  margin-bottom: 4px;
+  font-size: 11px;
+  margin-bottom: 6px;
 }
 .chart-caption i {
   width: 10px;
@@ -589,95 +542,7 @@ defineExpose({ refresh: loadData });
   font-size: 10px;
 }
 .bar-chart {
-  height: 150px;
-}
-
-/* 小组进度 */
-.group-block {
-  margin-top: 10px;
-}
-
-/* 高度固定为 5 条：5 * 21 + 4 * 6 = 129px */
-.group-list-wrap {
-  position: relative;
-  margin-top: 6px;
-  overflow: hidden;
-  height: calc(5 * 21px + 4 * 6px);
-  mask-image: linear-gradient(180deg, transparent 0, #000 6px, #000 calc(100% - 6px), transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 6px, #000 calc(100% - 6px), transparent 100%);
-}
-
-.group-list-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.group-list-inner.is-scrolling {
-  will-change: transform;
-  animation: groupScrollUp var(--scroll-duration, 20s) linear infinite;
-}
-
-.group-list-inner.is-scrolling:hover {
-  animation-play-state: paused;
-}
-
-@keyframes groupScrollUp {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(-50%);
-  }
-}
-
-.group-row {
-  display: grid;
-  grid-template-columns: 70px 1fr 44px 46px;
-  align-items: center;
-  gap: 8px;
-  height: 21px;
-  font-size: 10px;
-}
-.group-name {
-  color: #c7ddf5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.group-bar {
-  height: 7px;
-  border-radius: 4px;
-  background: rgba(30, 55, 90, 0.85);
-  overflow: hidden;
-}
-.group-bar-inner {
-  height: 100%;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #2d78ff, #16d9ff);
-  transition: width 0.4s ease;
-}
-.group-bar-inner.full {
-  background: linear-gradient(90deg, #00b48a, #00dca8);
-}
-.group-bar-inner.low {
-  background: linear-gradient(90deg, #b34a63, #ff5a7a);
-}
-.group-rate {
-  color: #8ba3bf;
-  text-align: right;
-  font-family: monospace;
-}
-.group-count {
-  color: #6c87a6;
-  text-align: right;
-  font-family: monospace;
-}
-.group-empty {
-  padding: 8px 0;
-  color: #5c748f;
-  font-size: 10px;
-  text-align: center;
+  height: 210px;
 }
 
 @media (max-width: 520px) {

@@ -187,7 +187,7 @@ const formattedHazards = computed(() => {
   return reportData.value.hazards.map((item: any) => ({
     ...item,
     date: item.add_time ? new Date(item.add_time * 1000).toLocaleDateString() : '—',
-    elevator_name: `电梯 #${item.elevator_id || '—'}`,
+    elevator_name: `${item.elevator_name || '—'}`,
     hazard_desc: item.description || '—',
     severity: item.level || 1,
     severity_name: ['一般', '严重', '重大'][(item.level || 1) - 1] || '一般',
@@ -402,11 +402,6 @@ const handleSaveEdit = async () => {
     risk_analysis: riskAnalysis,
     next_plan: editForm.next_plan.trim()
   };
-
-  // ==================== 打印保存数据 ====================
-  console.log('📝 ===== 保存周排查报告 =====');
-  console.log('📋 请求参数:', saveData);
-  console.log('📝 ===== 保存结束 =====');
 
   editLoading.value = true;
   try {
@@ -790,7 +785,7 @@ watch(
                         隐患编号
                       </th>
                       <th class="px-4 py-3 text-left text-[10px] text-slate-500 font-black tracking-wider uppercase">
-                        电梯编号
+                        所属电梯
                       </th>
                       <th class="px-4 py-3 text-left text-[10px] text-slate-500 font-black tracking-wider uppercase">
                         隐患位置

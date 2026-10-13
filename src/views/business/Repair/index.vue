@@ -43,7 +43,7 @@ const getRepairList = async () => {
     const res = await getMaintainRepairFlowList({
       page: page.value,
       limit: limit.value,
-      status: status.value ?? 0
+      status: status.value
     });
 
     if (res?.data?.code === 2000) {

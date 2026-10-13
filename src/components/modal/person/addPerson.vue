@@ -21,6 +21,7 @@ import {
 } from 'lucide-vue-next';
 import { createUser, fetchCompanyList, fetchRoleList, updateUser } from '@/service/api/person/personApi';
 import type { CreateUserParams, UpdateUserParams } from '@/service/api/person/person';
+import CustomSelect from '@/components/selectOption/Select.vue';
 
 enum UserSex {
   MALE = 1,
@@ -60,6 +61,10 @@ const companyOptions = ref<{ label: string; value: number | string }[]>([]);
 const roleOptions = ref<{ label: string; value: number | string }[]>([]);
 const companyLoading = ref(false);
 const roleLoading = ref(false);
+const companyPage = ref(1);
+const companyPageSize = ref(20);
+const companyHasMore = ref(true);
+const companyTotal = ref(0);
 const message = useMessage();
 
 const formData = reactive<Record<string, any>>({
@@ -127,47 +132,83 @@ const loadRoleData = async () => {
   }
 };
 
-const loadCompanyData = async () => {
+const loadCompanyData = async (params: { page?: number; search?: string; reset?: boolean } = {}) => {
+  const { page = 1, search = '', reset = true } = params;
+
   try {
     companyLoading.value = true;
-    const companyRes = await fetchCompanyList({});
+
+    const companyRes = await fetchCompanyList({
+      page,
+      limit: companyPageSize.value,
+      search
+    });
 
     const data = companyRes?.data?.data;
 
     let list: any[] = [];
-    if (data) {
-      if (Array.isArray(data)) {
-        list = data;
-      } else if (typeof data === 'object' && 'list' in data && Array.isArray(data.list)) {
-        list = data.list;
-      } else {
-        list = [data];
-      }
+    let total = 0;
+
+    if (data && typeof data === 'object' && 'list' in data && Array.isArray(data.list)) {
+      list = data.list;
+      total = (data as any).total || 0;
+    } else if (Array.isArray(data)) {
+      list = data;
+      total = list.length;
+    } else if (data && typeof data === 'object') {
+      list = [data];
+      total = 1;
     }
 
-    companyOptions.value = list.map((item: any) => ({
+    const newOptions = list.map((item: any) => ({
       label: item.name || item.company_name || '未知机构',
       value: item.id || item.company_id || ''
     }));
 
-    if (companyOptions.value.length > 0 && !props.initialData) {
+    if (reset || page === 1) {
+      companyOptions.value = newOptions;
+    } else {
+      const existIds = new Set(companyOptions.value.map(item => item.value));
+      const realNew = newOptions.filter(item => !existIds.has(item.value));
+      companyOptions.value = [...companyOptions.value, ...realNew];
+    }
+
+    companyTotal.value = total;
+    companyHasMore.value = companyOptions.value.length < total;
+    companyPage.value = page;
+
+    if (companyOptions.value.length > 0 && !props.initialData && page === 1) {
       formData.company_id = companyOptions.value[0].value;
       loadRoleData();
-    } else if (props.initialData && props.initialData.company_id) {
+    } else if (props.initialData && props.initialData.company_id && page === 1) {
       loadRoleData();
     }
   } catch (error) {
     console.error('加载机构数据失败：', error);
     companyOptions.value = [];
+    companyHasMore.value = false;
   } finally {
     companyLoading.value = false;
   }
+};
+
+const handleCompanyLoadMore = () => {
+  if (!companyHasMore.value || companyLoading.value) return;
+  loadCompanyData({ page: companyPage.value + 1, reset: false });
+};
+
+const handleCompanySearch = (keyword: string) => {
+  companyPage.value = 1;
+  companyHasMore.value = true;
+  loadCompanyData({ page: 1, search: keyword, reset: true });
 };
 
 watch(
   [() => props.initialData, () => props.isOpen],
   ([newInitialData, newIsOpen]) => {
     if (newIsOpen) {
+      companyPage.value = 1;
+      companyHasMore.value = true;
       loadCompanyData();
 
       if (newInitialData) {
@@ -516,7 +557,7 @@ const handleSubmit = async () => {
                 组织与职务分配 (Assignment)
               </h4>
 
-              <div v-if="companyLoading" class="mb-4 text-center text-xs text-slate-400">正在加载机构数据...</div>
+              <!-- 加载中提示由 Select 组件内部处理 -->
               <div v-if="roleLoading" class="mb-4 text-center text-xs text-slate-400">正在加载角色数据...</div>
 
               <div class="grid grid-cols-1 gap-8 lg:grid-cols-3 md:grid-cols-2">
@@ -528,12 +569,17 @@ const handleSubmit = async () => {
                     <component :is="Building2" :size="10" class="text-slate-300" />
                     所属机构单位
                   </label>
-                  <select v-model="formData.company_id" required class="edit-input" :disabled="companyLoading">
-                    <option value="" disabled>请选择所属机构</option>
-                    <option v-for="item in companyOptions" :key="item.value" :value="item.value">
-                      {{ item.label }}
-                    </option>
-                  </select>
+                  <CustomSelect
+                    v-model="formData.company_id"
+                    :options="companyOptions"
+                    :loading="companyLoading"
+                    :has-more="companyHasMore"
+                    :total="companyTotal"
+                    placeholder="请选择所属机构"
+                    :icon="Building2"
+                    @load-more="handleCompanyLoadMore"
+                    @search="handleCompanySearch"
+                  />
                 </div>
 
                 <div class="text-left space-y-1.5">

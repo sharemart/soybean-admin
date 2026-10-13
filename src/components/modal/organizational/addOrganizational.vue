@@ -58,7 +58,8 @@ const message = useMessage();
 
 const formData = reactive({
   name: '',
-  type: '2',
+  company_type: 2,
+  use_comtype: 7,
   credit_code: '',
   legal_name: '',
   contact: '',
@@ -224,7 +225,8 @@ const resetFormData = async (initData?: any | null) => {
 
     Object.assign(formData, {
       name: '',
-      type: '2',
+      company_type: 2,
+      use_comtype: 7,
       credit_code: '',
       legal_name: '',
       contact: '',
@@ -360,7 +362,8 @@ const handleClose = () => {
 
 const REQUIRED_FIELDS = [
   { key: 'name', msg: '请填写单位名称' },
-  { key: 'type', msg: '请选择单位类别' },
+  { key: 'company_type', msg: '请选择单位属性' },
+  { key: 'use_comtype', msg: '请选择单位类别' },
   { key: 'credit_code', msg: '请填写社会信用代码' }
 ] as const;
 
@@ -414,11 +417,12 @@ const getLocationIds = () => {
 
 const buildSubmitData = (expiration: string) => {
   const { provinceId, cityId, districtId } = getLocationIds();
-  const isUpdate = Boolean(props.initialData);
 
   const data: any = {
     name: formData.name,
-    type: Number(formData.type),
+    company_type: formData.company_type,
+    use_comtype: formData.use_comtype,
+    credit_code: formData.credit_code,
     legal_name: formData.legal_name || '',
     contact: formData.contact,
     phone: formData.phone,
@@ -435,10 +439,6 @@ const buildSubmitData = (expiration: string) => {
     cert_number: formData.cert_number || '',
     licensing_time: formData.licensing_time || ''
   };
-
-  if (!isUpdate) {
-    data.credit_code = formData.credit_code;
-  }
 
   if (formData.is_user) {
     data.user_name = formData.user_name;
@@ -554,25 +554,43 @@ const handleSubmit = async () => {
               />
             </div>
 
-            <!-- 单位类别 - 必填 -->
+            <!-- 单位属性 - 必填 -->
             <div class="text-left space-y-1.5">
               <label
                 class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
               >
                 <span class="text-rose-500">*</span>
                 <Layout :size="10" class="text-slate-300" />
+                单位属性
+              </label>
+              <select v-model="formData.company_type" required class="edit-input">
+                <option :value="0" disabled>请选择单位属性</option>
+                <option :value="1">制造</option>
+                <option :value="2">使用</option>
+                <option :value="3">维保</option>
+                <option :value="4">安装</option>
+                <option :value="5">其他</option>
+              </select>
+            </div>
+
+            <!-- 单位类别 - 必填 -->
+            <div class="text-left space-y-1.5">
+              <label
+                class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
+              >
+                <span class="text-rose-500">*</span>
+                <Info :size="10" class="text-slate-300" />
                 单位类别
               </label>
-              <select v-model="formData.type" required class="edit-input">
-                <option value="">请选择单位类别</option>
-                <option value="1">政府机构</option>
-                <option value="2">物业公司</option>
-                <option value="3">维保公司</option>
-                <option value="4">制造厂家</option>
-                <option value="5">事业单位</option>
-                <option value="6">普通企业</option>
-                <option value="7">个人</option>
-                <option value="8">安装公司</option>
+              <select v-model="formData.use_comtype" required class="edit-input">
+                <option :value="0" disabled>请选择单位类别</option>
+                <option :value="1">政府</option>
+                <option :value="2">物业</option>
+                <option :value="3">地产</option>
+                <option :value="4">业委会</option>
+                <option :value="5">事业单位</option>
+                <option :value="6">企业</option>
+                <option :value="7">个人</option>
               </select>
             </div>
 
@@ -596,10 +614,10 @@ const handleSubmit = async () => {
 
           <!-- 维保公司/制造厂家 扩展字段 -->
           <div
-            v-if="formData.type === '3' || formData.type === '4'"
+            v-if="formData.company_type === 3 || formData.company_type === 1"
             class="animate-slide-in-from-top-4 grid grid-cols-1 gap-6 border border-sky-500/10 rounded-[2rem] bg-sky-500/5 p-8 lg:grid-cols-3 md:grid-cols-2"
           >
-            <template v-if="formData.type === '3'">
+            <template v-if="formData.company_type === 3">
               <div class="text-left space-y-1.5">
                 <label
                   class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"
@@ -629,12 +647,12 @@ const handleSubmit = async () => {
                   v-model="formData.licensing_time"
                   type="date"
                   class="edit-input"
-                  :min="new Date().toISOString().split('T')[0]"
+                  :min="props.initialData ? undefined : new Date().toISOString().split('T')[0]"
                 />
               </div>
             </template>
 
-            <template v-if="formData.type === '4'">
+            <template v-if="formData.company_type === 1">
               <div class="text-left space-y-1.5">
                 <label
                   class="flex items-center gap-1.5 pl-1 text-[10px] text-slate-400 font-black tracking-widest uppercase"

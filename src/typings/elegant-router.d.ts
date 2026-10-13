@@ -22,10 +22,9 @@ declare module "@elegant-router/types" {
     "500": "/500";
     "annual": "/annual";
     "business": "/business";
+    "business_import": "/business/import";
     "business_repair": "/business/repair";
     "business_report": "/business/report";
-    "custom": "/custom";
-    "custom_workbench": "/custom/workbench";
     "dashboard": "/dashboard";
     "emergency": "/emergency";
     "historical": "/historical";
@@ -42,6 +41,8 @@ declare module "@elegant-router/types" {
     "monitoring": "/monitoring";
     "monitoring_demo": "/monitoring/demo";
     "monitoring_detail": "/monitoring/detail";
+    "report": "/report";
+    "report_companyusage": "/report/companyusage";
     "safetysystem": "/safetysystem";
     "safetysystem_archive": "/safetysystem/archive";
     "safetysystem_checklist": "/safetysystem/checklist";
@@ -95,7 +96,6 @@ declare module "@elegant-router/types" {
     | "500"
     | "annual"
     | "business"
-    | "custom"
     | "dashboard"
     | "emergency"
     | "historical"
@@ -104,6 +104,7 @@ declare module "@elegant-router/types" {
     | "login"
     | "management"
     | "monitoring"
+    | "report"
     | "safetysystem"
     | "scheduling"
     | "system"
@@ -132,9 +133,9 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "annual"
+    | "business_import"
     | "business_repair"
     | "business_report"
-    | "custom_workbench"
     | "emergency"
     | "historical"
     | "home"
@@ -147,6 +148,7 @@ declare module "@elegant-router/types" {
     | "management_organizational"
     | "monitoring_demo"
     | "monitoring_detail"
+    | "report_companyusage"
     | "safetysystem_daily"
     | "safetysystem_archive"
     | "safetysystem_checklist"

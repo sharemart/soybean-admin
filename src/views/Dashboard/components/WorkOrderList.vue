@@ -18,12 +18,12 @@ interface ProblemItem {
   maintainer_name: string;
 }
 
-const PAGE_SIZE = 10;
-const WINDOW_ROWS = 30;
-const ROW_SECONDS = 0.9;
-const MIN_DURATION = 12;
-const FILL_ROWS = 10;
-const MAX_PAGES = 30;
+const PAGE_SIZE = 10; // 每页请求条数
+const WINDOW_ROWS = 30; // 内存保留最大条数，也用于计算滚动时长
+const ROW_SECONDS = 1.2; // 等效每条停留秒数，越小滚动越快
+const MIN_DURATION = 16; // 最短滚动周期（秒），防止数据太少时转圈过快
+const FILL_ROWS = 10; // 超过此条数才开启滚动，否则静止显示
+const MAX_PAGES = 30; // 最多请求页数，防止无限加载
 
 const list = shallowRef<ProblemItem[]>([]);
 const total = shallowRef(0);
@@ -71,7 +71,7 @@ const filteredList = computed(() => {
 const shouldScroll = computed(() => filteredList.value.length > FILL_ROWS);
 
 /** 动画时长：条数越多越慢，至少 MIN_DURATION 秒 */
-const scrollDuration = computed(() => `${Math.max(filteredList.value.length * ROW_SECONDS, MIN_DURATION)}s`);
+const scrollDuration = computed(() => `${Math.max(WINDOW_ROWS * ROW_SECONDS, MIN_DURATION)}s`);
 
 /** 追加数据并裁剪到窗口大小 */
 const appendList = (newList: ProblemItem[]) => {

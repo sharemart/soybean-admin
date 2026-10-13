@@ -46,6 +46,8 @@ export interface EmergencyTask {
   elevator_number?: string;
   register_code?: string;
   fault_code?: string;
+  repair_type?: number;
+  repair_type_text?: string;
 }
 
 const tasks = ref<EmergencyTask[]>([]);
@@ -72,7 +74,12 @@ const pendingCount = computed(() => {
 
 const severityMap: Record<string, EmergencySeverity> = {
   故障告警: 'TRAPPED',
-  故障记录: 'FAULT'
+  故障记录: 'FAULT',
+  急修单: 'WARNING'
+};
+
+const repairTypeStatusMap: Record<number, EmergencyStatus> = {
+  1: 'REPORTED'
 };
 
 // 获取列表数据（支持分页和筛选）
@@ -113,20 +120,22 @@ const getList = async (page = currentPage.value) => {
         id: item.task_id || `ER-${item.elevator_id}`,
         elevatorId: `${item.elevator_id}`,
         elevatorName: item.elevator_name || '未知电梯',
-        villageName: '未知小区',
+        villageName: item.village_name || '未知小区',
         severity: severityMap[item.fault_type] ?? 'WARNING',
-        status: 'REPORTED',
+        status: repairTypeStatusMap[item.repair_type] ?? 'CLOSED',
         reportTime: item.fault_time,
         trappedCount: 0,
         reporter: '系统告警',
         reporterPhone: '—',
-        technicianName: '待派遣',
+        technicianName: item.maintainer_name || '待派遣',
         faultDescription: item.fault_content || '无故障描述',
         source_system: item.source_system,
         fault_type: item.fault_type,
         elevator_number: item.elevator_number,
         register_code: item.register_code,
-        fault_code: item.fault_code
+        fault_code: item.fault_code,
+        repair_type: item.repair_type,
+        repair_type_text: item.repair_type_text
       }));
     }
   } catch (err) {
@@ -166,8 +175,20 @@ const getSeverityStyle = (severity: EmergencySeverity) => {
   }
 };
 
-const getStatusDisplay = (status: EmergencyStatus) => {
-  const map = {
+const getStatusDisplay = (task: EmergencyTask) => {
+  if (task.repair_type_text) {
+    const colorMap: Record<number, string> = {
+      1: 'text-rose-500',
+      2: 'text-indigo-500',
+      3: 'text-sky-500',
+      4: 'text-emerald-500',
+      5: 'text-amber-500',
+      6: 'text-slate-500'
+    };
+    const color = colorMap[task.repair_type ?? 0] || 'text-slate-400';
+    return { label: task.repair_type_text, color };
+  }
+  const map: Record<EmergencyStatus, { label: string; color: string }> = {
     REPORTED: { label: '待指派', color: 'text-rose-500' },
     ASSIGNED: { label: '已指派', color: 'text-indigo-500' },
     EN_ROUTE: { label: '赶赴中', color: 'text-sky-500' },
@@ -176,7 +197,7 @@ const getStatusDisplay = (status: EmergencyStatus) => {
     RESOLVED: { label: '待复核', color: 'text-slate-400' },
     CLOSED: { label: '已结案', color: 'text-slate-300' }
   };
-  return map[status];
+  return map[task.status];
 };
 
 const handleOpenDetail = (task: EmergencyTask) => {
@@ -340,7 +361,7 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
                       <User :size="16" />
                     </div>
                     <div>
-                      <p class="text-[9px] text-slate-400 font-black uppercase">处理技师</p>
+                      <p class="text-[9px] text-slate-400 font-black uppercase">维保人员</p>
                       <p class="text-xs font-bold">{{ task.technicianName || '待派遣' }}</p>
                     </div>
                   </div>
@@ -361,12 +382,10 @@ const handlePhoneClick = (task: EmergencyTask) => console.log('拨号', task.rep
                   class="flex items-center gap-2 border border-slate-100 rounded-xl bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950"
                 >
                   <div
-                    :class="`w-2 h-2 rounded-full ${getStatusDisplay(task.status).color.replace('text', 'bg')} ${task.status !== 'CLOSED' ? 'animate-pulse' : ''}`"
+                    :class="`w-2 h-2 rounded-full ${getStatusDisplay(task).color.replace('text', 'bg')} ${task.status !== 'CLOSED' ? 'animate-pulse' : ''}`"
                   ></div>
-                  <span
-                    :class="`text-[10px] font-black uppercase tracking-widest ${getStatusDisplay(task.status).color}`"
-                  >
-                    {{ getStatusDisplay(task.status).label }}
+                  <span :class="`text-[10px] font-black uppercase tracking-widest ${getStatusDisplay(task).color}`">
+                    {{ getStatusDisplay(task).label }}
                   </span>
                 </div>
                 <div class="mt-2 flex gap-2">

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   ListChecks,
   Plus,
+  QrCode,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -20,6 +21,7 @@ import {
   exportElevatorMaintainRecordsZip,
   fetchElevatorList
 } from '@/service/api/component/component';
+import { getNoticeQrcode } from '@/service/api/dashboard/dashboard';
 import { useMaintainCompanySelector } from '@/hooks/selectOption/useMaintainCompanySelector';
 import { useVillageSelector } from '@/hooks/selectOption/useCommunitySelector';
 import ElevatorEditModal from '@/components/modal/component/ElevatorEditModal.vue';
@@ -401,6 +403,40 @@ const confirmExportMaintainRecords = async () => {
   }
 };
 
+const downloadQrcodeLoading = ref(false);
+
+const handleDownloadQrcode = async (asset: ElevatorAsset) => {
+  const elevatorId = asset.elevator_id;
+  if (!elevatorId) {
+    showMessage('缺少电梯ID，无法获取二维码', 'error');
+    return;
+  }
+
+  try {
+    downloadQrcodeLoading.value = true;
+    const res = await getNoticeQrcode({ elevator_id: elevatorId });
+
+    if (res?.data?.code === 2000) {
+      const { qrcode_url, notice_url } = res.data.data || {};
+      const openUrl = qrcode_url || notice_url;
+
+      if (!openUrl) {
+        showMessage('获取二维码成功，但未返回图片地址', 'error');
+        return;
+      }
+
+      window.open(getDownloadUrl(openUrl), '_blank');
+    } else {
+      showMessage(res?.data?.message || '获取二维码失败', 'error');
+    }
+  } catch (error) {
+    console.error('获取电梯公示二维码异常:', error);
+    showMessage('获取二维码异常，请稍后重试', 'error');
+  } finally {
+    downloadQrcodeLoading.value = false;
+  }
+};
+
 // 页面跳转
 const navigate = (path: string) => router.push(path);
 
@@ -669,6 +705,13 @@ defineExpose({ OnlineStatus });
                     @click="() => openExportMaintainRecordsDialog(asset)"
                   >
                     <Download :size="14" />
+                  </button>
+                  <button
+                    class="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-500 hover:text-white"
+                    title="下载公示二维码"
+                    @click="() => handleDownloadQrcode(asset)"
+                  >
+                    <QrCode :size="14" />
                   </button>
                   <button
                     class="rounded-lg p-2 text-slate-400 transition-all hover:bg-rose-500 hover:text-white"

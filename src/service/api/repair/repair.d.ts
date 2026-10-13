@@ -91,7 +91,7 @@ export interface UrgentTaskItem {
   task_id: string;
   /** 来源系统（大控/浅水） */
   source_system: string;
-  /** 故障类型（故障记录/故障告警） */
+  /** 故障类型（故障记录/故障告警/急修单） */
   fault_type: string;
   /** 电梯ID */
   elevator_id: number;
@@ -107,6 +107,18 @@ export interface UrgentTaskItem {
   fault_content: string;
   /** 故障时间（Y-m-d H:i:s） */
   fault_time: string;
+  /** 维保人员姓名 */
+  maintainer_name?: string;
+  /** 维保人员用户ID */
+  maintainer_user_id?: string;
+  /** 小区ID */
+  village_id?: number;
+  /** 小区名称 */
+  village_name?: string;
+  /** 维修类型（1待接警等） */
+  repair_type?: number;
+  /** 维修类型文本 */
+  repair_type_text?: string;
 }
 
 /** 急修任务分页数据 */

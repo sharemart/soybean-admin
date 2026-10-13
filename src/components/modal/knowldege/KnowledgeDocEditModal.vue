@@ -19,6 +19,7 @@ import {
   getKnowledgeCategoryList,
   updateKnowledgeDocument
 } from '@/service/api/knowledge/konwledge';
+import CustomSelect from '@/components/selectOption/Select.vue';
 
 // 类型定义
 interface ElevatorBrand {
@@ -82,6 +83,24 @@ const isBatchMode = computed(() => props.mode === 'batch');
 
 // 分类列表
 const categoryList = ref<{ id: string; name: string }[]>([]);
+const categoryLoading = ref(false);
+
+// 品牌下拉选项
+const brandOptions = computed(() =>
+  props.brands.map(b => ({
+    label: b.name || '未知品牌',
+    value: b.id
+  }))
+);
+
+// 分类下拉选项
+const categoryOptions = computed(() =>
+  categoryList.value.map(c => ({
+    label: c.name || '未知分类',
+    value: c.id
+  }))
+);
+
 // 上传文件列表
 const uploadFiles = ref<UploadFileItem[]>([]);
 // 提交状态
@@ -179,20 +198,27 @@ const removeFile = (id: string) => {
 // 品牌变更处理
 const handleBrandChange = async () => {
   const brandId = formData.value.brandId;
-  if (!brandId) return;
+  if (!brandId) {
+    formData.value.category_id = '';
+    categoryList.value = [];
+    return;
+  }
 
-  // 清空分类
   formData.value.category_id = '';
   categoryList.value = [];
+  categoryLoading.value = true;
 
   try {
     const res: any = await getKnowledgeCategoryList({
       parent_id: Number(brandId)
     });
-    categoryList.value = res?.data?.data || []; // 空值保护
+
+    categoryList.value = res?.data?.data || [];
   } catch (err) {
     console.error('获取分类失败', err);
     emit('error', '获取分类列表失败，请重试');
+  } finally {
+    categoryLoading.value = false;
   }
 };
 
@@ -324,15 +350,15 @@ const onClose = () => {
                   >
                     <span class="text-rose-500">*</span>
                     <Building2 :size="10" class="text-slate-300" />
-                    关联品牌 (支持 100+ 列表)
+                    关联品牌
                   </label>
-                  <select v-model="formData.brandId" required class="edit-input" @change="handleBrandChange">
-                    <option value="">-- 选择电梯品牌 --</option>
-                    <option v-for="b in brands" :key="b.id" :value="b.id">
-                      {{ b.name || '未知品牌' }}
-                      <!-- 空值保护 -->
-                    </option>
-                  </select>
+                  <CustomSelect
+                    v-model="formData.brandId"
+                    :options="brandOptions"
+                    placeholder="-- 选择电梯品牌 --"
+                    :icon="Building2"
+                    @change="handleBrandChange"
+                  />
                 </div>
 
                 <!-- 文档分类 -->
@@ -342,19 +368,16 @@ const onClose = () => {
                   >
                     <span class="text-rose-500">*</span>
                     <Tags :size="10" class="text-slate-300" />
-                    文档分类 (动态加载品牌分类)
+                    文档分类
                   </label>
-                  <select
+                  <CustomSelect
                     v-model="formData.category_id"
-                    class="edit-input disabled:opacity-50"
+                    :options="categoryOptions"
+                    :loading="categoryLoading"
                     :disabled="!formData.brandId"
-                  >
-                    <option value="">请先选择品牌...</option>
-                    <option v-for="cat in categoryList" :key="cat.id" :value="cat.id">
-                      {{ cat.name || '未知分类' }}
-                      <!-- 空值保护 -->
-                    </option>
-                  </select>
+                    placeholder="请先选择品牌..."
+                    :icon="Tags"
+                  />
                 </div>
 
                 <!-- 文档总标题 -->

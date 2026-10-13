@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Cloud, Cpu, Radio } from 'lucide-vue-next';
+import { useAuthStore } from '@/store/modules/auth';
 
 defineProps<{ time: string }>();
+
+const authStore = useAuthStore();
+const companyTitle = computed(() => `${authStore.userInfo.company_name || '小马养梯维保'} · 全局监控驾驶舱`);
 </script>
 
 <template>
   <div class="header-center">
     <div class="title-decoration"></div>
     <div class="title-content">
-      <h1>小马养梯维保 · 全局监控驾驶舱</h1>
+      <h1>{{ companyTitle }}</h1>
       <div class="title-meta">
         <span class="live-dot">
           <Radio :size="12" />

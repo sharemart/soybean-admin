@@ -777,3 +777,127 @@ export interface ArtifactFiles {
   /** 三个参考结果MAT */
   'three_reference_results.mat': string;
 }
+
+// ====================== 预警抖动趋势 ======================
+
+export interface JitterTrendParams {
+  trouble_code: string;
+  elevator_id?: number;
+  sn?: string;
+  days?: number;
+}
+
+export interface JitterTrendCurrentThreshold {
+  max_x: number;
+  max_y: number;
+  max_z: number;
+  is_current: boolean;
+}
+
+export interface JitterTrendThresholdStep {
+  time: string;
+  max_x: number;
+  max_y: number;
+  max_z: number;
+  trouble_id: number;
+}
+
+export interface JitterTrendPoint {
+  time: string;
+  sound_id: number;
+  trouble_id: number;
+  max_x: number | null;
+  max_y: number | null;
+  max_z: number | null;
+  a_url: string;
+}
+
+export interface JitterTrendFeedbackMark {
+  time: string;
+  trouble_id: number;
+  status: number;
+  status_text: string;
+  remark: string;
+  user_id: number;
+  user_name: string;
+}
+
+export interface JitterTrendData {
+  threshold_mode: string;
+  uncovered_uses_current: boolean;
+  current_threshold: JitterTrendCurrentThreshold | null;
+  threshold_steps: JitterTrendThresholdStep[];
+  points: JitterTrendPoint[];
+  feedback_marks: JitterTrendFeedbackMark[];
+  dates: string[];
+  values: number[];
+}
+
+export type JitterTrendResponse = ApiResponse<JitterTrendData>;
+
+// ====================== 预警处理时间线 ======================
+
+export interface WarningHandleTimelineParams {
+  trouble_code: string;
+  elevator_id?: number;
+  sn?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface WarningHandleTimelineFeedback {
+  status: number;
+  status_text: string;
+  remark: string;
+  time: string;
+  user_id: number;
+  user_name: string;
+}
+
+export interface WarningHandleTimelineAlgo {
+  status: string;
+  fault_name: string;
+  confidence: number | null;
+  message: string;
+}
+
+export interface WarningHandleTimelineAlgoFeedback {
+  level: string;
+  fault_name: string;
+  remark: string;
+  time: string;
+  user_id: number;
+  user_name: string;
+}
+
+export interface WarningHandleTimelineSound {
+  id: number;
+  time: string;
+  location: string;
+  floor: string;
+  s_url: string;
+  a_url: string;
+  max_x: number | null;
+  max_y: number | null;
+  max_z: number | null;
+  algo: WarningHandleTimelineAlgo;
+  algo_feedback: WarningHandleTimelineAlgoFeedback;
+}
+
+export interface WarningHandleTimelineItem {
+  trouble_id: number;
+  created_at: string;
+  is_visible: number;
+  threshold_replaced: boolean;
+  feedback: WarningHandleTimelineFeedback;
+  sounds: WarningHandleTimelineSound[];
+}
+
+export interface WarningHandleTimelineData {
+  total: number;
+  page: number;
+  limit: number;
+  list: WarningHandleTimelineItem[];
+}
+
+export type WarningHandleTimelineResponse = ApiResponse<WarningHandleTimelineData>;

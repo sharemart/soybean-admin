@@ -5,6 +5,8 @@ import type {
   FaultTemplateCausesParams,
   FaultTemplateCausesResponse,
   FaultTemplateComponentsResponse,
+  JitterTrendParams,
+  JitterTrendResponse,
   SubmitFaultTemplateParams,
   SubmitFaultTemplateResponse,
   WarningAnalyzeParams,
@@ -13,6 +15,8 @@ import type {
   WarningCalculateAccelResponse,
   WarningCalculateParams,
   WarningCalculateResponse,
+  WarningHandleTimelineParams,
+  WarningHandleTimelineResponse,
   WarningSoundListParams,
   WarningSoundListResponse,
   WarningTypeListParams,
@@ -129,5 +133,31 @@ export function fetchAlgorithmResult(params: AlgorithmResultParams) {
     method: 'post',
     data: params,
     headers: {}
+  });
+}
+
+/**
+ * 预警抖动趋势
+ * GET /dashboard/warningRecord/getJitterTrend
+ * @returns 加速度峰值散点 + 阈值线 + 维保反馈标记 + 每日采样频次
+ */
+export function fetchJitterTrend(params: JitterTrendParams) {
+  return request<JitterTrendResponse>({
+    url: '/dashboard/warningRecord/getJitterTrend',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 预警处理时间线
+ * GET /dashboard/warningRecord/getWarningHandleTimeline
+ * @returns 按上报时间倒序的 treatment timeline，包含声音片段、算法诊断、维保处理记录
+ */
+export function fetchWarningHandleTimeline(params: WarningHandleTimelineParams) {
+  return request<WarningHandleTimelineResponse>({
+    url: '/dashboard/warningRecord/getWarningHandleTimeline',
+    method: 'get',
+    params
   });
 }

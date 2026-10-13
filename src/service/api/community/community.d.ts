@@ -6,8 +6,8 @@ import type { ApiResponse } from '@/service/api/types/common';
  * 注意：接口为 GET 请求，参数实际通过 Query 传递
  */
 export interface GetCompanyListParams {
-  /** 单位类别 0全部 1政府 2物业 3维保 4制造 6企业 7个人 8安装 */
-  type?: string;
+  /** 单位属性 0全部 1制造 2使用 3维保 4安装 5其他 */
+  company_type?: number;
   /** 搜索：单位名称、信用代码、联系人 */
   search?: string;
   /** 页码 */
@@ -24,8 +24,10 @@ export interface CompanyListItem {
   id: string;
   /** 单位名称 */
   name: string;
-  /** 单位类别 */
-  type: string;
+  /** 单位属性 1制造 2使用 3维保 4安装 5其他 */
+  company_type: number;
+  /** 单位类别 1政府 2物业 3地产 4业委会 5事业单位 6企业 7个人 */
+  use_comtype: number;
   /** 统一社会信用代码 */
   credit_code: string;
   /** 法人 */
@@ -63,18 +65,20 @@ export type GetCompanyListResponse = ApiResponse<CompanyListItem[]>;
 export interface CreateCompanyParams {
   /** 单位名称 */
   name: string;
-  /** 单位类别 1政府 2物业 3维保 4制造 6企业 7个人 8安装 */
-  type: string;
+  /** 单位属性 1制造 2使用 3维保 4安装 5其他 */
+  company_type: number;
+  /** 单位类别 1政府 2物业 3地产 4业委会 5事业单位 6企业 7个人 */
+  use_comtype: number;
   /** 统一社会信用代码 */
   credit_code: string;
   /** 法人 */
-  legal_name: string;
+  legal_name?: string;
   /** 联系人 */
   contact: string;
   /** 电话 */
   phone: string;
   /** 邮箱 */
-  email: string;
+  email?: string;
   /** 省ID */
   province: number;
   /** 市ID */
@@ -94,7 +98,7 @@ export interface CreateCompanyParams {
   /** 角色ID，is_user=true 时必填 */
   role_id?: number;
   /** 资质等级 */
-  qua_level: string;
+  qua_level?: string;
   /** 品牌 */
   brand: string;
 }

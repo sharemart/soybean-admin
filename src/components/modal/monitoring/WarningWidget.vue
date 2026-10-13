@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ExternalLink, Radio, ShieldAlert } from 'lucide-vue-next';
-
-// 1. 导入组件 / API
+import { Clock, ExternalLink, Radio, ShieldAlert, TrendingUp } from 'lucide-vue-next';
 import { fetchWarningTypeList } from '@/service/api/Warning/warning';
 import WarningDetailModal from '@/components/modal/monitoring/warningDetail.vue';
+import WarningTimelineModal from '@/components/modal/monitoring/warningTimeline.vue';
+import WarningTrendModal from '@/components/modal/monitoring/warningTrend.vue';
 import PagePagination from '@/components/common/PagePagination.vue';
 
 // 2. Props 定义
@@ -20,6 +20,8 @@ const WARNING_DAYS = 14;
 const warnings = ref<any[]>([]);
 const loading = ref(false);
 const modalVisible = ref(false);
+const timelineVisible = ref(false);
+const trendVisible = ref(false);
 const currentRow = ref<any>(null);
 
 // 5. 分页相关
@@ -75,10 +77,22 @@ const paginatedWarnings = computed(() => {
 });
 
 // 10. 弹窗操作
-const emit = defineEmits(['view-detail']);
+const emit = defineEmits(['view-detail', 'timeline', 'trend']);
 const viewDetail = (row: any) => {
   currentRow.value = row;
   modalVisible.value = true;
+};
+
+const viewTimeline = (row: any) => {
+  currentRow.value = row;
+  timelineVisible.value = true;
+  emit('timeline', row);
+};
+
+const viewTrend = (row: any) => {
+  currentRow.value = row;
+  trendVisible.value = true;
+  emit('trend', row);
 };
 
 // 11. 监听：电梯ID变化刷新列表
@@ -124,7 +138,7 @@ watch(
             <th class="px-6 py-4 text-left">最新推送时间</th>
             <th class="px-6 py-4 text-center">累计次数</th>
             <th class="px-6 py-4 text-center">当前状态</th>
-            <th class="px-6 py-4 text-right">管理操作</th>
+            <th class="px-6 py-4 text-center">管理操作</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-50 dark:divide-slate-800/40">
@@ -166,13 +180,31 @@ watch(
             </td>
 
             <td class="px-6 py-4 text-right">
-              <button
-                class="inline-flex items-center gap-1 text-[10px] text-sky-500 font-black tracking-wider uppercase transition-colors hover:text-sky-600"
-                @click="viewDetail(w)"
-              >
-                查看记录
-                <ExternalLink :size="12" />
-              </button>
+              <div class="inline-flex items-center gap-0.5">
+                <button
+                  class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-indigo-500 font-bold tracking-wide transition-all hover:bg-indigo-500/10 hover:text-indigo-600"
+                  @click="viewTimeline(w)"
+                >
+                  <Clock :size="12" />
+                  时间线
+                </button>
+                <span class="text-[8px] text-slate-300">·</span>
+                <button
+                  class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-amber-500 font-bold tracking-wide transition-all hover:bg-amber-500/10 hover:text-amber-600"
+                  @click="viewTrend(w)"
+                >
+                  <TrendingUp :size="12" />
+                  抖动趋势
+                </button>
+                <span class="text-[8px] text-slate-300">·</span>
+                <button
+                  class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-sky-500 font-bold tracking-wide transition-all hover:bg-sky-500/10 hover:text-sky-600"
+                  @click="viewDetail(w)"
+                >
+                  查看记录
+                  <ExternalLink :size="11" />
+                </button>
+              </div>
             </td>
           </tr>
 
@@ -195,6 +227,8 @@ watch(
   </div>
 
   <WarningDetailModal v-model:show="modalVisible" :elevator-id="props.elevatorId" :warning-data="currentRow" />
+  <WarningTimelineModal v-model:show="timelineVisible" :elevator-id="props.elevatorId" :warning-data="currentRow" />
+  <WarningTrendModal v-model:show="trendVisible" :elevator-id="props.elevatorId" :warning-data="currentRow" />
 </template>
 
 <style scoped></style>

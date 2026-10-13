@@ -22,8 +22,8 @@ let markers: any = null;
 let resizeObserver: ResizeObserver | null = null;
 
 /** ===== 列表滚动参数 ===== */
-const ROW_SECONDS = 1.2; // 每条停留秒数
-const MIN_DURATION = 10; // 最短滚动时长
+const ROW_SECONDS = 1.8; // 每条停留秒数
+const MIN_DURATION = 16; // 最短滚动时长
 const FILL_ROWS = 6; // 少于这个行数不滚动
 
 const onlinePeople = computed(() => people.value.filter(person => !person.is_stale));
@@ -414,13 +414,13 @@ defineExpose({ refresh });
   border: 1px solid rgba(60, 153, 190, 0.32);
   border-radius: 10px;
   background: rgba(17, 108, 143, 0.16);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summary {
   gap: 7px;
   color: #8aa5be;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summary span {
@@ -506,7 +506,7 @@ defineExpose({ refresh });
   gap: 8px;
   color: #9db5cc;
   background: rgba(5, 17, 32, 0.76);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .map-state button {
@@ -516,7 +516,7 @@ defineExpose({ refresh });
   border-radius: 6px;
   background: rgba(8, 77, 110, 0.42);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .map-caption,
@@ -670,7 +670,7 @@ defineExpose({ refresh });
   flex-direction: column;
   margin-top: 12px;
   color: #7892ae;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .people-head,
@@ -688,7 +688,7 @@ defineExpose({ refresh });
   color: #99aec6;
   border-bottom: 1px solid rgba(53, 128, 168, 0.32);
   background: rgba(7, 21, 40, 0.94);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.2px;
 }
 
