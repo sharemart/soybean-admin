@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
-import { ChevronRight, Circle, Clock, Info, MapPin, Pause, Play, X, Zap } from 'lucide-vue-next';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { ChevronRight, Circle, Clock, MapPin, Pause, Play, X, Zap } from 'lucide-vue-next';
 import { fetchWarningHandleTimeline } from '@/service/api/Warning/warning';
 import type { WarningHandleTimelineItem } from '@/service/api/Warning/warning.d';
 
@@ -96,7 +96,7 @@ const onSeek = (id: string, e: MouseEvent) => {
 };
 
 const formatAudioTime = (seconds: number) => {
-  if (!seconds || !isFinite(seconds)) return '0:00';
+  if (!seconds || !Number.isFinite(seconds)) return '0:00';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
@@ -121,7 +121,6 @@ const getRelativeTime = (dateStr: string) => {
 const aggregateFaults = (item: WarningHandleTimelineItem) => {
   const faultMap: Record<string, { count: number; maxConfidence: number }> = {};
   let pendingCount = 0;
-  let totalConfidence = 0;
   let confidenceCount = 0;
 
   (item.sounds || []).forEach(s => {

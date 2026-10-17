@@ -25,11 +25,25 @@ declare module "@elegant-router/types" {
     "business_import": "/business/import";
     "business_repair": "/business/repair";
     "business_report": "/business/report";
+    "contract": "/contract";
+    "contract_due": "/contract/due";
+    "contract_list": "/contract/list";
     "dashboard": "/dashboard";
+    "elevator": "/elevator";
+    "elevator_document": "/elevator/document";
     "emergency": "/emergency";
+    "finance": "/finance";
+    "finance_expense": "/finance/expense";
+    "finance_invoice": "/finance/invoice";
+    "finance_receivable": "/finance/receivable";
     "historical": "/historical";
     "home": "/home";
+    "hr": "/hr";
+    "hr_calendar": "/hr/calendar";
+    "hr_leave": "/hr/leave";
+    "hr_shift": "/hr/shift";
     "iframe-page": "/iframe-page/:url";
+    "install": "/install";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "management": "/management";
     "management_community": "/management/community";
@@ -59,6 +73,11 @@ declare module "@elegant-router/types" {
     "system_operations": "/system/operations";
     "system_person": "/system/person";
     "system_roles": "/system/roles";
+    "warehouse": "/warehouse";
+    "warehouse_io": "/warehouse/io";
+    "warehouse_list": "/warehouse/list";
+    "warehouse_low": "/warehouse/low";
+    "warehouse_stock": "/warehouse/stock";
     "workbench": "/workbench";
   };
 
@@ -96,11 +115,16 @@ declare module "@elegant-router/types" {
     | "500"
     | "annual"
     | "business"
+    | "contract"
     | "dashboard"
+    | "elevator"
     | "emergency"
+    | "finance"
     | "historical"
     | "home"
+    | "hr"
     | "iframe-page"
+    | "install"
     | "login"
     | "management"
     | "monitoring"
@@ -108,6 +132,7 @@ declare module "@elegant-router/types" {
     | "safetysystem"
     | "scheduling"
     | "system"
+    | "warehouse"
     | "workbench"
   >;
 
@@ -136,9 +161,19 @@ declare module "@elegant-router/types" {
     | "business_import"
     | "business_repair"
     | "business_report"
+    | "contract_due"
+    | "contract_list"
+    | "elevator_document"
     | "emergency"
+    | "finance_expense"
+    | "finance_invoice"
+    | "finance_receivable"
     | "historical"
     | "home"
+    | "hr_calendar"
+    | "hr_leave"
+    | "hr_shift"
+    | "install"
     | "management_community"
     | "management_component"
     | "management_equipment"
@@ -164,6 +199,10 @@ declare module "@elegant-router/types" {
     | "system_operations"
     | "system_person"
     | "system_roles"
+    | "warehouse_io"
+    | "warehouse_list"
+    | "warehouse_low"
+    | "warehouse_stock"
   >;
 
   /**

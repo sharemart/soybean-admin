@@ -121,6 +121,15 @@ const defaultFormData = {
   ce_img: '',
   register_authority: '',
   wit_device_key: '',
+  inverter: '',
+  test_year_time: '',
+  speed_year: '',
+  load_year: '',
+  insure_end_time: '',
+
+  // 检验年限
+  speed_age: null as number | null,
+  load_age: null as number | null,
 
   // 数组类型
   parts: [],
@@ -177,7 +186,8 @@ const getChangedFields = (): Record<string, any> => {
     'register_authority',
     'install_company',
     'transform_company',
-    'wit_device_key'
+    'wit_device_key',
+    'inverter'
   ];
   stringFields.forEach(field => {
     const key = field as keyof typeof defaultFormData;
@@ -217,8 +227,25 @@ const getChangedFields = (): Record<string, any> => {
     }
   });
 
+  const ageFields = ['speed_age', 'load_age'];
+  ageFields.forEach(field => {
+    const key = field as keyof typeof defaultFormData;
+    if (hasFieldChanged(key) && formData[key] !== null && formData[key] !== '') {
+      changed[field] = Number(formData[key]);
+    }
+  });
+
   // 日期字段
-  const dateFields = ['make_time', 'maintain_start_time', 'installs_time', 'contract_start_time'];
+  const dateFields = [
+    'make_time',
+    'maintain_start_time',
+    'installs_time',
+    'contract_start_time',
+    'test_year_time',
+    'speed_year',
+    'load_year',
+    'insure_end_time'
+  ];
   dateFields.forEach(field => {
     const key = field as keyof typeof defaultFormData;
     if (hasFieldChanged(key) && formData[key]) {
@@ -307,6 +334,13 @@ const loadElevatorDetail = async (id: number) => {
         ce_img: toString(data.ce_img),
         register_authority: toString((data as any).register_authority),
         wit_device_key: toString((data as any).wit_device_key),
+        inverter: data.inverter === null ? '' : String(data.inverter),
+        test_year_time: data.test_year_time || '',
+        speed_year: data.speed_year || '',
+        speed_age: toInt(data.speed_age),
+        load_year: data.load_year || '',
+        load_age: toInt(data.load_age),
+        insure_end_time: data.insure_end_time || '',
         parts: (data as any).parts || [],
         floors: (data as any).floors || []
       };
@@ -334,7 +368,9 @@ const getStringValue = (value: any): string => {
 
 const formatDate = (date: any): string | null => {
   if (!date) return null;
-  return dayjs(date).format('YYYY-MM-DD');
+  const parsed = dayjs(date);
+  if (!parsed.isValid()) return null;
+  return parsed.format('YYYY-MM-DD');
 };
 
 // ==================== 构建提交数据 ====================
@@ -370,7 +406,14 @@ const buildBaseSubmitData = () => {
     nominal_width: getNumberValue(formData.nominal_width),
     tilt_angle: getNumberValue(formData.tilt_angle),
     lift_length: getNumberValue(formData.lift_length),
-    wit_device_key: getStringValue(formData.wit_device_key)
+    wit_device_key: getStringValue(formData.wit_device_key),
+    inverter: getStringValue(formData.inverter),
+    test_year_time: formatDate(formData.test_year_time),
+    speed_year: formatDate(formData.speed_year),
+    speed_age: getNumberValue(formData.speed_age),
+    load_year: formatDate(formData.load_year),
+    load_age: getNumberValue(formData.load_age),
+    insure_end_time: formatDate(formData.insure_end_time)
   };
 };
 

@@ -1,6 +1,4 @@
-<script setup lang="ts">
-import { TrendingUp } from 'lucide-vue-next';
-</script>
+<script setup lang="ts"></script>
 
 <template>
   <div class="space-y-8">

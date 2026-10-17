@@ -132,6 +132,7 @@ const loadRoleData = async () => {
   }
 };
 
+// eslint-disable-next-line complexity
 const loadCompanyData = async (params: { page?: number; search?: string; reset?: boolean } = {}) => {
   const { page = 1, search = '', reset = true } = params;
 
@@ -141,7 +142,8 @@ const loadCompanyData = async (params: { page?: number; search?: string; reset?:
     const companyRes = await fetchCompanyList({
       page,
       limit: companyPageSize.value,
-      search
+      search,
+      is_user: 1
     });
 
     const data = companyRes?.data?.data;

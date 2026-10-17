@@ -1,3 +1,4 @@
+import type { RouteRecordRaw } from 'vue-router';
 import type { CustomRoute, ElegantConstRoute, ElegantRoute } from '@elegant-router/types';
 import { generatedRoutes } from '../elegant/routes';
 import { layouts, views } from '../elegant/imports';
@@ -35,6 +36,31 @@ export function createStaticRoutes() {
  *
  * @param routes Elegant routes
  */
+/**
+ * 目录路由名带下划线时，生成器不会把子页面挂进布局。
+ * 按名称前缀把这些页面收回到布局下，避免打开后丢掉侧栏和顶栏。
+ */
+function nestPagesUnderLayout(routes: RouteRecordRaw[]) {
+  const consumed = new Set<RouteRecordRaw['name']>();
+
+  routes.forEach(route => {
+    if (!route.component || !route.redirect || route.children?.length || route.name === undefined) return;
+
+    const prefix = `${String(route.name)}_`;
+    const children = routes.filter(item => {
+      if (item.name === undefined || item.children?.length) return false;
+      return String(item.name).startsWith(prefix);
+    });
+
+    if (!children.length) return;
+
+    route.children = children;
+    children.forEach(child => consumed.add(child.name));
+  });
+
+  return routes.filter(route => !consumed.has(route.name));
+}
+
 export function getAuthVueRoutes(routes: ElegantConstRoute[]) {
-  return transformElegantRoutesToVueRoutes(routes, layouts, views);
+  return nestPagesUnderLayout(transformElegantRoutesToVueRoutes(routes, layouts, views));
 }

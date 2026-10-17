@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import {
-  Activity,
   Eye,
   MapPin,
   Navigation,
@@ -9,7 +8,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  ShieldAlert,
   Siren as SirenIcon,
   User,
   UsersIcon
@@ -161,19 +159,6 @@ watch([searchTerm, severityFilter, statusFilter], () => {
 onMounted(() => {
   getList(1);
 });
-
-const getSeverityStyle = (severity: EmergencySeverity) => {
-  switch (severity) {
-    case 'TRAPPED':
-      return 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/20';
-    case 'FAULT':
-      return 'bg-amber-500 text-white';
-    case 'WARNING':
-      return 'bg-sky-500 text-white';
-    default:
-      return 'bg-slate-500 text-white';
-  }
-};
 
 const getStatusDisplay = (task: EmergencyTask) => {
   if (task.repair_type_text) {

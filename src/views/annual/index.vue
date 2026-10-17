@@ -4,7 +4,6 @@ import {
   AlertCircle,
   AlertTriangle,
   CalendarCheck,
-  CalendarDays,
   CalendarIcon,
   CheckCircle,
   CheckSquare,
@@ -204,16 +203,6 @@ const fetchScheduleList = async () => {
   }
 };
 
-const getStatusClass = (status: TaskStatus) => {
-  const map = {
-    [TaskStatus.COMPLETED]: 'bg-emerald-500',
-    [TaskStatus.IN_PROGRESS]: 'bg-blue-500',
-    [TaskStatus.OVERDUE]: 'bg-rose-500',
-    [TaskStatus.PENDING]: 'bg-amber-400'
-  };
-  return map[status] || 'bg-amber-400';
-};
-
 const getStatusText = (status: TaskStatus) => {
   const map = {
     [TaskStatus.PENDING]: '未开始',
@@ -270,10 +259,6 @@ const openDetailModal = (task: ElevatorScheduleTask) => {
 
 const openAddModal = () => {
   addModalVisible.value = true;
-};
-
-const openBatchAddModal = () => {
-  batchAddModalVisible.value = true;
 };
 
 const handleAddSuccess = () => {

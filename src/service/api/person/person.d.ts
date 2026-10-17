@@ -227,6 +227,8 @@ export interface MaintainCompanyListParams {
   type?: string;
   /** 搜索关键词 */
   search?: string;
+  /** 是否开通后台账号：空全部，1已开通，0未开通 */
+  is_user?: number;
   page?: number;
   limit?: number;
 }

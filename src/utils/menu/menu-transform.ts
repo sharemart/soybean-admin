@@ -91,6 +91,7 @@ export function transformBackendMenuToFrontend(menu: BackendMenuInfo): MenuInfo 
 /**
  * 将前端菜单数据转换为后端格式
  */
+// eslint-disable-next-line complexity
 export function transformFrontendMenuToBackend(frontendMenu: Partial<MenuInfo>): Record<string, any> {
   const backend: Record<string, any> = {};
 

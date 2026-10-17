@@ -2,10 +2,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import {
-  AlertTriangle,
   Calendar,
   CheckCircle,
-  Clock,
   Download,
   Edit,
   Eye,
@@ -77,20 +75,6 @@ const yearOptions = computed(() => {
 });
 
 // 月份选项
-const monthOptions = [
-  { value: 1, label: '1月' },
-  { value: 2, label: '2月' },
-  { value: 3, label: '3月' },
-  { value: 4, label: '4月' },
-  { value: 5, label: '5月' },
-  { value: 6, label: '6月' },
-  { value: 7, label: '7月' },
-  { value: 8, label: '8月' },
-  { value: 9, label: '9月' },
-  { value: 10, label: '10月' },
-  { value: 11, label: '11月' },
-  { value: 12, label: '12月' }
-];
 
 // ==================== 工具函数 ====================
 function getStatusName(status: number): string {
@@ -184,8 +168,6 @@ const handleCreateClose = () => {
 };
 
 // ==================== 编辑相关 ====================
-const editDialogVisible = ref(false);
-const editLoading = ref(false);
 const editForm = reactive({
   id: 0,
   village_id: undefined as number | undefined,
@@ -226,7 +208,6 @@ const editForm = reactive({
 
 // 签名弹窗
 const signDialogVisible = ref(false);
-const signLoading = ref(false);
 const signMeetingId = ref(0);
 const signForm = reactive({
   principal_name: '',
@@ -234,117 +215,17 @@ const signForm = reactive({
 });
 
 // 新增决议弹窗
-const resolutionDialogVisible = ref(false);
-const resolutionForm = reactive({
-  content: '',
-  responsible_person: '',
-  deadline: ''
-});
 
 // 新增下月重点弹窗
-const nextFocusDialogVisible = ref(false);
-const nextFocusForm = reactive({
-  content: ''
-});
 
 // ==================== 获取编辑数据 ====================
-const fetchEditData = async (id: number) => {
-  loading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const meeting = meetingList.value.find(m => m.id === id);
-    if (meeting) {
-      editForm.id = meeting.id;
-      editForm.village_id = meeting.village_id;
-      editForm.year = meeting.year;
-      editForm.month = meeting.month;
-      editForm.meeting_time = new Date(meeting.meeting_time_str).getTime();
-      editForm.meeting_time_str = meeting.meeting_time_str;
-      editForm.location = meeting.location;
-
-      // 模拟获取完整数据
-      editForm.run_stats = {
-        daily_total: 30,
-        daily_completed: 28,
-        weekly_total: 4,
-        weekly_completed: 4,
-        completion_rate: 93.3,
-        zero_risk_count: 2
-      };
-      editForm.hazard_stats = {
-        total_count: 8,
-        resolved_count: 6,
-        resolving_count: 2,
-        resolution_rate: 75,
-        major_hazard_count: 0,
-        overdue_count: 0
-      };
-      editForm.maintain_review = {
-        maintain_count: 8,
-        full_supervise_count: 3,
-        sample_supervise_count: 5,
-        qualified_rate: 100,
-        issues_count: 0,
-        annual_inspection_status: '已通过',
-        annual_inspection_date: '2024-10-15',
-        next_inspection_date: '2025-10-15'
-      };
-      editForm.resolutions = [
-        {
-          id: 1,
-          content: '加强电梯日常巡检频次',
-          responsible_person: '张明',
-          deadline: '2024-12-01',
-          status: 1,
-          status_name: '进行中'
-        }
-      ];
-      editForm.next_focus = ['完成年度电梯年检工作', '加强冬季电梯防冻措施'];
-    }
-  } finally {
-    loading.value = false;
-  }
-};
 
 // 自动填充
-const handleAutoFill = async (id: number) => {
-  dialog.info({
-    title: '自动填充',
-    content: '系统将自动汇总本月日管控、周排查、隐患治理等数据填充到纪要中，是否继续？',
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        message.success('自动填充成功');
-        await fetchEditData(id);
-        editDialogVisible.value = true;
-      } catch (error) {
-        message.error('自动填充失败');
-      }
-    }
-  });
-};
 
 // 保存纪要
-const handleSave = async () => {
-  if (!editForm.location) {
-    message.warning('请填写会议地点');
-    return;
-  }
-  editLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    message.success('保存成功');
-    editDialogVisible.value = false;
-    await fetchMeetingList();
-  } finally {
-    editLoading.value = false;
-  }
-};
 
 // 提交纪要
-const handleSubmit = async (id: number) => {
+const handleSubmit = async (_id: number) => {
   dialog.warning({
     title: '提交纪要',
     content: '提交后纪要将提交给主要负责人进行电子签名确认，是否确认提交？',
@@ -352,10 +233,10 @@ const handleSubmit = async (id: number) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => {setTimeout(resolve, 800)});
         message.success('提交成功，等待主要负责人签名确认');
         await fetchMeetingList();
-      } catch (error) {
+      } catch {
         message.error('提交失败');
       }
     }
@@ -370,84 +251,14 @@ const handleSign = (id: number) => {
   signDialogVisible.value = true;
 };
 
-const confirmSign = async () => {
-  if (!signForm.principal_name) {
-    message.warning('请输入主要负责人姓名');
-    return;
-  }
-  signLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    message.success('签名确认成功');
-    signDialogVisible.value = false;
-    await fetchMeetingList();
-  } finally {
-    signLoading.value = false;
-  }
-};
 
 // 添加决议
-const handleAddResolution = () => {
-  resolutionForm.content = '';
-  resolutionForm.responsible_person = '';
-  resolutionForm.deadline = '';
-  resolutionDialogVisible.value = true;
-};
 
-const handleSaveResolution = () => {
-  if (!resolutionForm.content) {
-    message.warning('请输入决议内容');
-    return;
-  }
-  if (!resolutionForm.responsible_person) {
-    message.warning('请输入责任人');
-    return;
-  }
-  editForm.resolutions.push({
-    id: Date.now(),
-    content: resolutionForm.content,
-    responsible_person: resolutionForm.responsible_person,
-    deadline: resolutionForm.deadline,
-    status: 0,
-    status_name: '未开始'
-  });
-  resolutionDialogVisible.value = false;
-  message.success('添加成功');
-};
 
-const handleDeleteResolution = (index: number) => {
-  dialog.warning({
-    title: '删除决议',
-    content: '确定要删除这条决议吗？',
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      editForm.resolutions.splice(index, 1);
-      message.success('删除成功');
-    }
-  });
-};
 
 // 添加下月重点
-const handleAddNextFocus = () => {
-  nextFocusForm.content = '';
-  nextFocusDialogVisible.value = true;
-};
 
-const handleSaveNextFocus = () => {
-  if (!nextFocusForm.content) {
-    message.warning('请输入工作重点');
-    return;
-  }
-  editForm.next_focus.push(nextFocusForm.content);
-  nextFocusDialogVisible.value = false;
-  message.success('添加成功');
-};
 
-const handleDeleteNextFocus = (index: number) => {
-  editForm.next_focus.splice(index, 1);
-  message.success('删除成功');
-};
 
 // 查看详情
 const handleViewDetail = (meeting: MonthlyMeeting) => {
@@ -488,12 +299,6 @@ const handleSync = () => {
 };
 
 // 重置筛选
-const handleReset = () => {
-  filterForm.village_id = undefined;
-  filterForm.year = new Date().getFullYear();
-  searchTerm.value = '';
-  fetchMeetingList();
-};
 
 // 获取状态信息
 const getStatusInfo = (status: number, statusName: string) => {

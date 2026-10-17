@@ -14,6 +14,8 @@ export interface GetCompanyListParams {
   page?: number;
   /** 每页条数 */
   limit?: number;
+  /** 是否开通后台账号：空为全部，1已开通，0未开通 */
+  is_user?: 0 | 1;
 }
 
 /**

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { NButton, NForm, NInput, NInputNumber, NSwitch } from 'naive-ui';
 import { Hash, Layout, MonitorPlay, MousePointer2, RefreshCw, Save, SquareMenu, Terminal, X } from 'lucide-vue-next';
 
@@ -10,6 +10,7 @@ const formData = ref<SystemMenu>({
   path: '',
   icon: '',
   sort: 1,
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   type: MenuType.MENU,
   permission: '',
   isVisible: true

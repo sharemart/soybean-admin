@@ -16,7 +16,7 @@ export interface RepairOrderListParams {
 /**
  * 急修单列表 - 单条数据结构（根据你项目扩展）
  */
-export interface RepairOrderItem {}
+export type RepairOrderItem = object;
 
 /** 急修单分页数据 */
 export interface RepairOrderPageData {

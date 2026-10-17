@@ -2,11 +2,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import {
-  AlertTriangle,
   Archive,
   Calendar,
-  CheckCircle,
-  Clock,
   Download,
   Edit,
   Eye,
@@ -93,7 +90,7 @@ interface WeeklyReportDetailData {
 const message = useMessage();
 const dialog = useDialog();
 
-const { villageOptions, loading: villageLoading, fetchVillageListData } = useVillageSelector();
+const { villageOptions, fetchVillageListData } = useVillageSelector();
 
 // 筛选条件
 const filterForm = reactive({
@@ -122,29 +119,13 @@ const yearOptions = computed(() => {
 });
 
 // 编辑弹窗
-const editDialogVisible = ref(false);
-const editLoading = ref(false);
-const currentEditReport = ref<WeeklyReport | null>(null);
-const isEdit = ref(false);
-const editForm = reactive({
-  id: 0,
-  village_id: undefined as number | undefined,
-  year: new Date().getFullYear(),
-  week_no: 1,
-  summary: '',
-  risk_analysis: '',
-  next_plan: ''
-});
 
 // 详情弹窗
 const detailVisible = ref(false);
-const detailLoading = ref(false);
-const currentReport = ref<WeeklyReportDetailData | null>(null);
 
 // 维保监督弹窗
 const superviseDialogVisible = ref(false);
 const superviseLoading = ref(false);
-const currentSuperviseReportId = ref(0);
 const superviseRecords = ref<MaintainSupervise[]>([]);
 const editSuperviseIndex = ref(-1);
 const superviseForm = reactive({
@@ -244,155 +225,15 @@ const fetchReportList = async () => {
 };
 
 // 获取详情
-const fetchReportDetail = async (id: number) => {
-  detailLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const report = reportList.value.find(r => r.id === id);
-    if (report) {
-      const mockHazards: HazardItem[] = [
-        {
-          id: 1,
-          date: '2024-12-16',
-          elevator_name: '1号楼客梯',
-          hazard_desc: '曳引机运行时存在轻微异响',
-          severity: 2,
-          severity_name: '严重',
-          status: 1,
-          status_name: '整改中',
-          rectification_deadline: '2024-12-23',
-          responsible_person: '王建国',
-          remark: '已联系维保单位安排检查'
-        },
-        {
-          id: 2,
-          date: '2024-12-18',
-          elevator_name: '2号楼客梯',
-          hazard_desc: '轿厢照明灯闪烁',
-          severity: 1,
-          severity_name: '一般',
-          status: 2,
-          status_name: '已整改',
-          rectification_deadline: '2024-12-20',
-          responsible_person: '李工',
-          remark: '已更换灯管'
-        }
-      ];
-
-      const mockSupervises: MaintainSupervise[] = [
-        {
-          id: 1,
-          maintain_date: '2024-12-17',
-          maintain_type: '半月维保',
-          maintain_content: '电梯曳引机检查、润滑，门系统调整',
-          supervisor: '张明',
-          supervise_type: 1,
-          supervise_type_name: '全过程',
-          conclusion: '维保过程符合规范，记录完整',
-          issues: '无',
-          images: []
-        }
-      ];
-
-      currentReport.value = {
-        report,
-        hazards: mockHazards,
-        maintain_supervises: mockSupervises
-      };
-    }
-  } finally {
-    detailLoading.value = false;
-  }
-};
 
 // 获取编辑数据
-const fetchEditData = async (id: number) => {
-  loading.value = true;
-  try {
-    const report = reportList.value.find(r => r.id === id);
-    if (report) {
-      editForm.id = report.id;
-      editForm.village_id = report.village_id;
-      editForm.year = report.year;
-      editForm.week_no = report.week_no;
-      editForm.summary = report.summary || '';
-      editForm.risk_analysis = report.risk_analysis || '';
-      editForm.next_plan = report.next_plan || '';
-    }
-  } finally {
-    loading.value = false;
-  }
-};
 
 // 新建草稿
-const createDraft = async () => {
-  if (!createForm.village_id) {
-    message.warning('请选择小区');
-    return;
-  }
-  createLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    message.success('新建草稿成功');
-    createDialogVisible.value = false;
-    await fetchReportList();
-  } finally {
-    createLoading.value = false;
-  }
-};
 
 // 保存报告
-const handleSave = async () => {
-  if (!editForm.summary) {
-    message.warning('请填写工作概况');
-    return;
-  }
-  editLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    message.success('保存成功');
-    editDialogVisible.value = false;
-    await fetchReportList();
-  } finally {
-    editLoading.value = false;
-  }
-};
 
 // 维保监督管理
-const handleManageSupervise = async (reportId: number) => {
-  currentSuperviseReportId.value = reportId;
-  await fetchSuperviseRecords(reportId);
-  superviseDialogVisible.value = true;
-};
 
-const fetchSuperviseRecords = async (reportId: number) => {
-  superviseLoading.value = true;
-  try {
-    // TODO: 调用维保监督列表接口
-    // const res = await fetchMaintainSuperviseList({ report_id: reportId });
-    // if (res?.data?.code === 2000) {
-    //   superviseRecords.value = res.data.data.list || [];
-    // }
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-    superviseRecords.value = [
-      {
-        id: 1,
-        maintain_date: '2024-12-17',
-        maintain_type: '半月维保',
-        maintain_content: '电梯曳引机检查、润滑，门系统调整',
-        supervisor: '张明',
-        supervise_type: 1,
-        supervise_type_name: '全过程',
-        conclusion: '维保过程符合规范，记录完整',
-        issues: '无',
-        images: []
-      }
-    ];
-  } finally {
-    superviseLoading.value = false;
-  }
-};
 
 const handleAddSupervise = () => {
   editSuperviseIndex.value = -1;
@@ -458,7 +299,7 @@ const saveSuperviseRecords = async () => {
     //   superviseDialogVisible.value = false;
     // }
 
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => {setTimeout(resolve, 800)});
     message.success('维保监督记录保存成功');
     superviseDialogVisible.value = false;
   } finally {
@@ -491,7 +332,7 @@ const handleExport = async (report: WeeklyReport) => {
     setTimeout(() => {
       message.success(`导出成功：${report.village_name}_${report.year}年第${report.week_no}周`);
     }, 1000);
-  } catch (error) {
+  } catch {
     message.error('导出失败');
   }
 };
@@ -512,36 +353,7 @@ const handleCreateSave = async () => {
 };
 
 // 重置筛选
-const handleReset = () => {
-  filterForm.village_id = undefined;
-  filterForm.year = new Date().getFullYear();
-  searchTerm.value = '';
-  fetchReportList();
-};
 
-const handleEditSave = async (data: any) => {
-  try {
-    editLoading.value = true;
-    // TODO: 调用保存接口
-    // const res = await updateSafetyWeekly(data);
-    // if (res?.data?.code === 2000) {
-    //   message.success('保存成功');
-    //   editDialogVisible.value = false;
-    //   await fetchReportList();
-    // }
-
-    // 模拟保存
-    await new Promise(resolve => setTimeout(resolve, 800));
-    message.success('保存成功');
-    editDialogVisible.value = false;
-    await fetchReportList();
-  } catch (error) {
-    console.error('保存失败:', error);
-    message.error('保存失败，请重试');
-  } finally {
-    editLoading.value = false;
-  }
-};
 
 // 关闭编辑弹窗
 const handleDetailClose = () => {
@@ -567,27 +379,7 @@ const getStatusInfo = (status: number) => {
 };
 
 // 获取隐患级别信息
-const getSeverityInfo = (severity: number, severityName: string) => {
-  switch (severity) {
-    case 3:
-      return { text: severityName, color: 'text-rose-500', bg: 'bg-rose-500/10' };
-    case 2:
-      return { text: severityName, color: 'text-amber-500', bg: 'bg-amber-500/10' };
-    default:
-      return { text: severityName, color: 'text-sky-500', bg: 'bg-sky-500/10' };
-  }
-};
 
-const getHazardStatusInfo = (status: number, statusName: string) => {
-  switch (status) {
-    case 2:
-      return { text: statusName, icon: CheckCircle, color: 'text-emerald-500' };
-    case 1:
-      return { text: statusName, icon: Clock, color: 'text-amber-500' };
-    default:
-      return { text: statusName, icon: AlertTriangle, color: 'text-rose-500' };
-  }
-};
 
 watch([() => filterForm.village_id, () => filterForm.year], () => {
   fetchReportList();
@@ -761,7 +553,7 @@ onMounted(() => {
                     @click="handleManageSupervise(item.id)"
                   >
                     <ListTodo :size="14" />
-                  </button> 
+                  </button>
 -->
                   <button
                     class="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-500 hover:text-white"

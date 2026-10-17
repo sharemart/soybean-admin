@@ -46,7 +46,7 @@ const createMQTTClient = (deviceID: string, onMessage: (payload: any) => void) =
   });
 
   // 接收消息：透传回调
-  client.on('message', (topic, message) => {
+  client.on('message', (_topic, message) => {
     try {
       const payload = JSON.parse(message.toString());
       console.log('收到MQTT消息：', payload);

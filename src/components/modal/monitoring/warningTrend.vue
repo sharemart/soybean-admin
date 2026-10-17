@@ -39,7 +39,7 @@ const buildDailyAxisData = (dates: string[], points: any[]) => {
       const fullDate = `${currentYear}-${mm}-${dd}`;
       const dayPoints = points.filter(p => p.time.startsWith(fullDate));
       if (dayPoints.length === 0) return null;
-      const values = dayPoints.map(p => p[key]).filter((v: any) => v !== null && v !== undefined && !isNaN(v));
+      const values = dayPoints.map(p => p[key]).filter((v: any) => v !== null && v !== undefined && !Number.isNaN(v));
       return values.length ? Math.max(...values) : null;
     });
 
@@ -62,6 +62,7 @@ const loadTrendData = async () => {
       trendData.value = res.data.data;
       await nextTick();
       // ★ 延迟一点，等 Teleport + 动画完成，容器有尺寸
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       setTimeout(() => renderChart(), 100);
     }
   } catch (err) {

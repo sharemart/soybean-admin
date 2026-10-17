@@ -111,6 +111,7 @@ const ensureFill = async () => {
   while (list.value.length <= FILL_ROWS && hasMore.value && !loading.value && guard < 5) {
     guard += 1;
     page.value += 1;
+    // eslint-disable-next-line no-await-in-loop
     await fetchPage(page.value);
   }
 };

@@ -1,19 +1,86 @@
 <script setup lang="ts">
-import { NDatePicker, NInput } from 'naive-ui';
-import { AlertTriangle, Calendar, Cpu, History, ShieldCheck } from 'lucide-vue-next';
+import { reactive, watch } from 'vue';
+import { NDatePicker, NInput, NInputNumber } from 'naive-ui';
+import dayjs from 'dayjs';
+import { Calendar, Cpu, History, ShieldCheck } from 'lucide-vue-next';
 
 interface Props {
   formData: Record<string, any>;
+  isBatchMode?: boolean;
 }
 
 const props = defineProps<Props>();
+const emit = defineEmits<{
+  (e: 'update:formData', value: Record<string, any>): void;
+}>();
+
+const toTimestamp = (dateStr: string | number | null | undefined): number | null => {
+  if (dateStr === null || dateStr === undefined || dateStr === '') return null;
+  const parsed = dayjs(dateStr);
+  return parsed.isValid() ? parsed.valueOf() : null;
+};
+
+const toDateString = (timestamp: number | null): string => {
+  if (!timestamp) return '';
+  const parsed = dayjs(timestamp);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+};
+
+const toSafeNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
+};
+
+const localFormData = reactive({
+  insure_end_time: null as number | null,
+  inverter: '',
+  test_year_time: null as number | null,
+  speed_year: null as number | null,
+  speed_age: null as number | null,
+  load_year: null as number | null,
+  load_age: null as number | null
+});
+
+watch(
+  () => props.formData,
+  newVal => {
+    if (!newVal) return;
+    localFormData.insure_end_time = toTimestamp(newVal.insure_end_time);
+    localFormData.inverter = newVal.inverter ? String(newVal.inverter) : '';
+    localFormData.test_year_time = toTimestamp(newVal.test_year_time);
+    localFormData.speed_year = toTimestamp(newVal.speed_year);
+    localFormData.speed_age = toSafeNumber(newVal.speed_age);
+    localFormData.load_year = toTimestamp(newVal.load_year);
+    localFormData.load_age = toSafeNumber(newVal.load_age);
+  },
+  { immediate: true, deep: true }
+);
+
+watch(
+  localFormData,
+  () => {
+    const payload = {
+      insure_end_time: toDateString(localFormData.insure_end_time),
+      inverter: localFormData.inverter,
+      test_year_time: toDateString(localFormData.test_year_time),
+      speed_year: toDateString(localFormData.speed_year),
+      speed_age: localFormData.speed_age,
+      load_year: toDateString(localFormData.load_year),
+      load_age: localFormData.load_age
+    };
+    const current = props.formData || {};
+    const changed = (Object.keys(payload) as Array<keyof typeof payload>).some(key => payload[key] !== current[key]);
+    if (!changed) return;
+    emit('update:formData', payload);
+  },
+  { deep: true }
+);
 </script>
 
 <template>
   <div class="animate-in slide-in-from-bottom-2 duration-500 space-y-10">
-    <!-- 基础参数 -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
-      <!-- 保险到期时间 -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between pl-1">
           <label class="flex items-center gap-1.5 text-[10px] text-slate-400 font-black tracking-widest uppercase">
@@ -22,12 +89,14 @@ const props = defineProps<Props>();
           </label>
         </div>
         <NDatePicker
-          v-model:value="formData.insure_end_time"
-          class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+          v-model:value="localFormData.insure_end_time"
+          type="date"
+          clearable
+          placeholder="选择日期"
+          class="w-full"
         />
       </div>
 
-      <!-- 变频器型号 -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between pl-1">
           <label class="flex items-center gap-1.5 text-[10px] text-slate-400 font-black tracking-widest uppercase">
@@ -35,29 +104,26 @@ const props = defineProps<Props>();
             变频器型号
           </label>
         </div>
-        <NInput
-          v-model:value="formData.inverter_model"
-          placeholder="VAF-Series..."
-          class="rounded-[1.25rem] px-4 py-2.5 text-sm font-mono"
-        />
+        <NInput v-model:value="localFormData.inverter" placeholder="VAF-Series..." class="font-mono" />
       </div>
 
-      <!-- 下次年检日期 -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between pl-1">
           <label class="flex items-center gap-1.5 text-[10px] text-slate-400 font-black tracking-widest uppercase">
             <Calendar :size="12" class="text-slate-300" />
-            下次年检日期
+            下次年检时间
           </label>
         </div>
         <NDatePicker
-          v-model:value="formData.next_annual_check"
-          class="rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+          v-model:value="localFormData.test_year_time"
+          type="date"
+          clearable
+          placeholder="选择日期"
+          class="w-full"
         />
       </div>
     </div>
 
-    <!-- 核心组件安全校验周期 -->
     <div
       class="border border-slate-100 rounded-[2.5rem] bg-slate-50 p-8 space-y-6 dark:border-slate-800 dark:bg-slate-950/40"
     >
@@ -66,36 +132,42 @@ const props = defineProps<Props>();
         核心组件安全校验周期
       </h4>
       <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <!-- 限速器效验 -->
         <div class="space-y-4">
-          <label class="text-[10px] text-slate-400 font-bold uppercase">限速器效验</label>
-          <div class="flex gap-3">
+          <label class="text-[10px] text-slate-400 font-bold uppercase">限速器校验</label>
+          <div class="flex items-center gap-3">
             <NDatePicker
-              v-model:value="formData.speed_governor_check"
-              class="flex-1 rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+              v-model:value="localFormData.speed_year"
+              type="date"
+              clearable
+              placeholder="本次校验时间"
+              class="min-w-0 flex-1"
             />
-            <NInput
-              v-model:value="formData.speed_governor_age"
-              type="number"
+            <NInputNumber
+              v-model:value="localFormData.speed_age"
+              :min="0"
+              :show-button="false"
               placeholder="年限"
-              class="w-24 rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+              class="w-28"
             />
           </div>
         </div>
 
-        <!-- 制动试验记录 -->
         <div class="space-y-4">
-          <label class="text-[10px] text-slate-400 font-bold uppercase">制动试验记录</label>
-          <div class="flex gap-3">
+          <label class="text-[10px] text-slate-400 font-bold uppercase">制动试验</label>
+          <div class="flex items-center gap-3">
             <NDatePicker
-              v-model:value="formData.load_test_date"
-              class="flex-1 rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+              v-model:value="localFormData.load_year"
+              type="date"
+              clearable
+              placeholder="本次试验时间"
+              class="min-w-0 flex-1"
             />
-            <NInput
-              v-model:value="formData.load_test_age"
-              type="number"
+            <NInputNumber
+              v-model:value="localFormData.load_age"
+              :min="0"
+              :show-button="false"
               placeholder="年限"
-              class="w-24 rounded-[1.25rem] px-4 py-2.5 text-sm font-medium"
+              class="w-28"
             />
           </div>
         </div>

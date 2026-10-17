@@ -16,7 +16,7 @@ export function createRouterGuard(router: Router) {
 
   // 🌟 自动全屏逻辑
   const appStore = useAppStore();
-  router.beforeEach((to, from, next) => {
+  router.beforeEach((to, _from, next) => {
     if (to.meta.fullScreen) {
       appStore.fullContent = true; // 进入全屏页面
     } else {

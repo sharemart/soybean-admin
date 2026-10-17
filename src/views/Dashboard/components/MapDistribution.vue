@@ -378,7 +378,7 @@ defineExpose({ refresh });
           <i class="status-dot offline"></i>
           离线 {{ offlineCount }}
         </span>
-      </div> 
+      </div>
 -->
 
       <div v-if="selectedPoint" class="map-overlay point-detail">

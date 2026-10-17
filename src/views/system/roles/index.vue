@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { NButton, NInput, useDialog, useMessage } from 'naive-ui';
+import { computed, onMounted, ref, watch } from 'vue';
+import { NButton, NInput, NSelect, useDialog, useMessage } from 'naive-ui';
 import {
   CheckCircle2,
   Database,
@@ -17,6 +17,8 @@ import {
   XCircle
 } from 'lucide-vue-next';
 import { fetchRoleDelete, fetchRoleDetail, fetchRoleList } from '@/service/api/role/role';
+import type { RoleItem, RoleListParams } from '@/service/api/role/role.d';
+import { getCompanyList } from '@/service/api/community/community';
 import RoleEditModal from '@/components/modal/role/RoleEditModal.vue';
 
 const message = useMessage();
@@ -37,33 +39,166 @@ interface SystemRole {
 // 响应式数据
 const roles = ref<SystemRole[]>([]);
 const searchTerm = ref<string>('');
+const companyId = ref<number | null>(null);
 const isEditModalOpen = ref<boolean>(false);
 const editingRole = ref<SystemRole | null>(null);
 const isSyncing = ref<boolean>(false);
 
-// 页面加载获取角色列表
-onMounted(async () => {
-  const res = await fetchRoleList({});
+interface CompanyOption {
+  label: string;
+  value: number;
+}
+
+const COMPANY_PAGE_SIZE = 20;
+const companyOptions = ref<CompanyOption[]>([]);
+const companyLoading = ref(false);
+const companyHasMore = ref(true);
+const companyPage = ref(1);
+const companyKeyword = ref('');
+const selectedCompany = ref<CompanyOption | null>(null);
+let companyRequestSeq = 0;
+let companySearchTimer: ReturnType<typeof setTimeout> | undefined;
+
+function mapRoleList(list: RoleItem[] = []): SystemRole[] {
+  return list.map(item => ({
+    role_id: item.role_id,
+    role_name: item.role_name || '',
+    role_syn: item.role_syn || '无描述',
+    company_id: item.company_id || null,
+    company_name: item.company_name || '未分配单位',
+    add_time: item.add_time || '2025-01-01',
+    menu_ids: item.menu_ids || [],
+    isSystem: item.role_id === 1,
+    status: 1
+  }));
+}
+
+let requestSeq = 0;
+
+async function loadRoles() {
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  clearTimeout(searchTimer);
+  requestSeq += 1;
+  const seq = requestSeq;
+  const params: RoleListParams = {};
+  const roleName = searchTerm.value.trim();
+  if (roleName) params.role_name = roleName;
+  if (companyId.value !== null) params.company_id = companyId.value;
+
+  const res = await fetchRoleList(params);
+  if (seq !== requestSeq) return;
   if (res.data?.code === 2000) {
-    roles.value = res?.data?.data?.map(item => ({
-      role_id: item.role_id,
-      role_name: item.role_name || '',
-      role_syn: item.role_syn || '无描述',
-      company_id: item.company_id || null,
-      company_name: item.company_name || '未分配单位',
-      add_time: item.add_time || '2025-01-01',
-      menu_ids: item.menu_ids || [],
-      isSystem: item.role_id === 1,
-      status: 1
-    }));
+    roles.value = mapRoleList(res.data.data);
   }
+}
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(searchTerm, () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    loadRoles();
+  }, 300);
 });
 
-// 计算属性 - 过滤角色列表
+watch(companyId, id => {
+  if (id === null) {
+    selectedCompany.value = null;
+  } else {
+    const matched = companyOptions.value.find(item => item.value === id);
+    if (matched) selectedCompany.value = matched;
+  }
+  loadRoles();
+});
+
+// eslint-disable-next-line complexity
+async function fetchCompanies(reset: boolean) {
+  if (!reset && (companyLoading.value || !companyHasMore.value)) return;
+
+  const page = reset ? 1 : companyPage.value;
+  const keyword = companyKeyword.value;
+  companyRequestSeq += 1;
+  const seq = companyRequestSeq;
+  companyLoading.value = true;
+
+  try {
+    const res = await getCompanyList({
+      is_user: 1,
+      search: keyword || undefined,
+      page,
+      limit: COMPANY_PAGE_SIZE
+    });
+    if (seq !== companyRequestSeq) return;
+
+    const raw = res.data?.data as
+      | { list?: { id: string | number; name: string }[]; total?: number }
+      | { id: string | number; name: string }[]
+      | undefined;
+    if (res.data?.code !== 2000 || !raw) {
+      if (reset) companyOptions.value = [];
+      companyHasMore.value = false;
+      message.error(res.data?.msg || res.data?.message || '获取公司列表失败');
+      return;
+    }
+
+    const list = Array.isArray(raw) ? raw : raw.list || [];
+    const mapped = list.map(item => ({
+      label: item.name,
+      value: Number(item.id)
+    }));
+    if (reset) {
+      companyOptions.value = mapped;
+    } else {
+      const seen = new Set(companyOptions.value.map(item => item.value));
+      companyOptions.value = [...companyOptions.value, ...mapped.filter(item => !seen.has(item.value))];
+    }
+    const total = Array.isArray(raw) ? raw.length : (raw.total ?? companyOptions.value.length);
+    companyHasMore.value = mapped.length >= COMPANY_PAGE_SIZE && companyOptions.value.length < total;
+    companyPage.value = page + 1;
+  } catch (error) {
+    if (seq !== companyRequestSeq) return;
+    companyHasMore.value = false;
+    message.error(`获取公司列表失败${error}`);
+  } finally {
+    if (seq === companyRequestSeq) companyLoading.value = false;
+  }
+}
+
+function onCompanySearch(keyword: string) {
+  const next = keyword.trim();
+  clearTimeout(companySearchTimer);
+  companySearchTimer = setTimeout(() => {
+    if (next === companyKeyword.value && companyOptions.value.length) return;
+    companyKeyword.value = next;
+    fetchCompanies(true);
+  }, 300);
+}
+
+function onCompanyScroll(event: Event) {
+  const target = (event.currentTarget || event.target) as HTMLElement | null;
+  if (!target || target.scrollHeight <= 0) return;
+  const reachedBottom = target.scrollTop + target.offsetHeight >= target.scrollHeight - 24;
+  if (!reachedBottom) return;
+  fetchCompanies(false);
+}
+
+function onCompanyMenuShow(show: boolean) {
+  if (!show || companyOptions.value.length || companyLoading.value) return;
+  fetchCompanies(true);
+}
+
+function companyFallback(value: string | number) {
+  const id = Number(value);
+  if (selectedCompany.value?.value === id) return selectedCompany.value;
+  return { label: `公司 #${id}`, value: id };
+}
+
+onMounted(() => {
+  loadRoles();
+});
+
 const filteredRoles = computed(() => {
-  return roles.value
-    .filter(r => r.role_name.includes(searchTerm.value))
-    .sort((a, b) => Number(a.role_id) - Number(b.role_id));
+  return [...roles.value].sort((a, b) => Number(a.role_id) - Number(b.role_id));
 });
 
 const handleEdit = async (role: SystemRole) => {
@@ -128,23 +263,11 @@ const handleDelete = async (id: string | number) => {
 
 const handleRefresh = async () => {
   isSyncing.value = true;
-  const res = await fetchRoleList({});
-  if (res.data?.code === 2000) {
-    roles.value = res?.data?.data?.map(item => ({
-      role_id: item.role_id,
-      role_name: item.role_name || '',
-      role_syn: item.role_syn || '无描述',
-      company_id: item.company_id || null,
-      company_name: item.company_name || '未分配单位',
-      add_time: item.add_time || '2025-01-01',
-      menu_ids: item.menu_ids || [],
-      isSystem: item.role_id === 1,
-      status: 1
-    }));
-  }
-  setTimeout(() => {
+  try {
+    await loadRoles();
+  } finally {
     isSyncing.value = false;
-  }, 800);
+  }
 };
 
 // 保存后刷新列表
@@ -164,8 +287,27 @@ const handleSave = () => {
         <Search class="absolute left-6 top-1/2 z-10 text-slate-600 -translate-y-1/2" :size="18" />
         <NInput
           v-model:value="searchTerm"
+          clearable
           placeholder="搜索角色名称..."
           class="w-full border border-slate-200 rounded-2xl bg-slate-50 py-2.5 pl-12 pr-4 text-sm font-medium transition-all dark:border-slate-800 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+          @keyup.enter="handleRefresh"
+        />
+      </div>
+      <div class="w-full shrink-0 md:w-72">
+        <NSelect
+          v-model:value="companyId"
+          :options="companyOptions"
+          :loading="companyLoading"
+          :fallback-option="companyFallback"
+          clearable
+          filterable
+          remote
+          :reset-menu-on-options-change="false"
+          placeholder="全部公司"
+          class="company-filter w-full"
+          @search="onCompanySearch"
+          @scroll="onCompanyScroll"
+          @update:show="onCompanyMenuShow"
         />
       </div>
 
@@ -192,6 +334,12 @@ const handleSave = () => {
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
       <!-- 左侧角色列表 -->
       <div class="lg:col-span-8 space-y-4">
+        <div
+          v-if="!filteredRoles.length"
+          class="border border-slate-200 rounded-[2rem] border-dashed bg-white p-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:bg-slate-900/60"
+        >
+          暂无匹配的角色
+        </div>
         <div
           v-for="role in filteredRoles"
           :key="role.role_id"
@@ -323,4 +471,9 @@ const handleSave = () => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.company-filter :deep(.n-base-selection) {
+  border-radius: 1rem;
+  min-height: 42px;
+}
+</style>

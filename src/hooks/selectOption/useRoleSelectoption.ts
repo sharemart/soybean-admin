@@ -48,7 +48,7 @@ export function useRoleSelector() {
           value: item.role_id
         }));
       }
-    } catch (error) {
+    } catch {
       message.error('获取角色列表失败');
     } finally {
       loading.roleLoading = false;

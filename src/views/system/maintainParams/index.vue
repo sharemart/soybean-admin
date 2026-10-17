@@ -125,6 +125,7 @@ async function fetchParams(companyId?: number | null) {
   }
 }
 
+// eslint-disable-next-line complexity
 async function handleSave() {
   try {
     saving.value = true;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineEmits, reactive, ref, watch } from 'vue';
+import { defineEmits, reactive, watch } from 'vue';
 import { NButton, NDatePicker, NInput, NSelect } from 'naive-ui';
 import { Plus, Trash2 } from 'lucide-vue-next';
 

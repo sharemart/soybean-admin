@@ -99,7 +99,7 @@ export function useMenuHelper() {
   /**
    * 验证组件路径格式是否正确
    */
-  function isValidComponentPath(component: string, isRoot: boolean, menuType: MenuType): boolean {
+  function isValidComponentPath(component: string, isRoot: boolean, _menuType: MenuType): boolean {
     if (!component || component.trim() === '') {
       return false;
     }
@@ -114,7 +114,7 @@ export function useMenuHelper() {
   /**
    * 获取组件路径格式提示
    */
-  function getComponentPathHint(isRoot: boolean, menuType: MenuType): string {
+  function getComponentPathHint(isRoot: boolean, _menuType: MenuType): string {
     if (isRoot) {
       return '根节点使用：layout.base$view.xxx';
     }
@@ -124,7 +124,7 @@ export function useMenuHelper() {
   /**
    * 获取组件路径示例
    */
-  function getComponentPathExample(isRoot: boolean, menuType: MenuType): string {
+  function getComponentPathExample(isRoot: boolean, _menuType: MenuType): string {
     if (isRoot) {
       return '示例：layout.base$view.dashboard';
     }

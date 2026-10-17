@@ -67,6 +67,7 @@ tempPage.value = currentPage.value;
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   tempPage.value = page;
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   fetchCompanyList(page);
 };
 
@@ -74,6 +75,7 @@ const handlePageChange = (page: number) => {
 watch([searchTerm, companyTypeFilter], () => {
   currentPage.value = 1;
   tempPage.value = 1;
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   fetchCompanyList(1);
 });
 // ======================================================

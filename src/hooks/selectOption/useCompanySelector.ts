@@ -33,9 +33,11 @@ export interface CompanyListParams {
   search?: string;
   page?: number;
   limit?: number;
+  /** 是否开通后台账号：1已开通，0未开通 */
+  is_user?: 0 | 1;
 }
 
-export function useCompanySelector() {
+export function useCompanySelector(fixed: Pick<CompanyListParams, 'is_user'> = {}) {
   const message = useMessage();
   const companyOptions = ref<CompanyOption[]>([]);
   const hasMore = ref(true);
@@ -52,6 +54,7 @@ export function useCompanySelector() {
 
       const res = await getCompanyList({
         ...params,
+        ...(fixed.is_user === undefined ? {} : { is_user: fixed.is_user }),
         page: params.page || currentPage.value,
         limit: params.limit || pageSize.value
       });

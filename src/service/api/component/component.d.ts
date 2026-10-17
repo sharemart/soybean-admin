@@ -433,6 +433,13 @@ export interface BatchUpdateElevatorsParams {
   nominal_width?: number;
   tilt_angle?: number;
   lift_length?: number;
+  inverter?: string;
+  test_year_time?: string;
+  speed_year?: string;
+  speed_age?: number;
+  load_year?: string;
+  load_age?: number;
+  insure_end_time?: string;
 }
 
 /** 批量修改电梯响应数据 */

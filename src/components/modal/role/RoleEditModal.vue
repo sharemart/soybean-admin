@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { NInput, NSelect, NTree, useMessage } from 'naive-ui';
 import { Building2, Info, LayoutGrid, RefreshCw, Save, ShieldCheck, X } from 'lucide-vue-next';
 import { fetchMyMenus, fetchRoleCreate, fetchRoleSetMenus } from '@/service/api/role/role';
-import { useCompanySelector } from '@/utils/composables/companyMange';
+import { getCompanyList } from '@/service/api/community/community';
 const message = useMessage();
 
 interface Props {
@@ -114,8 +114,22 @@ const formData = ref({
 });
 
 const isSubmitting = ref(false);
-const { companyOptions, loading, fetchCompanyList } = useCompanySelector();
 const treeData = ref<any[]>([]);
+
+interface CompanyOption {
+  label: string;
+  value: number;
+}
+
+const COMPANY_PAGE_SIZE = 20;
+const companyOptions = ref<CompanyOption[]>([]);
+const companyLoading = ref(false);
+const companyHasMore = ref(true);
+const companyPage = ref(1);
+const companyKeyword = ref('');
+const selectedCompany = ref<CompanyOption | null>(null);
+let companyRequestSeq = 0;
+let companySearchTimer: ReturnType<typeof setTimeout> | undefined;
 
 // ==========================
 // 树转换
@@ -139,7 +153,107 @@ const loadMenuTree = async () => {
   }
 };
 
-const normalizedCompanyOptions = computed(() => companyOptions.value || []);
+// eslint-disable-next-line complexity
+async function fetchCompanies(reset: boolean) {
+  if (!reset && (companyLoading.value || !companyHasMore.value)) return;
+
+  const page = reset ? 1 : companyPage.value;
+  const keyword = companyKeyword.value;
+  companyRequestSeq += 1;
+  const seq = companyRequestSeq;
+  companyLoading.value = true;
+
+  try {
+    const res = await getCompanyList({
+      is_user: 1,
+      search: keyword || undefined,
+      page,
+      limit: COMPANY_PAGE_SIZE
+    });
+    if (seq !== companyRequestSeq) return;
+
+    const raw = res.data?.data as
+      | { list?: { id: string | number; name: string }[]; total?: number }
+      | { id: string | number; name: string }[]
+      | undefined;
+    if (res.data?.code !== 2000 || !raw) {
+      if (reset) companyOptions.value = [];
+      companyHasMore.value = false;
+      message.error(res.data?.msg || res.data?.message || '获取公司列表失败');
+      return;
+    }
+
+    const list = Array.isArray(raw) ? raw : raw.list || [];
+    const mapped = list.map(item => ({
+      label: item.name,
+      value: Number(item.id)
+    }));
+    if (reset) {
+      companyOptions.value = mapped;
+    } else {
+      const seen = new Set(companyOptions.value.map(item => item.value));
+      companyOptions.value = [...companyOptions.value, ...mapped.filter(item => !seen.has(item.value))];
+    }
+    const total = Array.isArray(raw) ? raw.length : (raw.total ?? companyOptions.value.length);
+    companyHasMore.value = mapped.length >= COMPANY_PAGE_SIZE && companyOptions.value.length < total;
+    companyPage.value = page + 1;
+  } catch (error) {
+    if (seq !== companyRequestSeq) return;
+    companyHasMore.value = false;
+    message.error(`获取公司列表失败${error}`);
+  } finally {
+    if (seq === companyRequestSeq) companyLoading.value = false;
+  }
+}
+
+function onCompanySearch(keyword: string) {
+  const next = keyword.trim();
+  clearTimeout(companySearchTimer);
+  companySearchTimer = setTimeout(() => {
+    if (next === companyKeyword.value && companyOptions.value.length) return;
+    companyKeyword.value = next;
+    fetchCompanies(true);
+  }, 300);
+}
+
+function onCompanyScroll(event: Event) {
+  const target = (event.currentTarget || event.target) as HTMLElement | null;
+  if (!target || target.scrollHeight <= 0) return;
+  if (target.scrollTop + target.offsetHeight < target.scrollHeight - 24) return;
+  fetchCompanies(false);
+}
+
+function onCompanyMenuShow(show: boolean) {
+  if (!show || companyOptions.value.length || companyLoading.value) return;
+  fetchCompanies(true);
+}
+
+function onCompanyChange(value: number | null) {
+  if (value === null) {
+    selectedCompany.value = null;
+    return;
+  }
+  const matched = companyOptions.value.find(item => item.value === value);
+  if (matched) selectedCompany.value = matched;
+}
+
+function companyFallback(value: string | number) {
+  const id = Number(value);
+  if (selectedCompany.value?.value === id) return selectedCompany.value;
+  const matched = companyOptions.value.find(item => item.value === id);
+  if (matched) return matched;
+  return { label: `公司 #${id}`, value: id };
+}
+
+function resetCompanyOptions() {
+  clearTimeout(companySearchTimer);
+  companyRequestSeq += 1;
+  companyOptions.value = [];
+  companyKeyword.value = '';
+  companyPage.value = 1;
+  companyHasMore.value = true;
+  companyLoading.value = false;
+}
 
 // ==========================
 // 全选状态
@@ -229,9 +343,12 @@ const handleChecked = (keys: string[]) => {
 watch(
   () => props.isOpen,
   async val => {
-    if (!val) return;
+    if (!val) {
+      resetCompanyOptions();
+      return;
+    }
+    resetCompanyOptions();
     await loadMenuTree();
-    await fetchCompanyList();
     await nextTick();
 
     if (props.initialData) {
@@ -240,14 +357,23 @@ watch(
       const allKeys = ensureParentKeys(originLeaf, treeData.value);
       checkedKeys.value = allKeys;
 
+      const companyId = props.initialData.company_id === null ? null : Number(props.initialData.company_id);
       formData.value = {
         role_id: props.initialData.role_id,
         role_name: props.initialData.role_name ?? '',
-        company_id: props.initialData.company_id ?? null,
+        company_id: companyId,
         role_syn: props.initialData.role_syn ?? ''
       };
+      selectedCompany.value =
+        companyId === null
+          ? null
+          : {
+              label: props.initialData.company_name || `公司 #${companyId}`,
+              value: companyId
+            };
     } else {
       checkedKeys.value = [];
+      selectedCompany.value = null;
       formData.value = { role_id: null, role_name: '', company_id: null, role_syn: '' };
     }
   },
@@ -361,10 +487,19 @@ const handleSubmit = async () => {
                 </label>
                 <NSelect
                   v-model:value="formData.company_id"
-                  :options="normalizedCompanyOptions"
-                  :loading="loading.companyLoading"
+                  :options="companyOptions"
+                  :loading="companyLoading"
+                  :fallback-option="companyFallback"
+                  filterable
+                  remote
+                  :reset-menu-on-options-change="false"
+                  placeholder="请选择所属组织单位"
                   class="edit-input w-full"
                   teleport-disabled
+                  @search="onCompanySearch"
+                  @scroll="onCompanyScroll"
+                  @update:show="onCompanyMenuShow"
+                  @update:value="onCompanyChange"
                 />
               </div>
 

@@ -152,13 +152,6 @@ const getRateColor = (rate: number) => {
   return 'text-slate-400';
 };
 
-const getRateBg = (rate: number) => {
-  if (rate >= 90) return 'bg-emerald-500/10';
-  if (rate >= 60) return 'bg-amber-500/10';
-  if (rate > 0) return 'bg-rose-500/10';
-  return 'bg-slate-500/10';
-};
-
 const isAbnormal = (val: number) => val > 0;
 
 // ====================== 操作 ======================

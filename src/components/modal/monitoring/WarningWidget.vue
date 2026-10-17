@@ -29,18 +29,6 @@ const currentPage = ref(1);
 const pageSize = ref(PAGE_SIZE);
 
 // 6. 工具 / 状态映射函数
-const getRepairStatus = (type: number) => {
-  const statusMap: Record<number, { label: string; color: string }> = {
-    0: { label: '待审核', color: 'text-slate-400' },
-    1: { label: '待接警', color: 'text-amber-500' },
-    2: { label: '待处理', color: 'text-sky-500' },
-    3: { label: '现场确认', color: 'text-indigo-500' },
-    4: { label: '维保中', color: 'text-blue-500' },
-    5: { label: '误报', color: 'text-slate-300' },
-    6: { label: '已自动修复', color: 'text-emerald-500' }
-  };
-  return statusMap[type] ?? { label: '未知', color: 'text-slate-400' };
-};
 
 // 7. 业务方法：获取预警列表
 const getWarningList = async () => {

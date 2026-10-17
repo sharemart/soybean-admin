@@ -18,7 +18,7 @@ const isSyncing = ref(false);
 const toSafeNumber = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
   const num = Number(value);
-  return isNaN(num) ? 0 : num;
+  return Number.isNaN(num) ? 0 : num;
 };
 
 const localFormData = reactive({
@@ -99,6 +99,7 @@ const handleTotalFloorChange = (val: number | null) => {
   const numVal = val ?? 0;
   localFormData.total_floor = numVal;
   generateFloors(numVal);
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   syncToParent();
 };
 
@@ -107,6 +108,7 @@ const handleFloorDisplayChange = (index: number, value: string) => {
   if (isSyncing.value) return;
   if (localFormData.floors[index]) {
     localFormData.floors[index].display = value;
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     syncToParent();
   }
 };

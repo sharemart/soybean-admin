@@ -7,7 +7,6 @@ import {
   getKnowledgeCategoryList,
   removeKnowledgeCategory
 } from '@/service/api/knowledge/konwledge';
-import type { KnowledgeCategoryItem } from '@/service/api/knowledge/knowledge';
 
 // 扩展接口返回的分类类型定义
 interface ApiCategoryItem {

@@ -57,17 +57,13 @@ const completedCounts = ref<number[]>([]);
 const updateTimeText = ref('');
 
 /** ===== 小组列表滚动参数 ===== */
-const GROUP_VISIBLE_ROWS = 5; // 固定显示 5 条
-const GROUP_ROW_SECONDS = 1.8; // 每条停留秒数
-const GROUP_MIN_DURATION = 16; // 最短滚动时长
+ // 固定显示 5 条
+ // 每条停留秒数
+ // 最短滚动时长
 
 /** 是否滚动：数据超过 5 条才滚 */
-const groupShouldScroll = computed(() => byGroup.value.length > GROUP_VISIBLE_ROWS);
 
 /** 动画时长：条数越多越慢 */
-const groupScrollDuration = computed(
-  () => `${Math.max(byGroup.value.length * GROUP_ROW_SECONDS, GROUP_MIN_DURATION)}s`
-);
 
 const toDate = (value: TimelineItem) => {
   const timestamp = Number(value.maint_end_time);

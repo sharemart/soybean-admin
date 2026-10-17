@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
 import md5 from 'md5';
-import { loginModuleRecord } from '@/constants/app';
+
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
@@ -52,37 +52,8 @@ async function handleSubmit() {
 
 type AccountKey = 'super' | 'admin' | 'user';
 
-interface Account {
-  key: AccountKey;
-  label: string;
-  userName: string;
-  password: string;
-}
 
-const accounts = computed<Account[]>(() => [
-  {
-    key: 'super',
-    label: $t('page.login.pwdLogin.superAdmin'),
-    userName: 'Super',
-    password: '123456'
-  },
-  {
-    key: 'admin',
-    label: $t('page.login.pwdLogin.admin'),
-    userName: 'Admin',
-    password: '123456'
-  },
-  {
-    key: 'user',
-    label: $t('page.login.pwdLogin.user'),
-    userName: 'User',
-    password: '123456'
-  }
-]);
 
-async function handleAccountLogin(account: Account) {
-  await authStore.login(account.userName, account.password);
-}
 </script>
 
 <template>
@@ -116,7 +87,7 @@ async function handleAccountLogin(account: Account) {
         <NButton class="flex-1" block @click="toggleLoginModule('register')">
           {{ $t(loginModuleRecord.register) }}
         </NButton>
-      </div> 
+      </div>
 -->
       <NDivider class="text-14px text-#666 !m-0">{{ $t('page.login.pwdLogin.otherAccountLogin') }}</NDivider>
       <!--
@@ -124,7 +95,7 @@ async function handleAccountLogin(account: Account) {
         <NButton v-for="item in accounts" :key="item.key" type="primary" @click="handleAccountLogin(item)">
           {{ item.label }}
         </NButton>
-      </div> 
+      </div>
 -->
     </NSpace>
   </NForm>

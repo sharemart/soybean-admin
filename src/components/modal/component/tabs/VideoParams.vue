@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineEmits, reactive, ref, watch } from 'vue';
+import { defineEmits, reactive, watch } from 'vue';
 import { NAlert, NInput, NSelect } from 'naive-ui';
 import { Monitor, ShieldAlert, Video } from 'lucide-vue-next';
 
@@ -59,10 +59,6 @@ watch(
 );
 
 // 便捷更新字段方法
-const updateField = (field: string, value: any) => {
-  localFormData[field] = value;
-  emit('update:field', field, value);
-};
 
 // 更新视频通道数据
 const updateVideoChannel = (index: number, key: 'sn' | 'channel', value: any) => {
