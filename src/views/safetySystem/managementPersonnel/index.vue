@@ -76,7 +76,7 @@ const roleTypes = [
   }
 ];
 
-const { companyOptions, fetchCompanyListData } = useCompanySelector();
+const { companyOptions, hasMore, loadingMore, fetchCompanyListData, loadMore, handleSearch } = useCompanySelector();
 const { villageOptions, fetchVillageListData } = useVillageSelector();
 const searchFilter = ref('');
 
@@ -622,9 +622,13 @@ onMounted(() => {
               :options="companyOptions"
               placeholder="全部类型"
               :width="260"
+              :has-more="hasMore"
+              :loading-more="loadingMore"
               :icon="Building2"
               icon-size="16"
               icon-class="text-slate-400"
+              @load-more="loadMore"
+              @search="handleSearch"
             />
             <button
               class="border border-slate-200 rounded-xl bg-white p-2.5 text-slate-500 transition-colors hover:bg-slate-50"

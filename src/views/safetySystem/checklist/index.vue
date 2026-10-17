@@ -50,7 +50,7 @@ const loading = ref(false);
 const isSyncing = ref(false);
 
 // ==================== 公司选择器 ====================
-const { companyOptions, fetchCompanyListData } = useCompanySelector();
+const { companyOptions, hasMore, loadingMore, fetchCompanyListData, loadMore, handleSearch } = useCompanySelector();
 const selectedCompanyId = ref<string>('');
 const isInitialized = ref(false);
 
@@ -365,11 +365,6 @@ onMounted(() => {
 
         <div class="flex items-center gap-3">
           <button
-            class="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-all dark:bg-slate-800 hover:bg-slate-200"
-          >
-            <FileSpreadsheet :size="18" />
-          </button>
-          <button
             class="rounded-xl bg-slate-100 p-2.5 text-slate-400 transition-all dark:bg-slate-800"
             :class="isSyncing ? 'animate-spin text-sky-500' : ''"
             :disabled="loading"
@@ -490,6 +485,10 @@ onMounted(() => {
                 :icon="Building2"
                 icon-size="16"
                 icon-class="text-slate-400"
+                :has-more="hasMore"
+                :loading-more="loadingMore"
+                @load-more="loadMore"
+                @search="handleSearch"
               />
               <!-- 状态筛选 -->
               <div class="flex gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">

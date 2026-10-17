@@ -478,9 +478,19 @@ export const generatedRoutes = [
         name: 'report_companyusage',
         path: '/report/companyusage',
         component: 'view.report_companyusage',
+        icon: ' ',
         meta: {
           title: 'report_companyusage',
           i18nKey: 'route.report_companyusage'
+        }
+      },
+      {
+        name: 'report_propertyusage',
+        path: '/report/propertyusage',
+        component: 'view.report_propertyusage',
+        meta: {
+          title: 'report_propertyusage',
+          i18nKey: 'route.report_propertyusage'
         }
       }
     ]

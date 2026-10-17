@@ -57,6 +57,7 @@ declare module "@elegant-router/types" {
     "monitoring_detail": "/monitoring/detail";
     "report": "/report";
     "report_companyusage": "/report/companyusage";
+    "report_propertyusage": "/report/propertyusage";
     "safetysystem": "/safetysystem";
     "safetysystem_archive": "/safetysystem/archive";
     "safetysystem_checklist": "/safetysystem/checklist";
@@ -184,6 +185,7 @@ declare module "@elegant-router/types" {
     | "monitoring_demo"
     | "monitoring_detail"
     | "report_companyusage"
+    | "report_propertyusage"
     | "safetysystem_daily"
     | "safetysystem_archive"
     | "safetysystem_checklist"

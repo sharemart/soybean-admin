@@ -277,6 +277,94 @@ export interface CompanyUsageData {
 
 export type GetCompanyUsageResponse = ApiResponse<CompanyUsageData>;
 
+// ====================== 物业公司电梯使用情况 ======================
+export interface GetPropertyElevatorUsageParams {
+  /** 维保统计开始日 Y-m-d，默认含今天的最近15天 */
+  start_date?: string;
+  /** 维保统计结束日 Y-m-d，默认今天 */
+  end_date?: string;
+  /** 物业公司ID（use_comtype=2）。不传则返回权限范围内各物业公司的电梯 */
+  company_id?: number;
+  /** 电梯名称、编号或注册代码 */
+  keyword?: string;
+  /** 页码，默认1 */
+  page?: number;
+  /** 每页条数，默认20，最大200 */
+  limit?: number;
+}
+
+/**
+ * 物业公司电梯使用情况 - list 项
+ * 每台电梯一行。隐患/急修/反馈为累计是否发生，维保次数为日期区间内单据数
+ */
+export interface PropertyElevatorUsageItem {
+  /** 物业公司ID（电梯使用单位） */
+  company_id: number;
+  /** 物业公司 */
+  company_name: string;
+  /** 电梯ID */
+  elevator_id: number;
+  /** 电梯名称 */
+  elevator_name: string;
+  /** 电梯编号 */
+  elevator_number: string;
+  /** 注册代码 */
+  register_code: string;
+  /** 小区ID */
+  village_id: number;
+  /** 小区名称 */
+  village_name: string;
+  /** 维保单位ID */
+  maintain_company_id: number;
+  /** 维保单位 */
+  maintain_company_name: string;
+  /** 是否有可见预警 1是 0否 */
+  pushed_hazard: number;
+  /** 是否有未删除急修单 */
+  has_repair: number;
+  /** 是否同时有预警和急修 */
+  both_hazard_repair: number;
+  /** 是否做过预警反馈或算法诊断反馈 */
+  fault_feedback: number;
+  /** 急修是否已离开待接警 */
+  repair_handled: number;
+  /** 隐患是否整改中或已闭环 */
+  hazard_feedback: number;
+  /** 急修已处理且有隐患反馈 */
+  handled_and_hazard_fb: number;
+  /** 区间维保单数 */
+  maintain_cnt: number;
+  /** 区间已维保单数 */
+  maintain_done_cnt: number;
+  /** 区间待维保单数 */
+  maintain_pending_cnt: number;
+  /** 区间进行中单数 */
+  maintain_doing_cnt: number;
+  /** 区间逾期签到单数 */
+  maintain_overdue_cnt: number;
+}
+
+export interface PropertyElevatorUsageData {
+  /** 维保次数统计开始日 */
+  start_date: string;
+  /** 维保次数统计结束日 */
+  end_date: string;
+  /** 筛选的物业公司ID，未筛选为0 */
+  company_id: number;
+  /** 筛选的物业公司名称 */
+  company_name: string;
+  /** 电梯总数 */
+  total: number;
+  /** 当前页 */
+  page: number;
+  /** 每页条数 */
+  limit: number;
+  /** 每台电梯一行 */
+  list: PropertyElevatorUsageItem[];
+}
+
+export type GetPropertyElevatorUsageResponse = ApiResponse<PropertyElevatorUsageData>;
+
 // ====================== 维保公司使用统计导出 ======================
 export interface ExportCompanyUsageParams {
   /** 维保统计开始日 Y-m-d，默认含今天的最近15天 */

@@ -203,6 +203,7 @@ const routeMap: RouteMap = {
   "monitoring_detail": "/monitoring/detail",
   "report": "/report",
   "report_companyusage": "/report/companyusage",
+  "report_propertyusage": "/report/propertyusage",
   "safetysystem": "/safetysystem",
   "safetysystem_archive": "/safetysystem/archive",
   "safetysystem_checklist": "/safetysystem/checklist",

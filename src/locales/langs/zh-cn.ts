@@ -261,6 +261,7 @@ const local: App.I18n.Schema = {
     business_import: '数据导入',
     report: '报表统计',
     report_companyusage: '维保公司使用统计',
+    report_propertyusage: '物业公司电梯使用统计',
     system: '系统配置',
     system_person: '人员管理',
 

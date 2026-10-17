@@ -13,6 +13,8 @@ interface Props {
   iconSize?: number | string;
   iconClass?: string;
   disabled?: boolean;
+  hasMore?: boolean;
+  loadingMore?: boolean;
 }
 
 // 默认值
@@ -24,17 +26,22 @@ const props = withDefaults(defineProps<Props>(), {
   icon: null,
   iconSize: 14,
   iconClass: '',
-  disabled: false
+  disabled: false,
+  hasMore: false,
+  loadingMore: false
 });
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | number];
   change: [value: string | number];
+  'load-more': [];
+  search: [keyword: string];
 }>();
 
 const showDropdown = ref(false);
 const triggerRef = ref<HTMLElement | null>(null);
 const inputRef = ref<HTMLInputElement | null>(null);
+const dropdownPanelRef = ref<HTMLElement | null>(null);
 
 const search = ref('');
 const activeIndex = ref(-1);
@@ -55,6 +62,27 @@ const filteredOptions = computed(() => {
   if (!search.value) return props.options;
   return props.options.filter(item => item.label.toLowerCase().includes(search.value.toLowerCase()));
 });
+
+const showMoreTip = computed(() => {
+  return !search.value && props.hasMore;
+});
+
+const showNoMore = computed(() => {
+  return !search.value && !props.hasMore && props.options.length > 0;
+});
+
+const loadNextPage = () => {
+  if (!props.hasMore || search.value || props.loadingMore || props.disabled || props.loading) return;
+  emit('load-more');
+};
+
+const handleDropdownScroll = () => {
+  if (!dropdownPanelRef.value || search.value) return;
+  const { scrollTop, scrollHeight, clientHeight } = dropdownPanelRef.value;
+  if (scrollTop + clientHeight + 20 >= scrollHeight) {
+    loadNextPage();
+  }
+};
 
 const handleSelect = (val: string | number) => {
   if (props.disabled) return;
@@ -137,7 +165,12 @@ watch(showDropdown, val => {
   if (val) {
     search.value = '';
     activeIndex.value = -1;
+    emit('search', '');
   }
+});
+
+watch(search, val => {
+  emit('search', val);
 });
 
 onMounted(() => {
@@ -207,8 +240,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="custom-scrollbar max-h-60 overflow-auto">
-        <div v-if="!filteredOptions.length" class="px-4 py-3 text-xs text-slate-400">无匹配结果</div>
+      <div ref="dropdownPanelRef" class="custom-scrollbar max-h-60 overflow-auto" @scroll="handleDropdownScroll">
+        <div v-if="loadingMore && !filteredOptions.length" class="px-4 py-3 text-center text-xs text-slate-400">
+          加载中...
+        </div>
+        <div v-else-if="!filteredOptions.length" class="px-4 py-3 text-xs text-slate-400">无匹配结果</div>
 
         <div
           v-for="(item, index) in filteredOptions"
@@ -225,6 +261,13 @@ onBeforeUnmount(() => {
           <span>{{ item.label }}</span>
           <Check v-if="modelValue === item.value" :size="14" class="text-sky-500" />
         </div>
+
+        <div v-if="showMoreTip" class="px-4 py-3 text-center text-xs text-slate-400">
+          <span v-if="loadingMore">加载中...</span>
+          <span v-else>下滑加载更多</span>
+        </div>
+
+        <div v-if="showNoMore" class="px-4 py-3 text-center text-xs text-slate-400">已加载全部数据</div>
       </div>
     </div>
   </Teleport>

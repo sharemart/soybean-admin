@@ -10,6 +10,8 @@ import type {
   GetNoticeQrcodeParams,
   GetNoticeQrcodeResponse,
   GetOnlineTerminalStatsResponse,
+  GetPropertyElevatorUsageParams,
+  GetPropertyElevatorUsageResponse,
   GetRealtimeAlertsParams,
   GetRealtimeAlertsResponse,
   GetTodayProgressResponse,
@@ -139,6 +141,20 @@ export function getCompanyUsage(params: GetCompanyUsageParams) {
 export function exportCompanyUsage(params: ExportCompanyUsageParams) {
   return request<ExportCompanyUsageResponse>({
     url: '/dashboard/report/exportCompanyUsage',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 获取物业公司电梯使用情况
+ *
+ * @param params - 请求参数
+ * @returns 物业公司电梯使用情况
+ */
+export function getPropertyElevatorUsage(params: GetPropertyElevatorUsageParams) {
+  return request<GetPropertyElevatorUsageResponse>({
+    url: '/dashboard/report/getPropertyElevatorUsage',
     method: 'get',
     params
   });

@@ -43,41 +43,112 @@ export function useCompanySelector() {
 
   // 加载状态
   const companyLoading = ref(false);
+  const loadingMore = ref(false);
+
+  // 分页状态
+  const hasMore = ref(true);
+  const currentPage = ref(1);
+  const pageSize = ref(20);
+
+  // 当前查询参数缓存（用于loadMore时复用）
+  let lastParams: CompanyListParams = {};
 
   // 获取单位列表
   const fetchCompanyListData = async (params: CompanyListParams = {}) => {
     try {
-      companyLoading.value = true;
+      // 判断是否为加载更多（page > 1）
+      if (params.page && params.page > 1) {
+        loadingMore.value = true;
+      } else {
+        companyLoading.value = true;
+      }
 
-      const res = await getCompanyList(params);
+      lastParams = params;
+
+      const requestParams = {
+        ...params,
+        page: params.page || 1,
+        limit: params.limit || pageSize.value
+      };
+
+      const res = await getCompanyList(requestParams);
       console.log('获取单位列表响应：', res);
 
       // 判断接口返回是否成功
       if (res?.data?.code === 2000) {
-        // 接口返回 list
         const list: CompanyItem[] = res?.data?.data?.list || [];
+        const total = res?.data?.data?.total || 0;
 
-        companyOptions.value = list.map(item => ({
+        const newItems = list.map(item => ({
           label: item.name,
           value: item.id
         }));
+
+        if (requestParams.page === 1) {
+          companyOptions.value = newItems;
+          currentPage.value = 1;
+        } else {
+          // 去重合并
+          const existIds = new Set(companyOptions.value.map(item => item.value));
+          const realNew = newItems.filter(item => !existIds.has(item.value));
+          companyOptions.value = [...companyOptions.value, ...realNew];
+        }
+
+        hasMore.value = companyOptions.value.length < total;
       } else {
-        // 接口返回失败
         const errorMsg = res?.data?.msg || res?.data?.message || '获取单位列表失败';
-        message.error(errorMsg);
-        companyOptions.value = [];
+        if (requestParams.page === 1) {
+          message.error(errorMsg);
+          companyOptions.value = [];
+        }
+        hasMore.value = false;
       }
     } catch (err: any) {
-      message.error(err?.message || '获取单位列表失败，请重试');
-      companyOptions.value = [];
+      if (lastParams.page && lastParams.page > 1) {
+        // 加载更多失败不弹错误提示
+        hasMore.value = false;
+      } else {
+        message.error(err?.message || '获取单位列表失败，请重试');
+        companyOptions.value = [];
+      }
     } finally {
       companyLoading.value = false;
+      loadingMore.value = false;
     }
+  };
+
+  // 加载更多
+  const loadMore = () => {
+    if (!hasMore.value || loadingMore.value || companyLoading.value) return;
+    const nextPage = currentPage.value + 1;
+    fetchCompanyListData({
+      ...lastParams,
+      page: nextPage,
+      limit: pageSize.value
+    });
+    currentPage.value = nextPage;
+  };
+
+  // 搜索
+  const handleSearch = (keyword: string) => {
+    currentPage.value = 1;
+    fetchCompanyListData({
+      ...lastParams,
+      search: keyword || undefined,
+      page: 1,
+      limit: pageSize.value
+    });
   };
 
   return {
     companyOptions,
     companyLoading,
-    fetchCompanyListData
+    loadingMore,
+    hasMore,
+    currentPage,
+    pageSize,
+    fetchCompanyListData,
+    loadMore,
+    handleSearch
   };
 }

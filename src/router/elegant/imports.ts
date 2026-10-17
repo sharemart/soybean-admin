@@ -49,6 +49,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   monitoring_demo: () => import("@/views/monitoring/demo/index.vue"),
   monitoring_detail: () => import("@/views/monitoring/detail/index.vue"),
   report_companyusage: () => import("@/views/report/companyUsage/index.vue"),
+  report_propertyusage: () => import("@/views/report/propertyUsage/index.vue"),
   safetysystem_daily: () => import("@/views/safetySystem/Daily/index.vue"),
   safetysystem_archive: () => import("@/views/safetySystem/archive/index.vue"),
   safetysystem_checklist: () => import("@/views/safetySystem/checklist/index.vue"),

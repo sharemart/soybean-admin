@@ -57,9 +57,9 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
     return 'idle';
   };
 
-  // 门状态映射函数
+  // 门状态映射函数（系统4：开启=0, 关闭=1）
   const mapDoorStatus = (door: number): 'open' | 'closed' => {
-    return door === 1 ? 'open' : 'closed';
+    return door === 0 ? 'open' : 'closed';
   };
 
   const parseMessage = (message: Buffer | Uint8Array, system: number) => {
@@ -85,7 +85,7 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
         // 方向（从 elestatus 推断）
         direction: mapDirection(rawData.elestatus),
 
-        // 门状态（door: 1=开, 0=关）
+        // 门状态（door: 0=开, 1=关）
         doorStatus: mapDoorStatus(rawData.door),
 
         // 速度

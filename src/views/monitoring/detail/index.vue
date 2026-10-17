@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   BarChart3,
   ChevronRight,
+  Cpu,
   Database,
   DoorClosed,
   DoorOpen,
@@ -128,6 +129,16 @@ const undergroundFloorCount = computed(() => {
   }
   // 默认2层地下
   return 2;
+});
+
+const systemLabel = computed(() => {
+  const labelMap: Record<number, string> = {
+    1: '玖玖系统',
+    2: '非玖玖系统',
+    3: '浅水系统',
+    4: '维特系统'
+  };
+  return labelMap[liftInfo.value.system] || '浅水系统';
 });
 
 const controlModes = ref([
@@ -388,6 +399,10 @@ onUnmounted(() => {
             <span class="flex items-center gap-1">
               <MapPin :size="14" class="text-amber-500" />
               总楼层: {{ totalFloor }} 层
+            </span>
+            <span class="flex items-center gap-1">
+              <Cpu :size="14" class="text-rose-500" />
+              {{ systemLabel }}
             </span>
           </div>
         </div>

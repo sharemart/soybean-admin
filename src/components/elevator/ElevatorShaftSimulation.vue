@@ -31,8 +31,10 @@ const autoStep = computed(() => {
 const floorList = computed(() => {
   const minFloor = -props.undergroundFloorCount;
   const maxFloor = props.totalFloor;
-  const floors = [];
-  for (let i = maxFloor; i >= minFloor; i--) floors.push(i);
+  const floors: number[] = [];
+  for (let i = maxFloor; i >= minFloor; i--) {
+    if (i !== 0) floors.push(i);
+  }
   return floors;
 });
 
@@ -52,9 +54,13 @@ const shouldShowFloorLabel = (floor: number): boolean => {
 };
 
 const formatFloorLabel = (floor: number) => {
-  if (floor < 0) return `B${Math.abs(floor)}`;
+  if (floor <= 0) return `B${Math.abs(floor)}`;
   return `${floor}F`;
 };
+
+const displayFloor = computed(() => {
+  return props.currentFloor <= 0 ? 1 : props.currentFloor;
+});
 
 // 轿厢位置计算（精确边界处理）
 const getCarPosition = (floor: number) => {
@@ -112,7 +118,7 @@ const getCarPosition = (floor: number) => {
           <ArrowDown v-else-if="props.direction === 'down'" :size="16" class="animate-bounce" />
           <div v-else class="h-4 w-4 border-2 border-sky-400/30 rounded-full"></div>
         </div>
-        <span class="text-2xl font-black leading-none font-mono">{{ props.currentFloor }}</span>
+        <span class="text-2xl font-black leading-none font-mono">{{ displayFloor }}</span>
         <span class="text-[8px] font-bold uppercase opacity-40">Floor</span>
 
         <!-- 门状态动画 -->
@@ -136,14 +142,6 @@ const getCarPosition = (floor: number) => {
         <p class="text-xl text-sky-500 font-black font-mono">
           {{ props.speed.toFixed(2) }}
           <span class="ml-1 text-[10px]">m/s</span>
-        </p>
-      </div>
-      <div class="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
-      <div class="text-center">
-        <p class="mb-1 text-[10px] text-slate-400 font-black tracking-widest uppercase">当前荷载</p>
-        <p class="text-xl text-indigo-500 font-black font-mono">
-          {{ props.load }}
-          <span class="ml-1 text-[10px]">kg</span>
         </p>
       </div>
     </div>
