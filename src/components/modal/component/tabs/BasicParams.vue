@@ -296,7 +296,7 @@ const varietyOptions = [
   { label: '3220液压货梯', value: 5 },
   { label: '3410防爆电梯', value: 6 },
   { label: '3420消防员电梯', value: 7 },
-  { label: '3310自动扶梯', value: 8 },
+  { label: '3310杂物梯', value: 8 },
   { label: '3500自动扶梯', value: 9 },
   { label: '3320自动人行道', value: 10 }
 ];

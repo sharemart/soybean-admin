@@ -14,7 +14,7 @@ const props = defineProps<{
 
 // 3. 常量定义（抽离魔法值）
 const PAGE_SIZE = 10;
-const WARNING_DAYS = 14;
+const WARNING_DAYS = 30;
 
 // 4. 响应式数据
 const warnings = ref<any[]>([]);

@@ -99,7 +99,7 @@ const getSoundList = async () => {
   if (!sn || !trouble_code) return;
   loading.value = true;
   try {
-    const res = await fetchWarningSoundList({ sn, trouble_code, days: 14 });
+    const res = await fetchWarningSoundList({ sn, trouble_code, days: 30 });
     if (res.data?.code === 2000) {
       soundList.value = res.data.data.sounds_list || [];
     }

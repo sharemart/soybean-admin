@@ -1,4 +1,4 @@
-import { type Ref, isRef, onUnmounted, watch } from 'vue';
+import { type Ref, getCurrentInstance, isRef, onUnmounted, watch } from 'vue';
 import { binaryToRunInfo, parseMqttBinary } from './mqtt/mqttBinaryParser';
 import { createMqttClient } from './mqtt/mqttClient';
 
@@ -90,7 +90,7 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
 
         // 速度
         maxSpeed: rawData.speed,
-        speed: rawData.vel,
+        speed: rawData.speed,
 
         // 荷载（通过 az 估算，az≈9.8 时为空载）
         load: Math.round((rawData.az / 9.8) * 1000),
@@ -314,11 +314,13 @@ export function useLiftMqttSync({ liftInfo: _liftInfo, runInfo }: UseLiftMqttSyn
     );
   }
 
-  // 组件销毁标记 + 释放
-  onUnmounted(() => {
-    isDestroyed = true;
-    disconnect();
-  });
+  // 组件销毁标记 + 释放（仅在 setup 上下文中注册）
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      isDestroyed = true;
+      disconnect();
+    });
+  }
 
   return { connect, disconnect };
 }

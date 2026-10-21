@@ -19,7 +19,6 @@ import {
   Power,
   QrCode,
   Radio,
-  Share2,
   ShieldCheck,
   Users,
   Video,
@@ -498,7 +497,6 @@ onUnmounted(() => {
     </div>
 
     <div class="grid grid-cols-1 min-h-0 flex-1 gap-6 lg:grid-cols-12">
-      <!-- 【替换】使用独立的井道仿真组件 -->
       <ElevatorShaftSimulation
         class="lg:col-span-3"
         :current-floor="liveFloor"

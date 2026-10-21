@@ -27,6 +27,9 @@ interface FormData {
   require_property_sign: number;
   enable_sms_sign: number;
   enable_tomorrow_remind: number;
+  enable_detail_image: number;
+  add_time: string;
+  update_time: string;
 }
 
 const formData = ref<FormData>({
@@ -41,7 +44,10 @@ const formData = ref<FormData>({
   allow_staff_reschedule: 0,
   require_property_sign: 0,
   enable_sms_sign: 0,
-  enable_tomorrow_remind: 0
+  enable_tomorrow_remind: 0,
+  enable_detail_image: 0,
+  add_time: '',
+  update_time: ''
 });
 
 const checkinModeOptions = [
@@ -113,7 +119,10 @@ async function fetchParams(companyId?: number | null) {
         allow_staff_reschedule: data.allow_staff_reschedule ?? 0,
         require_property_sign: data.require_property_sign ?? 0,
         enable_sms_sign: data.enable_sms_sign ?? 0,
-        enable_tomorrow_remind: data.enable_tomorrow_remind ?? 0
+        enable_tomorrow_remind: data.enable_tomorrow_remind ?? 0,
+        enable_detail_image: data.enable_detail_image ?? 0,
+        add_time: data.add_time ?? '',
+        update_time: data.update_time ?? ''
       };
     } else {
       message.info('暂无维保参数配置，请填写后保存');
@@ -166,6 +175,10 @@ async function handleSave() {
 
     if (formData.value.enable_tomorrow_remind !== null && formData.value.enable_tomorrow_remind !== undefined) {
       params.enable_tomorrow_remind = formData.value.enable_tomorrow_remind;
+    }
+
+    if (formData.value.enable_detail_image !== null && formData.value.enable_detail_image !== undefined) {
+      params.enable_detail_image = formData.value.enable_detail_image;
     }
 
     const res = await saveMaintainParams(params as any);
@@ -363,6 +376,23 @@ onMounted(() => {
               </NRadio>
             </NRadioGroup>
             <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
+          </NFormItem>
+
+          <NFormItem label="明细必须拍照" path="enable_detail_image">
+            <NRadioGroup v-model:value="formData.enable_detail_image">
+              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </NRadio>
+            </NRadioGroup>
+            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
+          </NFormItem>
+
+          <NFormItem v-if="formData.add_time" label="创建时间" path="add_time">
+            <span class="text-sm text-slate-600 dark:text-slate-300">{{ formData.add_time }}</span>
+          </NFormItem>
+
+          <NFormItem v-if="formData.update_time" label="更新时间" path="update_time">
+            <span class="text-sm text-slate-600 dark:text-slate-300">{{ formData.update_time }}</span>
           </NFormItem>
         </NForm>
       </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { ChevronRight, Circle, Clock, MapPin, Pause, Play, X, Zap } from 'lucide-vue-next';
+import { Activity, ChevronRight, Circle, Clock, MapPin, Pause, Play, X, Zap } from 'lucide-vue-next';
 import { fetchWarningHandleTimeline } from '@/service/api/Warning/warning';
 import type { WarningHandleTimelineItem } from '@/service/api/Warning/warning.d';
 
@@ -133,7 +133,8 @@ const aggregateFaults = (item: WarningHandleTimelineItem) => {
       faultMap[name].count++;
       if (s.algo?.confidence !== null && s.algo?.confidence !== undefined) {
         faultMap[name].maxConfidence = Math.max(faultMap[name].maxConfidence, s.algo.confidence);
-        totalConfidence += s.algo.confidence;
+        // 累积置信度数据（未使用，仅记录）
+        // totalConfidence += s.algo.confidence;
         confidenceCount++;
       }
     } else if (s.algo?.status === 'pending') {

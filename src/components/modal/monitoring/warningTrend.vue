@@ -57,7 +57,7 @@ const loadTrendData = async () => {
 
   loading.value = true;
   try {
-    const res = await fetchJitterTrend({ trouble_code, sn, days: 14 });
+    const res = await fetchJitterTrend({ trouble_code, sn, days: 30 });
     if (res.data?.code === 2000) {
       trendData.value = res.data.data;
       await nextTick();
@@ -96,10 +96,6 @@ const renderChart = () => {
   const dates = data.dates || [];
   // ★ 关键：按天聚合 X/Y/Z 峰值，长度对齐 dates
   const { xMax, yMax, zMax } = buildDailyAxisData(dates, points);
-  console.log('X 轴:', dates);
-  console.log('X 轴峰值:', xMax);
-  console.log('Y 轴峰值:', yMax);
-  console.log('Z 轴峰值:', zMax);
 
   const series: any[] = [];
 

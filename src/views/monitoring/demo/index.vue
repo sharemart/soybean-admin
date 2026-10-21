@@ -43,6 +43,8 @@ interface ElevatorMonitor {
   elevator_name: string;
   elevator_number: string;
   registerCode: string;
+  system: number;
+  wit_device_key: string;
   buildingName: string;
   type: 'Regular' | 'Emergency' | 'Inspection | Annual | Repair';
   status: TaskStatus;
@@ -171,7 +173,7 @@ const stats = computed<StatItem[]>(() => {
       progress: totalNum > 0 ? Math.round((favorite / totalNum) * 100) : 0
     },
     {
-      label: '异常/离线数',
+      label: '异常',
       value: offline,
       icon: 'AlertTriangle',
       color: 'text-rose-500',
@@ -198,11 +200,30 @@ const handleGoToDetail = (id: string) => {
 // ==========================================
 const createElevatorMqtt = (item: any) => {
   if (item.is_online === '0') return null;
+
+  const apiSystem = item.system;
+  const hasRegisterCode = Boolean(item.register_code);
+  const hasWitDeviceKey = Boolean(item.wit_device_key);
+  const hasElevatorNumber = Boolean(item.elevator_number);
+
+  let system: number;
+  if (apiSystem && [1, 4].includes(apiSystem)) {
+    system = apiSystem;
+  } else if (hasRegisterCode) {
+    system = 3;
+  } else if (hasWitDeviceKey) {
+    system = 4;
+  } else if (hasElevatorNumber) {
+    system = 1;
+  } else {
+    system = 3;
+  }
+
   const liftInfo = ref({
-    system: 3,
+    system,
     elevatorNumber: item.elevator_number || '',
     registerCode: item.register_code || '',
-    wit_device_key: ''
+    wit_device_key: item.wit_device_key ?? ''
   });
   const runInfo = ref({});
   const { connect, disconnect } = useLiftMqttSync({ liftInfo, runInfo });
@@ -301,6 +322,8 @@ const getAllElevatorData = async () => {
       elevator_name: item.elevator_name || '未命名',
       elevator_number: item.elevator_number || '',
       registerCode: item.register_code || '',
+      system: item.system ?? 3,
+      wit_device_key: item.wit_device_key ?? '',
       buildingName: item.village_name || '未知小区',
 
       type: 'Regular',
@@ -318,7 +341,7 @@ const getAllElevatorData = async () => {
 
       company_id3: item.company_id3 || 0,
       village_name: item.village_name || '',
-      total_floor: item.total_floor || 0,
+      total_floor: item.total_floor || 1,
 
       is_online: item.is_online || '0',
       station: item.station || '1',

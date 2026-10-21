@@ -26,6 +26,8 @@ export interface GetMaintainParamsResponse {
   enable_sms_sign: number;
   /** 是否开启明日维保提醒：0否 1是 */
   enable_tomorrow_remind: number;
+  /** 明细必须拍照：0关闭 1开启 */
+  enable_detail_image: number;
   /** 创建时间 */
   add_time: string;
   /** 更新时间 */
@@ -58,6 +60,8 @@ export interface SaveMaintainParamsParams {
   enable_sms_sign?: number;
   /** 是否开启明日维保提醒：0否 1是，不传则保留原值 */
   enable_tomorrow_remind?: number;
+  /** 明细必须拍照：0关闭 1开启，不传则保留原值 */
+  enable_detail_image?: number;
 }
 
 /** 保存维保参数配置响应 */

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { NButton, NModal, useMessage } from 'naive-ui';
+import { NButton, NImage, NModal, useMessage } from 'naive-ui';
 import { Camera, Download, FileText, MapPin, PenTool, ShieldCheck } from 'lucide-vue-next';
+import { request } from '@/service/request';
 import { exportMaintenanceDetail } from '@/service/api/scheduling/schedulingApi';
 
 export type TaskStatus = 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' | 'OVERDUE';
@@ -94,7 +95,11 @@ const signatureImgOne = computed(() => {
   return formatImageUrl(maintainInfo.value.signature_img_one);
 });
 const signatureImgTwo = computed(() => formatImageUrl(maintainInfo.value.signature_img_two));
-const clockinImg = computed(() => formatImageUrl(maintainInfo.value.clockin_img));
+const clockinImgs = computed(() => {
+  const imgs = maintainInfo.value.clockin_imgs;
+  if (!Array.isArray(imgs) || !imgs.length) return [];
+  return imgs.map((img: string) => formatImageUrl(img));
+});
 
 const groupedProjects = computed<DimensionGroup[]>(() => {
   const projects = props.detailData?.projects;
@@ -127,16 +132,23 @@ const exportWord = async () => {
 
     if (res?.data?.code === 2000) {
       const fileUrl = res.data.data.file_url;
-      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${BASE_URL}${fileUrl}`;
+      const fileName = fileUrl.split('/').pop() || 'download';
 
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = fullUrl;
-      document.body.appendChild(iframe);
-
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 5000);
+      const blobRes = await request({
+        url: fileUrl,
+        method: 'get',
+        responseType: 'blob',
+        ...(import.meta.env.DEV ? { baseURL: '' } : {})
+      });
+      const blob = blobRes.data as Blob;
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
 
       message.success('导出成功');
     } else {
@@ -307,18 +319,23 @@ const exportWord = async () => {
               <MapPin :size="14" />
               现场打卡记录
             </h5>
+            <div v-if="clockinImgs.length" class="grid grid-cols-2 gap-2">
+              <div
+                v-for="(img, idx) in clockinImgs"
+                :key="idx"
+                class="aspect-[3/2] flex items-center justify-center border border-slate-200 rounded-[1.5rem] p-2 dark:border-slate-800"
+              >
+                <NImage :src="img" :preview="true" class="max-h-full rounded-lg object-contain" alt="打卡" />
+              </div>
+            </div>
             <div
+              v-else
               class="aspect-[3/2] flex flex-col items-center justify-center border border-slate-200 rounded-[1.5rem] p-4 dark:border-slate-800"
             >
-              <img v-if="clockinImg" :src="clockinImg" class="max-h-full rounded-lg object-contain" alt="打卡" />
-              <div
-                v-else
-                class="h-12 w-12 flex items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"
-              >
+              <div class="h-12 w-12 flex items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
                 <ShieldCheck :size="24" />
               </div>
-              <p v-if="clockinImg" class="text-[9px] text-emerald-500 font-bold">打卡已上传</p>
-              <p v-else class="text-[9px] text-emerald-500 font-bold">LBS VERIFIED</p>
+              <p class="text-[9px] text-emerald-500 font-bold">LBS VERIFIED</p>
             </div>
           </div>
         </div>
