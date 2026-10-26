@@ -24,6 +24,8 @@ import type {
   UpdateBillGroupResponse,
   UpdateMaintenanceDateParams,
   UpdateMaintenanceDateResponse,
+  UpdateOverdueBillParams,
+  UpdateOverdueBillResponse,
   UpdatePlanGroupParams,
   UpdatePlanGroupResponse
 } from './scheduling.d';
@@ -180,6 +182,20 @@ export function updateBillGroup(data: UpdateBillGroupParams) {
 export function updatePlanGroup(data: UpdatePlanGroupParams) {
   return request<UpdatePlanGroupResponse>({
     url: '/dashboard/schedule/updatePlanGroup',
+    method: 'POST',
+    data
+  });
+}
+
+/**
+ * 修改逾期签到
+ *
+ * 维保单须为逾期签到。未同时传 status 时，改期后状态恢复为待维保。
+ * 日期或间隔变化时，按间隔重算该单之后的待维保排班；小组只改当前这一张。
+ */
+export function updateOverdueBill(data: UpdateOverdueBillParams) {
+  return request<UpdateOverdueBillResponse>({
+    url: '/dashboard/schedule/updateOverdue',
     method: 'POST',
     data
   });

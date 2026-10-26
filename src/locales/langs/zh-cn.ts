@@ -86,6 +86,14 @@ const local: App.I18n.Schema = {
       themeRadius: {
         title: '主题圆角'
       },
+      fontSize: {
+        title: '字体大小',
+        small: '较小',
+        standard: '标准',
+        large: '较大',
+        extraLarge: '特大',
+        preview: '字体预览 Aa 中文'
+      },
       recommendColor: '应用推荐算法的颜色',
       recommendColorDesc: '推荐颜色的算法参照',
       preset: {

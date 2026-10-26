@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  PenSquare,
   Plus,
   Search,
   User,
@@ -32,6 +33,7 @@ import CommonModal from '@/components/modal/scheduling/common-modal.vue';
 import MaintenanceDetailModal from '@/components/modal/scheduling/MaintenanceDetailModal.vue';
 import UploadModal from '@/components/modal/scheduling/uploadModal.vue';
 import MaintenancePlanCorrectionModal from '@/components/modal/scheduling/MaintenancePlanCorrectionModal.vue';
+import OverdueBillEditModal from '@/components/modal/scheduling/OverdueBillEditModal.vue';
 
 const route = useRoute();
 const isRouteHandled = ref(false);
@@ -51,6 +53,8 @@ const showAddModal = ref(false);
 const showDetailModal = ref(false);
 const showImportModal = ref(false);
 const showPlanCorrectionModal = ref(false);
+const showOverdueEditModal = ref(false);
+const overdueEditTask = ref<MaintenanceTask | null>(null);
 const showDetail = ref<MaintenanceTask | null>(null);
 const detailData = ref<MaintenanceDetailData | null>(null);
 const isLoadingDetail = ref(false);
@@ -89,6 +93,16 @@ const groupList = computed(() => {
     value: string | number;
   }[];
 });
+
+const groupNameMap = computed(() => {
+  const map = new Map<string, string>();
+  groupOptions.value.forEach(item => {
+    if (item.group_name) map.set(String(item.value), item.group_name);
+  });
+  return map;
+});
+
+const getGroupName = (groupId: string) => groupNameMap.value.get(groupId) || '';
 
 enum TaskStatus {
   COMPLETED = 'COMPLETED',
@@ -281,6 +295,23 @@ const closeDetailModal = () => {
   showDetailModal.value = false;
   showDetail.value = null;
   detailData.value = null;
+};
+
+const openOverdueEdit = (task: MaintenanceTask) => {
+  overdueEditTask.value = task;
+  showOverdueEditModal.value = true;
+};
+
+const openOverdueEditFromDetail = () => {
+  if (!showDetail.value) return;
+  const task = showDetail.value;
+  closeDetailModal();
+  openOverdueEdit(task);
+};
+
+const closeOverdueEdit = () => {
+  showOverdueEditModal.value = false;
+  overdueEditTask.value = null;
 };
 
 const getStatusClass = (status: TaskStatus) => {
@@ -482,7 +513,8 @@ watch(
           <ChevronRight :size="20" />
         </button>
 
-        <div class="mt-2 w-full pl-0 sm:mt-0 sm:w-auto sm:pl-2">
+        <!--
+ <div class="mt-2 w-full pl-0 sm:mt-0 sm:w-auto sm:pl-2">
           <button
             class="btn-scale w-full flex items-center justify-center gap-2 rounded-2xl bg-indigo-500 px-4 py-2 text-white font-bold shadow-lg sm:w-auto hover:bg-indigo-600 sm:px-6"
             @click="showImportModal = true"
@@ -491,7 +523,8 @@ watch(
             <span class="hidden sm:inline">批量上传文档</span>
             <span class="sm:hidden">批量上传</span>
           </button>
-        </div>
+        </div> 
+-->
       </div>
     </div>
 
@@ -687,15 +720,28 @@ watch(
                 <h4 class="mb-1 text-sm text-slate-800 font-bold dark:text-white">{{ task.elevatorName }}</h4>
                 <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">{{ task.buildingName }}</p>
                 <div class="flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase">
-                  <span class="flex items-center gap-1.5">
-                    <User :size="12" />
-                    {{ task.technician }}
+                  <span class="min-w-0 flex flex-1 items-center gap-1.5">
+                    <User :size="12" class="shrink-0" />
+                    <span class="truncate">{{ task.technician }}</span>
+                    <span v-if="getGroupName(task.groupId)" class="truncate text-violet-500 normal-case">
+                      · {{ getGroupName(task.groupId) }}
+                    </span>
                   </span>
                   <span class="flex items-center gap-1 text-sky-600 dark:text-sky-400">
                     <Clock :size="12" />
                     {{ task.scheduledDate }}
                   </span>
                 </div>
+                <button
+                  v-if="task.status === TaskStatus.OVERDUE"
+                  type="button"
+                  class="mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl bg-rose-500/10 py-2 text-[10px] text-rose-600 font-black uppercase transition-all hover:bg-rose-500 hover:text-white"
+                  @click.stop="openOverdueEdit(task)"
+                  @mousedown.stop
+                >
+                  <PenSquare :size="12" />
+                  修改逾期维保单
+                </button>
               </div>
             </div>
             <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 opacity-50">
@@ -713,6 +759,13 @@ watch(
       :show="showDetailModal"
       :detail-data="detailData"
       @close="closeDetailModal"
+      @edit-overdue="openOverdueEditFromDetail"
+    />
+    <OverdueBillEditModal
+      :show="showOverdueEditModal"
+      :task="overdueEditTask"
+      @close="closeOverdueEdit"
+      @success="fetchScheduleList"
     />
     <UploadModal :show="showImportModal" @close="showImportModal = false" />
 

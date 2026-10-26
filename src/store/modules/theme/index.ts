@@ -8,9 +8,11 @@ import { SetupStoreId } from '@/enum';
 import { useAuthStore } from '../auth';
 import {
   addThemeVarsToGlobal,
+  applyGlobalFontSize,
   createThemeToken,
   getNaiveTheme,
   initThemeSettings,
+  normalizeThemeFontSize,
   toggleAuxiliaryColorModes,
   toggleCssDarkMode
 } from './shared';
@@ -271,6 +273,22 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
       () => [settings.value.watermark.visible, settings.value.watermark.enableTime],
       () => {
         updateWatermarkTimer();
+      },
+      { immediate: true }
+    );
+
+    watch(
+      () => settings.value.fontSize,
+      value => {
+        const fontSize = normalizeThemeFontSize(value);
+
+        if (value !== fontSize) {
+          settings.value.fontSize = fontSize;
+          return;
+        }
+
+        applyGlobalFontSize(fontSize);
+        localStg.set('themeFontSize', fontSize);
       },
       { immediate: true }
     );

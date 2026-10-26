@@ -25,6 +25,21 @@ export default defineConfig<Theme>({
   shortcuts: {
     'card-wrapper': 'rd-8px shadow-sm'
   },
+  rules: [
+    // Pixel font utilities follow the system font scale. rem utilities follow the root font-size instead.
+    [
+      /^text-(\d+(?:\.\d+)?)px$/,
+      ([, size]) => ({
+        'font-size': `calc(var(--soy-font-scale, 1) * ${size}px)`
+      })
+    ],
+    [
+      /^text-\[(\d+(?:\.\d+)?)px\]$/,
+      ([, size]) => ({
+        'font-size': `calc(var(--soy-font-scale, 1) * ${size}px)`
+      })
+    ]
+  ],
   transformers: [transformerDirectives(), transformerVariantGroup()],
   presets: [presetWind3({ dark: 'class' }), presetSoybeanAdmin()]
 });

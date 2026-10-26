@@ -92,6 +92,7 @@ const applyPreset = (preset: ThemePreset): void => {
 
   Object.assign(themeStore, {
     ...rest,
+    fontSize: themeStore.fontSize,
     layout: { ...themeStore.layout, scrollMode: layout.scrollMode },
     page: { ...rest.page },
     header: { ...rest.header },

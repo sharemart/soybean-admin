@@ -4,7 +4,7 @@ import { addColorAlpha, getColorPalette, getPaletteColorByNumber, getRgb } from 
 import { DARK_CLASS } from '@/constants/app';
 import { toggleHtmlClass } from '@/utils/common';
 import { localStg } from '@/utils/storage';
-import { overrideThemeSettings, themeSettings } from '@/theme/settings';
+import { overrideThemeSettings, themeFontSizeBase, themeFontSizeOptions, themeSettings } from '@/theme/settings';
 import { themeVars } from '@/theme/vars';
 
 /** Init theme settings */
@@ -12,7 +12,11 @@ export function initThemeSettings() {
   const isProd = import.meta.env.PROD;
 
   // if it is development mode, the theme settings will not be cached, by update `themeSettings` in `src/theme/settings.ts` to update theme settings
-  if (!isProd) return themeSettings;
+  if (!isProd) {
+    themeSettings.fontSize = readCachedFontSize(themeSettings.fontSize);
+
+    return themeSettings;
+  }
 
   // if it is production mode, the theme settings will be cached in localStorage
   // if want to update theme settings when publish new version, please update `overrideThemeSettings` in `src/theme/settings.ts`
@@ -29,7 +33,77 @@ export function initThemeSettings() {
     localStg.set('overrideThemeFlag', BUILD_TIME);
   }
 
+  settings.fontSize = readCachedFontSize(settings.fontSize);
+
   return settings;
+}
+
+const themeFontSizeSet = new Set<number>(themeFontSizeOptions.map(item => item.value));
+
+/** Keep only the supported system font sizes */
+export function normalizeThemeFontSize(fontSize?: number) {
+  if (typeof fontSize === 'number' && themeFontSizeSet.has(fontSize)) return fontSize;
+
+  return themeFontSizeBase;
+}
+
+/** Scale relative to the default 14px font. 1 means the original layout. */
+export function getThemeFontScale(fontSize?: number) {
+  return normalizeThemeFontSize(fontSize) / themeFontSizeBase;
+}
+
+/** Read the font size preference saved for both development and production */
+function readCachedFontSize(fallback?: number) {
+  const cachedFontSize = localStg.get('themeFontSize');
+
+  if (typeof cachedFontSize === 'number') return normalizeThemeFontSize(cachedFontSize);
+
+  return normalizeThemeFontSize(fallback);
+}
+
+/** Apply the system font size to the document */
+export function applyGlobalFontSize(fontSize?: number) {
+  if (typeof document === 'undefined') return;
+
+  const size = normalizeThemeFontSize(fontSize);
+  const root = document.documentElement;
+
+  root.style.setProperty('--soy-font-scale', String(size / themeFontSizeBase));
+  root.style.setProperty('--soy-font-size', `${size}px`);
+}
+
+const naiveFontMetrics = {
+  fontSize: 14,
+  fontSizeMini: 12,
+  fontSizeTiny: 12,
+  fontSizeSmall: 14,
+  fontSizeMedium: 14,
+  fontSizeLarge: 15,
+  fontSizeHuge: 16,
+  heightMini: 16,
+  heightTiny: 22,
+  heightSmall: 28,
+  heightMedium: 34,
+  heightLarge: 40,
+  heightHuge: 46
+} as const;
+
+function scalePx(base: number, fontSize?: number) {
+  return `${Math.round(base * getThemeFontScale(fontSize))}px`;
+}
+
+/** Naive UI font and control heights that follow the system font size */
+function createNaiveFontTheme(fontSize?: number): GlobalThemeOverrides {
+  const common = Object.fromEntries(
+    Object.entries(naiveFontMetrics).map(([key, value]) => [key, scalePx(value, fontSize)])
+  );
+
+  return {
+    common,
+    Menu: {
+      itemHeight: scalePx(42, fontSize)
+    }
+  };
 }
 
 /**
@@ -247,9 +321,12 @@ export function getNaiveTheme(
 ) {
   const { primary: colorLoading } = colors;
 
+  const fontTheme = createNaiveFontTheme(settings.fontSize);
+
   const theme: GlobalThemeOverrides = {
     common: {
       ...getNaiveThemeColors(colors, settings.recommendColor),
+      ...fontTheme.common,
       borderRadius: `${settings.themeRadius}px`
     },
     LoadingBar: {
@@ -257,7 +334,8 @@ export function getNaiveTheme(
     },
     Tag: {
       borderRadius: `${settings.themeRadius}px`
-    }
+    },
+    Menu: fontTheme.Menu
   };
 
   // If there are overrides, merge them with priority

@@ -22,6 +22,8 @@ declare namespace StorageType {
     themeColor: string;
     /** The dark mode */
     darkMode: boolean;
+    /** System font size in px */
+    themeFontSize: number;
     /** The theme settings */
     themeSettings: App.Theme.ThemeSetting;
     /**

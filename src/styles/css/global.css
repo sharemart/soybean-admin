@@ -12,4 +12,8 @@ body,
 html {
   overflow-x: hidden;
   color: rgb(var(--base-text-color));
+  /* 1 keeps the current 16px root. Theme font size updates this at runtime. */
+  --soy-font-scale: 1;
+  --soy-font-size: 14px;
+  font-size: calc(16px * var(--soy-font-scale));
 }

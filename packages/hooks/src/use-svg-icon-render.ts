@@ -34,7 +34,7 @@ export default function useSvgIconRender(SvgIcon: Component) {
       style.color = color;
     }
     if (fontSize) {
-      style.fontSize = `${fontSize}px`;
+      style.fontSize = `calc(${fontSize}px * var(--soy-font-scale, 1))`;
     }
 
     if (!icon && !localIcon) {

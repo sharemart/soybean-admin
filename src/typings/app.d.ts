@@ -21,6 +21,12 @@ declare namespace App {
       themeColor: string;
       /** Theme radius */
       themeRadius: number;
+      /**
+       * System font size, in px
+       *
+       * 14 is the default and keeps the current layout. Other values scale text around it.
+       */
+      fontSize: number;
       /** Other color */
       otherColor: OtherColor;
       /** Whether info color is followed by the primary color */
@@ -388,6 +394,14 @@ declare namespace App {
           recommendColorDesc: string;
           themeRadius: {
             title: string;
+          };
+          fontSize: {
+            title: string;
+            small: string;
+            standard: string;
+            large: string;
+            extraLarge: string;
+            preview: string;
           };
           preset: {
             title: string;

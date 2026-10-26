@@ -48,6 +48,7 @@ interface Props {
 const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'close'): void;
+  (e: 'editOverdue'): void;
 }>();
 
 const message = useMessage();
@@ -342,6 +343,15 @@ const exportWord = async () => {
       </div>
 
       <div class="flex justify-end gap-4 border-t p-8 dark:border-slate-800">
+        <NButton
+          v-if="task.status === 'OVERDUE'"
+          type="error"
+          secondary
+          class="rounded-2xl px-8 py-3 text-[10px] font-black uppercase"
+          @click="emit('editOverdue')"
+        >
+          修改逾期维保单
+        </NButton>
         <NButton tertiary class="rounded-2xl px-10 py-3 text-[10px] font-black uppercase" @click="emit('close')">
           关闭
         </NButton>

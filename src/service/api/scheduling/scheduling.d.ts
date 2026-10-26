@@ -393,6 +393,55 @@ export interface UpdatePlanGroupData {
 }
 export type UpdatePlanGroupResponse = ApiResponse<UpdatePlanGroupData>;
 
+// ====================== 修改逾期签到 ======================
+/** 维保状态 | PENDING:待维保, COMPLETED:已维保, IN_PROGRESS:进行中, OVERDUE:逾期签到 */
+export type MaintainBillStatus = 'PENDING' | 'COMPLETED' | 'IN_PROGRESS' | 'OVERDUE';
+
+export interface UpdateOverdueBillParams {
+  /** 维保单ID，须为逾期签到 */
+  bill_id: number;
+  /** 维保状态；也可传 1-4。未同时传时，改期后状态恢复为待维保 */
+  status?: MaintainBillStatus | 1 | 2 | 3 | 4;
+  /** 新的计划维保时间 | Y-m-d、Y-m-d H:i:s 或时间戳 */
+  maint_time?: string | number;
+  /** 维保间隔天数，写入维保计划；与日期任一变化时，按间隔重算该单之后的待维保排班 */
+  intervals?: number;
+  /** 维保小组ID，只改当前这一张维保单 */
+  group_id?: number;
+}
+
+export interface UpdateOverdueBillData {
+  /** 维保单ID */
+  bill_id: number;
+  /** 维保计划ID */
+  maint_id: number;
+  /** 修改前状态 */
+  old_status: string;
+  /** 修改后状态 */
+  status: string;
+  /** 修改后状态文案 */
+  status_text: string;
+  /** 修改后状态值 */
+  is_maintain: number;
+  /** 修改前计划时间 */
+  old_time: string;
+  /** 修改后计划时间 */
+  new_time: string;
+  /** 修改前间隔天数 */
+  old_intervals: number;
+  /** 修改后间隔天数 */
+  intervals: number;
+  /** 修改前维保小组ID */
+  old_group_id: number;
+  /** 修改后维保小组ID */
+  group_id: number;
+  /** 同步重算的后续待维保数量 */
+  updated_count: number;
+  /** 提示信息 */
+  message: string;
+}
+export type UpdateOverdueBillResponse = ApiResponse<UpdateOverdueBillData>;
+
 // ====================== 导出维保详情 Word ======================
 export interface ExportMaintenanceDetailParams {
   /** 维保单ID */

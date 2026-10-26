@@ -4,6 +4,7 @@ import { NConfigProvider, darkTheme } from 'naive-ui';
 import type { WatermarkProps } from 'naive-ui';
 import { useAppStore } from './store/modules/app';
 import { useThemeStore } from './store/modules/theme';
+import { getThemeFontScale } from './store/modules/theme/shared';
 import { naiveDateLocales, naiveLocales } from './locales/naive';
 
 defineOptions({
@@ -24,12 +25,14 @@ const naiveDateLocale = computed(() => {
 });
 
 const watermarkProps = computed<WatermarkProps>(() => {
+  const watermarkFontSize = Math.round(16 * getThemeFontScale(themeStore.fontSize));
+
   return {
     content: themeStore.watermarkContent,
     cross: true,
     fullscreen: true,
-    fontSize: 16,
-    lineHeight: 16,
+    fontSize: watermarkFontSize,
+    lineHeight: watermarkFontSize,
     width: 384,
     height: 384,
     xOffset: 12,

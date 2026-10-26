@@ -1,3 +1,16 @@
+/** Naive UI default body font size. System font scale is calculated from this value. */
+export const themeFontSizeBase = 14;
+
+/** Selectable system font sizes, in px */
+export const themeFontSizeOptions = [
+  { key: 'small', value: 12 },
+  { key: 'standard', value: 14 },
+  { key: 'large', value: 16 },
+  { key: 'extraLarge', value: 18 }
+] as const;
+
+export type ThemeFontSizeOptionKey = (typeof themeFontSizeOptions)[number]['key'];
+
 /** Default theme settings */
 export const themeSettings: App.Theme.ThemeSetting = {
   themeScheme: 'light',
@@ -6,6 +19,7 @@ export const themeSettings: App.Theme.ThemeSetting = {
   recommendColor: false,
   themeColor: '#646cff',
   themeRadius: 6,
+  fontSize: themeFontSizeBase,
   otherColor: {
     info: '#2080f0',
     success: '#52c41a',

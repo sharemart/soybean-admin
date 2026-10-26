@@ -86,6 +86,14 @@ const local: App.I18n.Schema = {
       themeRadius: {
         title: 'Theme Radius'
       },
+      fontSize: {
+        title: 'Font Size',
+        small: 'Small',
+        standard: 'Standard',
+        large: 'Large',
+        extraLarge: 'X-Large',
+        preview: 'Font preview Aa'
+      },
       recommendColor: 'Apply Recommended Color Algorithm',
       recommendColorDesc: 'The recommended color algorithm refers to',
       preset: {

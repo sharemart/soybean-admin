@@ -529,13 +529,15 @@ defineExpose({ OnlineStatus });
             新增档案
           </button>
 
-          <button
+          <!--
+ <button
             class="flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-purple-500/20 transition-all hover:bg-purple-600"
             @click="openImportModal"
           >
             <Upload :size="14" />
             批量导入电梯
-          </button>
+          </button> 
+-->
 
           <button
             v-if="selectedIds.length > 0"
