@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { NButton, NForm, NFormItem, NInputNumber, NRadio, NRadioGroup, NSelect, NSpin, useMessage } from 'naive-ui';
-import { RefreshCw, Save } from 'lucide-vue-next';
-import { getMaintainParams, saveMaintainParams } from '@/service/api/maintainParams/maintainParams';
-import type { GetMaintainParamsResponse } from '@/service/api/maintainParams/maintainParams.d';
+import { Camera, ImageUp, RefreshCw, Save } from 'lucide-vue-next';
+import {
+  getImageRules,
+  getMaintainParams,
+  saveImageRules,
+  saveMaintainParams
+} from '@/service/api/maintainParams/maintainParams';
+import type {
+  GetImageRulesResponse,
+  GetMaintainParamsResponse,
+  SaveImageRulesParams
+} from '@/service/api/maintainParams/maintainParams.d';
 import { useAuthStore } from '@/store/modules/auth';
 import { useMaintainCompanySelector } from '@/components/selectOption/useMaintainCompanySelector';
 
@@ -196,6 +205,121 @@ async function handleSave() {
 
 const formRef = ref<any>(null);
 
+const imageRulesLoading = ref(false);
+const imageRulesSaving = ref(false);
+const imageRulesData = ref<GetImageRulesResponse | null>(null);
+
+const selectedProjects = ref<Record<number, number[]>>({});
+
+function initSelectedProjects() {
+  const data = imageRulesData.value;
+  if (!data) return;
+  data.types.forEach(type => {
+    const ids: number[] = [];
+    type.projects.forEach(project => {
+      if (project.require_image === 1) {
+        ids.push(project.project_id);
+      }
+    });
+    selectedProjects.value[type.main_id] = ids;
+  });
+}
+
+function toggleProjectSelection(typeMainId: number, projectId: number) {
+  if (!selectedProjects.value[typeMainId]) {
+    selectedProjects.value[typeMainId] = [];
+  }
+  const current = selectedProjects.value[typeMainId];
+  const maxCount = imageRulesData.value?.upload_image_count ?? 0;
+
+  if (current.includes(projectId)) {
+    selectedProjects.value[typeMainId] = current.filter(id => id !== projectId);
+  } else {
+    if (current.length >= maxCount && maxCount > 0) {
+      message.warning(`每个维保类型最多勾选 ${maxCount} 个明细`);
+      return;
+    }
+    selectedProjects.value[typeMainId] = [...current, projectId];
+  }
+}
+
+function isProjectSelected(typeMainId: number, projectId: number): boolean {
+  return selectedProjects.value[typeMainId]?.includes(projectId) ?? false;
+}
+
+async function handleSaveImageRules() {
+  if (!imageRulesData.value) return;
+
+  const maxCount = imageRulesData.value.upload_image_count;
+  const uncompleted = imageRulesData.value.types.filter(type => {
+    const count = (selectedProjects.value[type.main_id] || []).length;
+    return count !== maxCount;
+  });
+  if (uncompleted.length > 0) {
+    const names = uncompleted.map(t => t.type_name).join('、');
+    message.warning(
+      `「${names}」需勾选 ${maxCount} 个明细（当前 ${uncompleted.map(t => (selectedProjects.value[t.main_id] || []).length).join('、')}）`
+    );
+    return;
+  }
+
+  try {
+    imageRulesSaving.value = true;
+    const rules: SaveImageRulesParams['rules'] = imageRulesData.value.types.map(type => {
+      const selectedIds = selectedProjects.value[type.main_id] || [];
+      return {
+        main_id: type.main_id,
+        project_ids: selectedIds
+      };
+    });
+
+    const params: SaveImageRulesParams = { rules };
+    if (selectedCompanyId.value) {
+      params.company_id = selectedCompanyId.value;
+    }
+    const res = await saveImageRules(params);
+    if (res.data?.code === 2000) {
+      message.success('拍照区间保存成功');
+      fetchImageRules(selectedCompanyId.value);
+    } else {
+      message.error(res.data?.msg || '保存失败');
+    }
+  } catch {
+    message.error('保存拍照区间失败');
+  } finally {
+    imageRulesSaving.value = false;
+  }
+}
+
+async function fetchImageRules(companyId?: number | null) {
+  try {
+    imageRulesLoading.value = true;
+    const res = await getImageRules(companyId || undefined);
+    if (res.data?.code === 2000 && res.data.data) {
+      imageRulesData.value = res.data.data;
+      initSelectedProjects();
+    } else {
+      imageRulesData.value = null;
+    }
+  } catch {
+    imageRulesData.value = null;
+  } finally {
+    imageRulesLoading.value = false;
+  }
+}
+
+const showImageRulesCard = computed(
+  () => formData.value.enable_online_maintain === 1 && formData.value.enable_detail_image === 1
+);
+
+watch(showImageRulesCard, show => {
+  if (show) {
+    fetchImageRules(selectedCompanyId.value);
+  } else {
+    imageRulesData.value = null;
+  }
+});
+
 function getCompanyIdFromAuth(): number | null {
   const cid = authStore.userInfo?.company_id;
   if (cid) {
@@ -216,6 +340,21 @@ watch(selectedCompanyId, newCompanyId => {
     fetchParams(newCompanyId);
   }
 });
+
+watch([selectedCompanyId, showImageRulesCard], ([companyId, show]) => {
+  if (show && companyId !== null && companyId !== undefined) {
+    fetchImageRules(companyId);
+  }
+});
+
+watch(
+  () => formData.value.upload_image_count,
+  newVal => {
+    if (imageRulesData.value && newVal !== null && newVal !== undefined) {
+      imageRulesData.value.upload_image_count = newVal;
+    }
+  }
+);
 
 onMounted(() => {
   fetchMaintainCompanyList();
@@ -308,6 +447,15 @@ onMounted(() => {
             </NRadioGroup>
           </NFormItem>
 
+          <NFormItem label="明细必须拍照" path="enable_detail_image">
+            <NRadioGroup v-model:value="formData.enable_detail_image">
+              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </NRadio>
+            </NRadioGroup>
+            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
+          </NFormItem>
+
           <NFormItem label="维保最短时长" path="required_duration" required>
             <NInputNumber
               v-model:value="formData.required_duration"
@@ -319,14 +467,6 @@ onMounted(() => {
               <template #suffix>分钟</template>
             </NInputNumber>
             <span class="ml-2 text-xs text-slate-400">范围：1 ~ 1440 分钟</span>
-          </NFormItem>
-
-          <NFormItem label="兼容旧字段(扫码)" path="enable_scan_maintain">
-            <NRadioGroup v-model:value="formData.enable_scan_maintain">
-              <NRadio :value="0">定位</NRadio>
-              <NRadio :value="1">扫码</NRadio>
-            </NRadioGroup>
-            <span class="ml-2 text-xs text-slate-400">未传 checkin_mode 时的兼容字段，1=扫码 0=定位</span>
           </NFormItem>
 
           <NFormItem label="维保上传图片数量" path="upload_image_count">
@@ -378,15 +518,6 @@ onMounted(() => {
             <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
           </NFormItem>
 
-          <NFormItem label="明细必须拍照" path="enable_detail_image">
-            <NRadioGroup v-model:value="formData.enable_detail_image">
-              <NRadio v-for="opt in enableOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </NRadio>
-            </NRadioGroup>
-            <span class="ml-2 text-xs text-slate-400">不传则保留原值</span>
-          </NFormItem>
-
           <NFormItem v-if="formData.add_time" label="创建时间" path="add_time">
             <span class="text-sm text-slate-600 dark:text-slate-300">{{ formData.add_time }}</span>
           </NFormItem>
@@ -397,5 +528,176 @@ onMounted(() => {
         </NForm>
       </div>
     </NSpin>
+
+    <div
+      v-if="showImageRulesCard"
+      class="mt-6 overflow-hidden border border-slate-200 rounded-[2rem] bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80"
+    >
+      <div
+        class="flex items-center justify-between border-b border-slate-100 from-sky-50/60 to-white bg-gradient-to-r px-8 py-5 dark:border-slate-700 dark:from-sky-950/40 dark:to-slate-900/80"
+      >
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 flex items-center justify-center rounded-xl bg-sky-500/10">
+            <Camera :size="20" class="text-sky-500" />
+          </div>
+          <div>
+            <h3 class="text-lg text-slate-800 font-bold tracking-tight dark:text-white">维保明细拍照区间</h3>
+            <p class="text-xs text-slate-500">配置各维保类型项目的拍照明细区间</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <NButton
+            type="primary"
+            :loading="imageRulesSaving"
+            class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 text-xs text-white font-bold tracking-wider shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600"
+            @click="handleSaveImageRules"
+          >
+            <Save :size="15" />
+            保存区间
+          </NButton>
+          <NButton
+            circle
+            :loading="imageRulesLoading"
+            class="border border-slate-200 rounded-xl bg-slate-50 p-2.5 text-slate-400 transition-all dark:border-slate-700 hover:border-sky-300 dark:bg-slate-800 hover:text-sky-500"
+            @click="fetchImageRules(selectedCompanyId)"
+          >
+            <RefreshCw :size="18" />
+          </NButton>
+        </div>
+      </div>
+
+      <NSpin :show="imageRulesLoading">
+        <template v-if="imageRulesData">
+          <div class="grid grid-cols-1 gap-5 p-8 sm:grid-cols-3">
+            <div
+              class="border border-slate-100 rounded-2xl bg-slate-50/80 p-5 transition-shadow dark:border-slate-700/50 dark:bg-slate-800/40 hover:shadow-md"
+            >
+              <div class="mb-3 flex items-center gap-2">
+                <div class="h-7 w-7 flex items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/40">
+                  <ImageUp :size="14" class="text-sky-600 dark:text-sky-400" />
+                </div>
+                <span class="text-xs text-slate-600 font-semibold dark:text-slate-400">上传图片数量</span>
+              </div>
+              <div class="text-2xl text-slate-800 font-bold dark:text-white">
+                {{ imageRulesData.upload_image_count }}
+                <span class="ml-1 text-sm text-slate-400 font-normal">张</span>
+              </div>
+              <p class="mt-2 text-xs text-slate-400 leading-relaxed">每个维保类型需勾选同样数量的明细</p>
+            </div>
+          </div>
+
+          <div v-if="imageRulesData.types && imageRulesData.types.length > 0" class="px-8 pb-8 space-y-5">
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-3 dark:border-slate-700">
+              <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+              <span class="text-sm text-slate-600 font-semibold dark:text-slate-400">维保类型明细</span>
+            </div>
+
+            <div
+              v-for="maintainType in imageRulesData.types"
+              :key="maintainType.main_id"
+              class="overflow-hidden border border-slate-100 rounded-2xl bg-slate-50/40 transition-shadow dark:border-slate-700/50 dark:bg-slate-800/30 hover:shadow-sm"
+            >
+              <div
+                class="flex items-center gap-3 border-b border-slate-100/80 bg-white/60 px-6 py-4 dark:border-slate-700/50 dark:bg-slate-800/50"
+              >
+                <span
+                  class="rounded-lg from-sky-500 to-sky-400 bg-gradient-to-r px-3.5 py-1.5 text-sm text-white font-bold tracking-wide shadow-sky-500/20 shadow-sm"
+                >
+                  {{ maintainType.type_name }}
+                </span>
+                <span
+                  class="rounded-md bg-slate-100 px-2.5 py-1 text-xs text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                >
+                  {{ maintainType.variety_name }}
+                </span>
+                <span class="ml-auto inline-flex items-center gap-1.5 text-xs">
+                  <span class="text-slate-400">已选</span>
+                  <span
+                    class="h-6 min-w-[2.5rem] inline-flex items-center justify-center rounded-full px-2 text-xs font-bold"
+                    :class="{
+                      'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300':
+                        (selectedProjects[maintainType.main_id]?.length || 0) === imageRulesData.upload_image_count,
+                      'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300':
+                        (selectedProjects[maintainType.main_id]?.length || 0) > 0 &&
+                        (selectedProjects[maintainType.main_id]?.length || 0) !== imageRulesData.upload_image_count,
+                      'bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500':
+                        !selectedProjects[maintainType.main_id]?.length
+                    }"
+                  >
+                    {{ selectedProjects[maintainType.main_id]?.length || 0 }}
+                  </span>
+                  <span class="text-slate-400">/ {{ imageRulesData.upload_image_count }}</span>
+                </span>
+              </div>
+
+              <div v-if="maintainType.projects && maintainType.projects.length > 0" class="p-6">
+                <div class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                  <div
+                    v-for="(project, index) in maintainType.projects"
+                    :key="project.project_id"
+                    class="group flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-all duration-200"
+                    :class="
+                      isProjectSelected(maintainType.main_id, project.project_id)
+                        ? 'bg-sky-50 ring-1 ring-sky-200/80 dark:bg-sky-950/30 dark:ring-sky-700/60'
+                        : 'bg-white hover:bg-sky-50/40 dark:bg-slate-800/60 dark:hover:bg-sky-950/20'
+                    "
+                    @click="toggleProjectSelection(maintainType.main_id, project.project_id)"
+                  >
+                    <div
+                      class="mt-0.5 h-5 w-5 flex flex-shrink-0 items-center justify-center border-2 rounded-md transition-all duration-200"
+                      :class="
+                        isProjectSelected(maintainType.main_id, project.project_id)
+                          ? 'border-sky-500 bg-sky-500 shadow-sm shadow-sky-500/30'
+                          : 'border-slate-300 group-hover:border-sky-400 dark:border-slate-600 dark:group-hover:border-sky-500'
+                      "
+                    >
+                      <svg
+                        v-if="isProjectSelected(maintainType.main_id, project.project_id)"
+                        class="h-3 w-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <span
+                        class="text-sm leading-snug"
+                        :class="
+                          isProjectSelected(maintainType.main_id, project.project_id)
+                            ? 'font-medium text-sky-800 dark:text-sky-200'
+                            : 'text-slate-600 dark:text-slate-400'
+                        "
+                      >
+                        <span
+                          class="mr-1.5 h-5 w-5 inline-flex items-center justify-center rounded text-xs font-semibold font-mono"
+                          :class="
+                            isProjectSelected(maintainType.main_id, project.project_id)
+                              ? 'bg-sky-200 text-sky-700 dark:bg-sky-800 dark:text-sky-300'
+                              : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
+                          "
+                        >
+                          {{ index + 1 }}
+                        </span>
+                        {{ project.project_content }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="px-6 pb-5 text-sm text-slate-400">暂无维保项目</div>
+            </div>
+          </div>
+          <div v-else class="px-8 pb-10 text-center">
+            <div class="text-sm text-slate-400">暂无维保类型数据</div>
+          </div>
+        </template>
+        <div v-else class="px-8 py-16 text-center">
+          <div class="text-sm text-slate-400">暂无拍照区间数据</div>
+        </div>
+      </NSpin>
+    </div>
   </div>
 </template>

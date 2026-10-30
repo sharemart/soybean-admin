@@ -59,7 +59,7 @@ const formatFloorLabel = (floor: number) => {
 };
 
 const displayFloor = computed(() => {
-  return props.currentFloor <= 0 ? 1 : props.currentFloor;
+  return props.currentFloor + 1;
 });
 
 // 轿厢位置计算（精确边界处理）
@@ -86,7 +86,7 @@ const getCarPosition = (floor: number) => {
 
 <template>
   <div class="glass-panel flex flex-col items-center border border-slate-200 rounded-[3rem] p-6 dark:border-slate-800">
-    <h3 class="mb-8 w-full text-center text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">
+    <h3 class="mb-8 w-full text-center text-slate-400 font-black tracking-[0.2em] uppercase text-[10px]">
       井道物理仿真 (Digital Twin)
     </h3>
 
@@ -96,7 +96,7 @@ const getCarPosition = (floor: number) => {
     >
       <!-- 楼层标签 -->
       <div
-        class="absolute inset-y-4 right-2 flex flex-col justify-between text-[8px] text-slate-400 font-bold font-mono"
+        class="absolute inset-y-4 right-2 flex flex-col justify-between text-slate-400 font-bold font-mono text-[8px]"
       >
         <span
           v-for="f in floorList"
@@ -119,7 +119,7 @@ const getCarPosition = (floor: number) => {
           <div v-else class="h-4 w-4 border-2 border-sky-400/30 rounded-full"></div>
         </div>
         <span class="text-2xl font-black leading-none font-mono">{{ displayFloor }}</span>
-        <span class="text-[8px] font-bold uppercase opacity-40">Floor</span>
+        <span class="font-bold uppercase opacity-40 text-[8px]">Floor</span>
 
         <!-- 门状态动画 -->
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -138,7 +138,7 @@ const getCarPosition = (floor: number) => {
       class="mt-8 flex items-center gap-6 border border-slate-100 rounded-2xl bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
     >
       <div class="text-center">
-        <p class="mb-1 text-[10px] text-slate-400 font-black tracking-widest uppercase">实时速度</p>
+        <p class="mb-1 text-slate-400 font-black tracking-widest uppercase text-[10px]">实时速度</p>
         <p class="text-xl text-sky-500 font-black font-mono">
           {{ props.speed.toFixed(2) }}
           <span class="ml-1 text-[10px]">m/s</span>

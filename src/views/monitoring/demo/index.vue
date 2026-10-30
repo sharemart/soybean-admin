@@ -132,17 +132,49 @@ const MOCK_PREDICTIVE_PARTS: PredictivePart[] = [
 ];
 
 // ==========================================
+// 缓存
+// ==========================================
+const CACHE_KEY = 'monitoring_demo_state';
+
+interface CachedState {
+  currentPage: number;
+  searchTerm: string;
+  selectedArea: string | number;
+}
+
+function loadCachedState(): CachedState | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedState() {
+  const state: CachedState = {
+    currentPage: currentPage.value,
+    searchTerm: searchTerm.value,
+    selectedArea: selectedArea.value
+  };
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify(state));
+}
+
+// ==========================================
 // 数据
 // ==========================================
+const cached = loadCachedState();
+
 const allElevators = ref<ElevatorMonitor[]>([]);
-const searchTerm = ref('');
-const selectedArea = ref<string | number>('ALL');
+const searchTerm = ref(cached?.searchTerm || '');
+const selectedArea = ref<string | number>(cached?.selectedArea || 'ALL');
 const viewMode = ref<'grid' | 'list'>('grid');
 const isSyncing = ref(false);
 const emergencyTarget = ref<any>(null);
 
 const villageList = ref<AreaOption[]>([]);
-const currentPage = ref(1);
+const currentPage = ref(cached?.currentPage || 1);
 const pageSize = ref(12);
 const total = ref(0);
 const loading = ref(false);
@@ -192,6 +224,7 @@ const toggleFavorite = (id: string) => {
 };
 
 const handleGoToDetail = (id: string) => {
+  saveCachedState();
   router.push({ name: 'monitoring_detail', query: { id } });
 };
 
@@ -371,7 +404,6 @@ const getAllElevatorData = async () => {
 };
 
 const fetchDataWithFilter = debounce(() => {
-  currentPage.value = 1;
   getAllElevatorData();
 }, 300);
 
@@ -381,11 +413,26 @@ const handleSync = () => {
 
 const handlePageChange = (val: number) => {
   currentPage.value = val;
+  saveCachedState();
   getAllElevatorData();
 };
 
-watch(searchTerm, fetchDataWithFilter);
-watch(selectedArea, fetchDataWithFilter);
+watch(searchTerm, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    if (newVal) {
+      currentPage.value = 1;
+    }
+    saveCachedState();
+    fetchDataWithFilter();
+  }
+});
+watch(selectedArea, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    currentPage.value = 1;
+    saveCachedState();
+    fetchDataWithFilter();
+  }
+});
 
 const setEmergencyTarget = (target: any) => (emergencyTarget.value = target);
 const handleEmergencyConfirm = () => {
@@ -405,6 +452,7 @@ onActivated(() => {
 });
 
 onDeactivated(() => {
+  saveCachedState();
   allElevators.value.forEach(e => e.mqtt?.disconnect?.());
 });
 
@@ -430,7 +478,7 @@ onUnmounted(() => {
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <component :is="getIconComponent(m.icon)" :size="12" :class="m.color" />
-                <span class="text-[10px] text-slate-500 font-black tracking-widest uppercase dark:text-slate-300">
+                <span class="text-slate-500 font-black tracking-widest uppercase text-[10px] dark:text-slate-300">
                   {{ m.label }}
                 </span>
               </div>
@@ -445,12 +493,12 @@ onUnmounted(() => {
             </div>
           </div>
           <button
-            class="mt-4 w-full border border-slate-200 rounded-2xl bg-slate-50 py-4 text-[10px] font-black tracking-widest uppercase transition-all dark:border-white/10 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10"
+            class="mt-4 w-full border border-slate-200 rounded-2xl bg-slate-50 py-4 font-black tracking-widest uppercase transition-all text-[10px] dark:border-white/10 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10"
           >
             展开深度分析报表
           </button>
           <div class="mt-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-            <p class="text-[9px] text-slate-400 font-bold leading-relaxed tracking-tighter uppercase italic">
+            <p class="text-slate-400 font-bold leading-relaxed tracking-tighter uppercase italic text-[9px]">
               数据由边缘计算节点实时推送，最近一次同步：{{ isSyncing ? '同步中...' : '刚刚' }}
             </p>
           </div>
@@ -582,7 +630,7 @@ onUnmounted(() => {
                         {{ el.total_floor }}
                       </span>
                     </div>
-                    <span class="mt-1 text-[8px] text-slate-400 font-black tracking-widest uppercase">Level</span>
+                    <span class="mt-1 text-slate-400 font-black tracking-widest uppercase text-[8px]">Level</span>
                   </div>
                   <div
                     class="absolute flex items-center gap-1.5 border border-slate-100 rounded-full bg-white px-2 py-1 shadow-sm -bottom-1 dark:border-slate-700 dark:bg-slate-800"
@@ -590,7 +638,7 @@ onUnmounted(() => {
                     <Wifi v-if="el.liveData?.isOnline" :size="10" class="text-emerald-500" />
                     <WifiOff v-else :size="10" class="text-rose-400" />
                     <span
-                      class="text-[8px] font-black uppercase"
+                      class="font-black uppercase text-[8px]"
                       :class="el.liveData?.isOnline ? 'text-emerald-500' : 'text-rose-400'"
                     >
                       {{ el.liveData?.isOnline ? 'Live' : 'Lost' }}
@@ -599,7 +647,7 @@ onUnmounted(() => {
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="mb-2 flex items-center gap-2" :class="viewMode === 'grid' ? 'justify-center' : ''">
-                    <span class="text-[10px] text-slate-400 font-black tracking-tighter font-mono uppercase">
+                    <span class="text-slate-400 font-black tracking-tighter font-mono uppercase text-[10px]">
                       {{ el.elevator_number || '无编号' }}
                     </span>
                   </div>
@@ -607,7 +655,7 @@ onUnmounted(() => {
                     {{ el.elevator_name }}
                   </h4>
                   <p
-                    class="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-bold italic"
+                    class="mt-1 flex items-center gap-1 text-slate-500 font-bold italic text-[10px]"
                     :class="viewMode === 'grid' ? 'justify-center' : ''"
                   >
                     小区: {{ el.village_name || '未设置' }}
@@ -632,11 +680,11 @@ onUnmounted(() => {
           class="h-full flex flex-col border border-slate-200 rounded-[2.5rem] bg-white/70 p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900/60"
         >
           <div class="mb-8 flex items-center justify-between">
-            <h3 class="flex items-center gap-2 text-[10px] font-black tracking-widest uppercase">
+            <h3 class="flex items-center gap-2 font-black tracking-widest uppercase text-[10px]">
               <BrainCircuit :size="14" class="text-indigo-500" />
               AI 预测性换件
             </h3>
-            <span class="rounded-lg bg-indigo-500/10 px-2 py-0.5 text-[8px] text-indigo-500 font-black uppercase">
+            <span class="rounded-lg bg-indigo-500/10 px-2 py-0.5 text-indigo-500 font-black uppercase text-[8px]">
               Alpha V2
             </span>
           </div>
@@ -651,7 +699,7 @@ onUnmounted(() => {
                   <div class="mb-3 flex items-start justify-between">
                     <div class="rounded-xl bg-indigo-500/10 p-2 text-indigo-500"><Package :size="16" /></div>
                     <span
-                      class="rounded px-2 py-0.5 text-[8px] font-black tracking-widest uppercase"
+                      class="rounded px-2 py-0.5 font-black tracking-widest uppercase text-[8px]"
                       :class="
                         part.urgency === 'HIGH' ? 'bg-rose-500 text-white animate-pulse' : 'bg-amber-500 text-white'
                       "
@@ -660,12 +708,12 @@ onUnmounted(() => {
                     </span>
                   </div>
                   <h4 class="mb-1 text-xs font-black">{{ part.partName }}</h4>
-                  <p class="mb-4 flex items-center gap-1 text-[9px] text-slate-500 font-bold tracking-tight uppercase">
+                  <p class="mb-4 flex items-center gap-1 text-slate-500 font-bold tracking-tight uppercase text-[9px]">
                     <Building2 :size="10" />
                     {{ part.elevatorName }}
                   </p>
                   <div class="space-y-2">
-                    <div class="flex justify-between text-[9px] font-black uppercase">
+                    <div class="flex justify-between font-black uppercase text-[9px]">
                       <span class="text-slate-400">预计寿命</span>
                       <span :class="part.remainingLife < 10 ? 'text-rose-500' : 'text-sky-500'">
                         {{ part.remainingLife }}%
@@ -686,7 +734,7 @@ onUnmounted(() => {
           <div class="mt-6 border-t border-slate-100 pt-6 dark:border-slate-800">
             <div class="flex gap-2 border border-amber-500/10 rounded-2xl bg-amber-500/5 p-4">
               <Timer :size="14" class="shrink-0 text-amber-500" />
-              <p class="text-[9px] text-amber-600 font-bold leading-tight tracking-tighter uppercase italic">
+              <p class="text-amber-600 font-bold leading-tight tracking-tighter uppercase italic text-[9px]">
                 系统预测以上部件在 30 日内失效概率大于 85%。
               </p>
             </div>
@@ -726,13 +774,13 @@ onUnmounted(() => {
             v-if="emergencyTarget"
             class="mb-6 border border-slate-100 rounded-2xl bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50"
           >
-            <p class="mb-1 text-[10px] text-slate-400 font-black uppercase">目标设备</p>
+            <p class="mb-1 text-slate-400 font-black uppercase text-[10px]">目标设备</p>
             <p class="text-sm font-black">{{ emergencyTarget.name }}</p>
-            <p class="text-[10px] text-slate-500 font-mono">{{ emergencyTarget.id }}</p>
+            <p class="text-slate-500 font-mono text-[10px]">{{ emergencyTarget.id }}</p>
           </div>
           <div class="mb-6 space-y-4">
             <div>
-              <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">任务类型</label>
+              <label class="mb-1 block text-slate-500 font-black uppercase text-[10px]">任务类型</label>
               <select
                 class="w-full border border-slate-200 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-medium dark:border-slate-800 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               >
@@ -743,14 +791,14 @@ onUnmounted(() => {
               </select>
             </div>
             <div>
-              <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">任务描述</label>
+              <label class="mb-1 block text-slate-500 font-black uppercase text-[10px]">任务描述</label>
               <textarea
                 class="min-h-[80px] w-full border border-slate-200 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-medium dark:border-slate-800 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 placeholder="请输入任务详情..."
               ></textarea>
             </div>
             <div>
-              <label class="mb-1 block text-[10px] text-slate-500 font-black uppercase">指派技师</label>
+              <label class="mb-1 block text-slate-500 font-black uppercase text-[10px]">指派技师</label>
               <select
                 class="w-full border border-slate-200 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-medium dark:border-slate-800 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               >
@@ -763,13 +811,13 @@ onUnmounted(() => {
           </div>
           <div class="flex gap-4">
             <button
-              class="flex-1 rounded-2xl bg-slate-100 py-3 text-[10px] font-black tracking-widest uppercase dark:bg-slate-800 hover:bg-slate-200"
+              class="flex-1 rounded-2xl bg-slate-100 py-3 font-black tracking-widest uppercase text-[10px] dark:bg-slate-800 hover:bg-slate-200"
               @click="setEmergencyTarget(null)"
             >
               取消
             </button>
             <button
-              class="flex-1 rounded-2xl bg-rose-500 py-3 text-[10px] text-white font-black tracking-widest uppercase hover:bg-rose-600"
+              class="flex-1 rounded-2xl bg-rose-500 py-3 text-white font-black tracking-widest uppercase text-[10px] hover:bg-rose-600"
               @click="handleEmergencyConfirm"
             >
               确认创建
@@ -783,11 +831,11 @@ onUnmounted(() => {
       class="fixed bottom-0 left-[220px] right-0 z-50 h-16 flex items-center justify-between border-t border-slate-200 bg-white/90 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90"
     >
       <div class="flex items-center gap-6">
-        <span class="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+        <span class="flex items-center gap-2 text-slate-500 font-bold text-[10px]">
           <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></div>
           实时监控系统 · 数据链路活跃
         </span>
-        <span class="text-[10px] text-sky-500 font-bold">设备总数：{{ total }} 台</span>
+        <span class="text-sky-500 font-bold text-[10px]">设备总数：{{ total }} 台</span>
       </div>
       <div class="scale-90">
         <PagePagination

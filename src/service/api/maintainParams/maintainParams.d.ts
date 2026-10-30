@@ -83,3 +83,115 @@ export interface SaveMaintainParamsResponse {
 }
 
 export type SaveMaintainParamsApiResponse = ApiResponse<SaveMaintainParamsResponse>;
+
+// ====================== 获取维保明细拍照区间 ======================
+
+/** 拍照区间范围 */
+export interface ImageRuleRange {
+  /** 区间起始 */
+  start: number;
+  /** 区间结束 */
+  end: number;
+}
+
+/** 维保拍照项目 */
+export interface ImageRuleProject {
+  /** 项目ID */
+  project_id: number;
+  /** 项目排序 */
+  project_sort: number;
+  /** 项目名称 */
+  project_content: string;
+  /** 是否需要拍照：0否 1是 */
+  require_image: number;
+}
+
+/** 维保拍照类型 */
+export interface ImageRuleType {
+  /** 维保类型ID */
+  main_id: number;
+  /** 类型名称 */
+  name: string;
+  /** 维保类型值 | 1:半月保 2:季度保 3:半年保 4:年保 */
+  type: number;
+  /** 类型名称 */
+  type_name: string;
+  /** 电梯品种 */
+  variety: number;
+  /** 品种名称 */
+  variety_name: string;
+  /** 已选区间范围 */
+  ranges: ImageRuleRange[];
+  /** 维保项目列表 */
+  projects: ImageRuleProject[];
+}
+
+/** 获取维保明细拍照区间响应 */
+export interface GetImageRulesResponse {
+  /** 维保上传图片数量，每个维保类型需勾选同样数量的明细 */
+  upload_image_count: number;
+  /** 是否开启线上维保单：0否 1是 */
+  enable_online_maintain: number;
+  /** 明细必须拍照：0关闭 1开启 */
+  enable_detail_image: number;
+  /** 两者都开启时为 1 */
+  detail_image_active: number;
+  /** 维保类型及其项目、已勾选区间 */
+  types: ImageRuleType[];
+}
+
+export type GetImageRulesApiResponse = ApiResponse<GetImageRulesResponse>;
+
+// ====================== 保存维保明细拍照区间 ======================
+
+/** 单个维保类型的拍照区间规则 */
+export interface ImageRuleItem {
+  /** 维保类型ID */
+  main_id: number;
+  /** 勾选的项目ID数组，每个类型勾选数量须等于 upload_image_count */
+  project_ids: number[];
+}
+
+/** 保存维保明细拍照区间请求参数 */
+export interface SaveImageRulesParams {
+  /** 维保公司ID（超级管理员必传；普通用户不传则取当前公司） */
+  company_id?: number;
+  /** 拍照规则数组 */
+  rules: ImageRuleItem[];
+}
+
+export type SaveImageRulesApiResponse = ApiResponse<object>;
+
+// ====================== 更新维保项目状态 ======================
+
+/** 更新维保项目状态 - 单条明细信息 */
+export interface BatchPresentItem {
+  /** 项目明细ID */
+  pill_id: number;
+  /** 维保项目完成状态：1完成；2未处理；3已处理并更换零件；4没有该项 */
+  pill_type: number;
+  /** 维保项目备注 */
+  pill_remark?: string;
+  /** 明细拍照图片url。开启明细拍照后传入；可为字符串、逗号分隔或数组。也可传 clockin_img / clockin_imgs */
+  image_url?: string;
+}
+
+/** 更新维保项目状态请求参数 */
+export interface BatchPresentParams {
+  /** 请求参数 */
+  info: BatchPresentItem;
+}
+
+/** 更新维保项目状态响应 */
+export interface BatchPresentResponse {
+  /** 修改成功次数 */
+  updated: number;
+  /** 修改失败次数 */
+  failed: number;
+  /** 明细拍照生效且本次写入了照片时返回，工单首张现场图 */
+  clockin_img?: string;
+  /** 明细拍照生效且本次写入了照片时返回，工单现场图列表 */
+  clockin_imgs?: string[];
+}
+
+export type BatchPresentApiResponse = ApiResponse<BatchPresentResponse>;
