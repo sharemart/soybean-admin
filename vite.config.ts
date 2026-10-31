@@ -46,6 +46,10 @@ export default defineConfig(configEnv => {
     preview: {
       port: 9725
     },
+    optimizeDeps: {
+      // ezuikit-js 体积过大，Vite 预构建/转换会 Maximum call stack size exceeded
+      exclude: ['ezuikit-js']
+    },
     build: {
       reportCompressedSize: false,
       sourcemap: viteEnv.VITE_SOURCE_MAP === 'Y',

@@ -361,6 +361,28 @@ export const generatedRoutes = [
     },
     children: [
       {
+        name: 'management_camera',
+        path: '/management/camera',
+        component: 'view.management_camera',
+        meta: {
+          title: 'management_camera',
+          i18nKey: 'route.management_camera',
+          icon: 'mdi:cctv',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_cameraalarm',
+        path: '/management/cameraalarm',
+        component: 'view.management_cameraalarm',
+        meta: {
+          title: 'management_cameraalarm',
+          i18nKey: 'route.management_cameraalarm',
+          icon: 'mdi:bell-alert',
+          keepAlive: true
+        }
+      },
+      {
         name: 'management_community',
         path: '/management/community',
         component: 'view.management_community',

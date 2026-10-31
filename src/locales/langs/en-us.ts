@@ -245,6 +245,8 @@ const local: App.I18n.Schema = {
     management_knowledge: 'Maintenance Knowledge Management',
     management_equipment: 'Elevator Equipment Management',
     management_component: 'Elevator Component Management',
+    management_camera: 'Camera Management',
+    management_cameraalarm: 'Camera Alarms',
     business_repair: 'Repair Management',
     business_report: 'Report Management',
     business_import: 'Data Import',

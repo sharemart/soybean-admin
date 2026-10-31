@@ -192,6 +192,8 @@ const routeMap: RouteMap = {
   "install": "/install",
   "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?",
   "management": "/management",
+  "management_camera": "/management/camera",
+  "management_cameraalarm": "/management/cameraalarm",
   "management_community": "/management/community",
   "management_component": "/management/component",
   "management_equipment": "/management/equipment",

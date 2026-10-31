@@ -12,6 +12,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AddCameraModal: typeof import('./../components/modal/camera/AddCameraModal.vue')['default']
     AddEmergency: typeof import('./../components/modal/emergency/addEmergency.vue')['default']
     AddOrganizational: typeof import('./../components/modal/organizational/addOrganizational.vue')['default']
     AddPerson: typeof import('./../components/modal/person/addPerson.vue')['default']
@@ -22,6 +23,7 @@ declare module 'vue' {
     AuditModal: typeof import('./../components/modal/hr/AuditModal.vue')['default']
     BasicParams: typeof import('./../components/modal/component/tabs/BasicParams.vue')['default']
     BetterScroll: typeof import('./../components/custom/better-scroll.vue')['default']
+    BindCameraModal: typeof import('./../components/modal/camera/BindCameraModal.vue')['default']
     BrandManageModal: typeof import('./../components/modal/knowldege/BrandManageModal.vue')['default']
     ButtonIcon: typeof import('./../components/custom/button-icon.vue')['default']
     ChecklistDetailModal: typeof import('./../components/modal/safety/safetyCheck/ChecklistDetailModal.vue')['default']
@@ -47,6 +49,7 @@ declare module 'vue' {
     FaultWidget: typeof import('./../components/modal/monitoring/FaultWidget.vue')['default']
     FloorEditor: typeof import('./../components/modal/component/tabs/FloorEditor.vue')['default']
     FullScreen: typeof import('./../components/common/full-screen.vue')['default']
+    GbAccessParamModal: typeof import('./../components/modal/camera/GbAccessParamModal.vue')['default']
     GetTemplateDetail: typeof import('./../components/modal/safety/safetyCheck/getTemplateDetail.vue')['default']
     HandoverModal: typeof import('./../components/modal/document/HandoverModal.vue')['default']
     HrDialog: typeof import('./../components/modal/hr/HrDialog.vue')['default']
@@ -71,6 +74,7 @@ declare module 'vue' {
     KnowledgeDocEditModal: typeof import('./../components/modal/knowldege/KnowledgeDocEditModal.vue')['default']
     LangSwitch: typeof import('./../components/common/lang-switch.vue')['default']
     LeaveFormModal: typeof import('./../components/modal/hr/LeaveFormModal.vue')['default']
+    LivePreviewModal: typeof import('./../components/modal/camera/LivePreviewModal.vue')['default']
     LocationMap: typeof import('./../components/modal/component/tabs/LocationMap.vue')['default']
     LookForward: typeof import('./../components/custom/look-forward.vue')['default']
     MaintainParams: typeof import('./../components/modal/component/tabs/MaintainParams.vue')['default']
@@ -130,6 +134,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SafetyDailyDetailModal: typeof import('./../components/modal/safety/safetyDaily/SafetyDailyDetailModal.vue')['default']
+    SceneManageDrawer: typeof import('./../components/modal/camera/SceneManageDrawer.vue')['default']
     ScheduleAddModal: typeof import('./../components/modal/annual/ScheduleAddModal.vue')['default']
     ScheduleBatchAddModal: typeof import('./../components/modal/annual/ScheduleBatchAddModal.vue')['default']
     ScheduleDateEditModal: typeof import('./../components/modal/annual/ScheduleDateEditModal.vue')['default']
@@ -162,6 +167,7 @@ declare module 'vue' {
 
 // For TSX support
 declare global {
+  const AddCameraModal: typeof import('./../components/modal/camera/AddCameraModal.vue')['default']
   const AddEmergency: typeof import('./../components/modal/emergency/addEmergency.vue')['default']
   const AddOrganizational: typeof import('./../components/modal/organizational/addOrganizational.vue')['default']
   const AddPerson: typeof import('./../components/modal/person/addPerson.vue')['default']
@@ -172,6 +178,7 @@ declare global {
   const AuditModal: typeof import('./../components/modal/hr/AuditModal.vue')['default']
   const BasicParams: typeof import('./../components/modal/component/tabs/BasicParams.vue')['default']
   const BetterScroll: typeof import('./../components/custom/better-scroll.vue')['default']
+  const BindCameraModal: typeof import('./../components/modal/camera/BindCameraModal.vue')['default']
   const BrandManageModal: typeof import('./../components/modal/knowldege/BrandManageModal.vue')['default']
   const ButtonIcon: typeof import('./../components/custom/button-icon.vue')['default']
   const ChecklistDetailModal: typeof import('./../components/modal/safety/safetyCheck/ChecklistDetailModal.vue')['default']
@@ -197,6 +204,7 @@ declare global {
   const FaultWidget: typeof import('./../components/modal/monitoring/FaultWidget.vue')['default']
   const FloorEditor: typeof import('./../components/modal/component/tabs/FloorEditor.vue')['default']
   const FullScreen: typeof import('./../components/common/full-screen.vue')['default']
+  const GbAccessParamModal: typeof import('./../components/modal/camera/GbAccessParamModal.vue')['default']
   const GetTemplateDetail: typeof import('./../components/modal/safety/safetyCheck/getTemplateDetail.vue')['default']
   const HandoverModal: typeof import('./../components/modal/document/HandoverModal.vue')['default']
   const HrDialog: typeof import('./../components/modal/hr/HrDialog.vue')['default']
@@ -221,6 +229,7 @@ declare global {
   const KnowledgeDocEditModal: typeof import('./../components/modal/knowldege/KnowledgeDocEditModal.vue')['default']
   const LangSwitch: typeof import('./../components/common/lang-switch.vue')['default']
   const LeaveFormModal: typeof import('./../components/modal/hr/LeaveFormModal.vue')['default']
+  const LivePreviewModal: typeof import('./../components/modal/camera/LivePreviewModal.vue')['default']
   const LocationMap: typeof import('./../components/modal/component/tabs/LocationMap.vue')['default']
   const LookForward: typeof import('./../components/custom/look-forward.vue')['default']
   const MaintainParams: typeof import('./../components/modal/component/tabs/MaintainParams.vue')['default']
@@ -280,6 +289,7 @@ declare global {
   const RouterLink: typeof import('vue-router')['RouterLink']
   const RouterView: typeof import('vue-router')['RouterView']
   const SafetyDailyDetailModal: typeof import('./../components/modal/safety/safetyDaily/SafetyDailyDetailModal.vue')['default']
+  const SceneManageDrawer: typeof import('./../components/modal/camera/SceneManageDrawer.vue')['default']
   const ScheduleAddModal: typeof import('./../components/modal/annual/ScheduleAddModal.vue')['default']
   const ScheduleBatchAddModal: typeof import('./../components/modal/annual/ScheduleBatchAddModal.vue')['default']
   const ScheduleDateEditModal: typeof import('./../components/modal/annual/ScheduleDateEditModal.vue')['default']

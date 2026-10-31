@@ -244,6 +244,8 @@ const local: App.I18n.Schema = {
     management_knowledge: '维保知识库',
     management_organizational: '组织单位管理',
     management_component: '电梯组件管理',
+    management_camera: '摄像头管理',
+    management_cameraalarm: '摄像头告警',
     contract: '合同管理',
     contract_list: '合同列表',
     contract_due: '到期看板',

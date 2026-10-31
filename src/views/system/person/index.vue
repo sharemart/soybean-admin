@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
-import { format } from 'date-fns';
+import dayjs from 'dayjs';
 import * as echarts from 'echarts';
 import { BadgeCheck, Briefcase, Edit, Info, Mail, Phone, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next';
 import { deleteUser, fetchUserDetail, fetchUserList } from '@/service/api/person/personApi';
@@ -31,7 +31,7 @@ const DEFAULT_COMPANY_MAP: Record<string, string> = {
   C001: '通力维保服务中心'
 };
 const AVATAR_BASE = 'https://ui-avatars.com/api/';
-const DATE_FORMAT = 'yyyy-MM-dd';
+const DATE_FORMAT = 'YYYY-MM-DD';
 
 interface UserListParams {
   user_name?: string;
@@ -309,7 +309,7 @@ const handleAdd = () => {
     jobs: JobType.MAINTENANCE,
     sex: UserSex.MALE,
     is_use: 1,
-    add_time: format(new Date(), DATE_FORMAT),
+    add_time: dayjs().format(DATE_FORMAT),
     company_name: '',
     role_id: ''
   };
