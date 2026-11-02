@@ -1,6 +1,6 @@
 import type { ApiResponse } from '@/service/api/types/common';
 
-/** 在线状态：0离线 1在线 */
+/** 在线状态：0离线 1在线（列表与通道 status 共用） */
 export type CameraOnlineStatus = 0 | 1;
 
 /** 协议 */
@@ -19,7 +19,7 @@ export type CameraSceneCode = 'loiter' | 'fire' | 'face' | 'door_open' | 'ebike'
 export type CameraSceneStatus = 'ready' | 'reserved';
 
 /** 抽帧任务状态 */
-export type CameraFrameStatus = 'on_human' | 'running' | 'stopped' | 'pending';
+export type CameraFrameStatus = 'on_human' | 'running' | 'local_interval' | 'stopped' | 'pending';
 
 // ========== 通道 ==========
 export interface CameraChannelItem {
@@ -114,6 +114,7 @@ export interface SyncCameraParams {
 
 export interface SyncCameraResult {
   id: number;
+  /** 0离线 1在线 */
   online_status: CameraOnlineStatus | number;
   support_talk: number;
   channel_count: number;
@@ -168,8 +169,8 @@ export interface DeleteCameraResult {
 export type DeleteCameraResponse = ApiResponse<DeleteCameraResult>;
 
 // ========== 场景目录 ==========
-export interface CameraSceneDefaultConfig {
-  taskType?: string;
+/** 用户业务参数，不含平台算法 taskType */
+export interface CameraSceneUserConfig {
   sample_seconds?: number;
   dwell_minutes?: number;
   miss_tolerance?: number;
@@ -177,15 +178,55 @@ export interface CameraSceneDefaultConfig {
   merge_seconds?: number;
 }
 
+/** 场景参数表单描述。后端字段名未固定，页面按常见 key 解析 */
+export interface CameraSceneSchemaField {
+  key?: string;
+  field?: string;
+  name?: string;
+  label?: string;
+  title?: string;
+  type?: string;
+  unit?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholder?: string;
+  description?: string;
+  desc?: string;
+  options?: Array<string | number | { label?: string; name?: string; value?: string | number }>;
+}
+
 export interface CameraSceneCatalogItem {
   code: string;
   name: string;
   status: CameraSceneStatus | string;
   needs_image: boolean;
-  default_config: CameraSceneDefaultConfig;
+  /** 平台算法 taskType，只读，由超管配置 */
+  task_type?: string;
+  task_type_ready?: boolean;
+  config_schema?: CameraSceneSchemaField[];
+  default_config: CameraSceneUserConfig;
 }
 
 export type GetCameraScenesResponse = ApiResponse<CameraSceneCatalogItem[]>;
+
+// ========== 平台场景算法（超管） ==========
+export interface CameraSceneAlgoItem {
+  scene_code: string;
+  name?: string;
+  status?: CameraSceneStatus | string;
+  task_type: string;
+  task_type_ready: boolean;
+}
+
+export interface SaveCameraSceneAlgoParams {
+  scene_code: string;
+  /** 萤石算法 taskType，清空传空串 */
+  task_type: string;
+}
+
+export type GetCameraSceneAlgoResponse = ApiResponse<CameraSceneAlgoItem[]>;
+export type SaveCameraSceneAlgoResponse = ApiResponse<CameraSceneAlgoItem>;
 
 // ========== 开关场景 ==========
 export interface SceneSwitchParams {
@@ -209,8 +250,8 @@ export interface SceneConfigParams {
   id: number;
   scene_code: string;
   channel_no?: number;
-  config?: CameraSceneDefaultConfig;
-  taskType?: string;
+  /** POST 用户参数；忽略 taskType */
+  config?: CameraSceneUserConfig;
   dwell_minutes?: number;
   miss_tolerance?: number;
   sample_seconds?: number;
@@ -220,9 +261,14 @@ export interface SceneConfigParams {
 
 export interface SceneConfigResult {
   scene_code: string;
+  channel_no?: number;
   status?: CameraSceneStatus | string;
   enabled?: number;
-  config: CameraSceneDefaultConfig;
+  /** 平台算法 taskType，只读 */
+  task_type?: string;
+  task_type_ready?: boolean;
+  config_schema?: CameraSceneSchemaField[];
+  config: CameraSceneUserConfig;
 }
 
 export type SceneConfigResponse = ApiResponse<SceneConfigResult>;
@@ -265,7 +311,10 @@ export interface CameraAlarmItem {
   scene_code: string;
   algo_log_id: number;
   title: string;
+  /** 告警图片，本地持久化地址 */
   image_url: string;
+  /** 告警推送短视频最后一帧，无则空串 */
+  last_image_url?: string;
   is_read: number;
   create_time: number;
   update_time: number;

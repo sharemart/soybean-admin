@@ -5,6 +5,7 @@ import { useDialog, useMessage } from 'naive-ui';
 import {
   Bell,
   Link2,
+  MonitorPlay,
   Plus,
   RefreshCw,
   Search,
@@ -21,6 +22,14 @@ import {
   syncCamera
 } from '@/service/api/camera/cameraApi';
 import type { CameraAccessParam, CameraListItem } from '@/service/api/camera/camera.d';
+import {
+  cameraCaptureLabel,
+  cameraOnlineFilterOptions,
+  cameraPresence,
+  cameraPresenceClass,
+  cameraPresenceLabel,
+  cameraSceneLabel
+} from '@/components/camera/camera-display';
 import { getVillageList } from '@/service/api/community/community';
 import { fetchElevatorList } from '@/service/api/component/component';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
@@ -29,7 +38,6 @@ import PagePagination from '@/components/common/PagePagination.vue';
 import AddCameraModal from '@/components/modal/camera/AddCameraModal.vue';
 import BindCameraModal from '@/components/modal/camera/BindCameraModal.vue';
 import GbAccessParamModal from '@/components/modal/camera/GbAccessParamModal.vue';
-import SceneManageDrawer from '@/components/modal/camera/SceneManageDrawer.vue';
 import LivePreviewModal from '@/components/modal/camera/LivePreviewModal.vue';
 
 const router = useRouter();
@@ -58,11 +66,7 @@ const { maintainCompanyOptions, loading: companyLoading, fetchMaintainCompanyLis
 const villageOptions = ref<Array<{ label: string; value: number }>>([{ label: '全部小区', value: 0 }]);
 const elevatorOptions = ref<Array<{ label: string; value: number }>>([{ label: '全部电梯', value: 0 }]);
 
-const onlineOptions = [
-  { label: '全部状态', value: -1 },
-  { label: '离线', value: 0 },
-  { label: '在线', value: 1 }
-];
+const onlineOptions = cameraOnlineFilterOptions;
 
 const protocolOptions = [
   { label: '全部协议', value: '' },
@@ -77,13 +81,12 @@ const kindOptions = [
 ];
 
 const captureOptions = [
-  { label: '有人再取图', value: 'on_human' },
-  { label: '定时云抽帧', value: 'interval' }
+  { label: '有人取图', value: 'on_human' },
+  { label: '设备定时抓拍', value: 'interval' }
 ];
 
 const addOpen = ref(false);
 const bindOpen = ref(false);
-const sceneOpen = ref(false);
 const liveOpen = ref(false);
 const gbOpen = ref(false);
 const currentCamera = ref<CameraListItem | null>(null);
@@ -94,21 +97,14 @@ const companySelectOptions = computed(() => [
   ...maintainCompanyOptions.value
 ]);
 
-/** 在线状态：0离线 1在线（设备 online_status / 通道 status 共用） */
-const isOnline = (status: number) => status === 1;
-
-const onlineLabel = (status: number) => (isOnline(status) ? '在线' : '离线');
-
 const protocolLabel = (p: string) => (p === 'gb28181' ? 'GB28181' : p === 'ys7' ? 'YS7' : p || '-');
 
 const kindLabel = (k: string) => (k === 'door' ? '门禁' : '摄像头');
 
-const captureLabel = (m: string) => (m === 'on_human' ? '有人再取图' : m === 'interval' ? '定时抽帧' : m || '-');
-
 const sceneSummary = (item: CameraListItem) => {
   const scenes = item.scenes || [];
-  if (!scenes.length) return '-';
-  return scenes.map(s => `${s.scene_code}@${s.channel_no}`).join(', ');
+  if (!scenes.length) return '未开启';
+  return scenes.map(s => `${cameraSceneLabel(s.scene_code)}·通道${s.channel_no}`).join('、');
 };
 
 const bindText = (elevatorId: number, villageId: number) => {
@@ -239,7 +235,7 @@ const handleSync = async (item: CameraListItem) => {
 const handleCaptureMode = (item: CameraListItem, mode: string) => {
   dialog.info({
     title: '切换取图模式',
-    content: `确认将「${item.name}」设为「${captureLabel(mode)}」？`,
+    content: `确认将「${item.name}」设为「${cameraCaptureLabel(mode)}」？`,
     positiveText: '确认',
     negativeText: '取消',
     async onPositiveClick() {
@@ -277,11 +273,6 @@ const openBind = (item: CameraListItem) => {
   bindOpen.value = true;
 };
 
-const openScene = (item: CameraListItem) => {
-  currentCamera.value = item;
-  sceneOpen.value = true;
-};
-
 const openLive = (item: CameraListItem) => {
   currentCamera.value = item;
   liveOpen.value = true;
@@ -292,6 +283,17 @@ const goAlarms = (item?: CameraListItem) => {
     name: 'management_cameraalarm',
     query: item ? { device_id: String(item.id) } : {}
   });
+};
+
+const goScene = (item?: CameraListItem) => {
+  router.push({
+    name: 'management_camerascene',
+    query: item ? { device_id: String(item.id) } : {}
+  });
+};
+
+const goLiveWall = () => {
+  router.push({ name: 'management_camerawall' });
 };
 
 const onAddSuccess = (payload: { accessParam?: CameraAccessParam | null; syncError?: string }) => {
@@ -334,6 +336,20 @@ onMounted(async () => {
           >
             <Plus :size="16" />
             接入摄像头
+          </button>
+          <button
+            class="flex items-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-2.5 text-[10px] text-emerald-600 font-black tracking-widest uppercase"
+            @click="goLiveWall"
+          >
+            <MonitorPlay :size="14" />
+            直播大屏
+          </button>
+          <button
+            class="flex items-center gap-2 rounded-2xl bg-violet-500/10 px-4 py-2.5 text-[10px] text-violet-600 font-black tracking-widest uppercase"
+            @click="goScene()"
+          >
+            <Settings2 :size="14" />
+            场景配置
           </button>
           <button
             class="flex items-center gap-2 rounded-2xl bg-amber-500/10 px-4 py-2.5 text-[10px] text-amber-600 font-black tracking-widest uppercase"
@@ -440,15 +456,11 @@ onMounted(async () => {
               <td class="px-5 py-4">
                 <span
                   class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black"
-                  :class="
-                    isOnline(item.online_status)
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : 'bg-rose-500/10 text-rose-500'
-                  "
+                  :class="cameraPresenceClass(item.online_status)"
                 >
-                  <Wifi v-if="isOnline(item.online_status)" :size="12" />
+                  <Wifi v-if="cameraPresence(item.online_status) === 'online'" :size="12" />
                   <WifiOff v-else :size="12" />
-                  {{ onlineLabel(item.online_status) }}
+                  {{ cameraPresenceLabel(item.online_status) }}
                 </span>
               </td>
               <td class="px-5 py-4">
@@ -461,15 +473,8 @@ onMounted(async () => {
                     <span class="max-w-[120px] truncate font-bold text-slate-600 dark:text-slate-300">
                       {{ ch.channel_name || `通道${ch.channel_no}` }}
                     </span>
-                    <span
-                      class="rounded px-1.5 py-0.5 font-black"
-                      :class="
-                        isOnline(ch.status)
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : 'bg-rose-500/10 text-rose-500'
-                      "
-                    >
-                      {{ onlineLabel(ch.status) }}
+                    <span class="rounded px-1.5 py-0.5 font-black" :class="cameraPresenceClass(ch.status)">
+                      {{ cameraPresenceLabel(ch.status) }}
                     </span>
                     <span
                       v-if="ch.support_talk === 1"
@@ -516,8 +521,8 @@ onMounted(async () => {
                   </button>
                   <button
                     class="rounded-lg p-2 text-slate-400 hover:bg-violet-500 hover:text-white"
-                    title="场景"
-                    @click="openScene(item)"
+                    title="场景配置"
+                    @click="goScene(item)"
                   >
                     <Settings2 :size="14" />
                   </button>
@@ -573,12 +578,6 @@ onMounted(async () => {
       @success="fetchList"
     />
     <GbAccessParamModal :is-open="gbOpen" :access-param="accessParam" @close="gbOpen = false" />
-    <SceneManageDrawer
-      :is-open="sceneOpen"
-      :camera="currentCamera"
-      @close="sceneOpen = false"
-      @changed="fetchList"
-    />
     <LivePreviewModal :is-open="liveOpen" :camera="currentCamera" @close="liveOpen = false" />
   </div>
 </template>

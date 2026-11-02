@@ -13,8 +13,11 @@ import type {
   GetCameraLiveParams,
   GetCameraLiveResponse,
   GetCameraScenesResponse,
+  GetCameraSceneAlgoResponse,
   ReadCameraAlarmParams,
   ReadCameraAlarmResponse,
+  SaveCameraSceneAlgoParams,
+  SaveCameraSceneAlgoResponse,
   SceneConfigParams,
   SceneConfigResponse,
   SceneSwitchParams,
@@ -84,6 +87,23 @@ export function fetchCameraScenes() {
   return request<GetCameraScenesResponse>({
     url: '/dashboard/camera/scenes',
     method: 'get'
+  });
+}
+
+/** 平台场景算法（超管）：获取 */
+export function fetchCameraSceneAlgo() {
+  return request<GetCameraSceneAlgoResponse>({
+    url: '/dashboard/camera/sceneAlgo',
+    method: 'get'
+  });
+}
+
+/** 平台场景算法（超管）：保存 taskType，空串表示清空 */
+export function saveCameraSceneAlgo(data: SaveCameraSceneAlgoParams) {
+  return request<SaveCameraSceneAlgoResponse>({
+    url: '/dashboard/camera/sceneAlgo',
+    method: 'post',
+    data
   });
 }
 

@@ -6,6 +6,7 @@ import { Bell, CheckCheck, Eye, RefreshCw } from 'lucide-vue-next';
 import dayjs from 'dayjs';
 import { fetchCameraAlarmList, fetchCameraList, readCameraAlarm } from '@/service/api/camera/cameraApi';
 import type { CameraAlarmItem } from '@/service/api/camera/camera.d';
+import { getServiceBaseURL } from '@/utils/service';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import { useMaintainCompanySelector } from '@/components/selectOption/useMaintainCompanySelector';
 import PagePagination from '@/components/common/PagePagination.vue';
@@ -19,7 +20,31 @@ const total = ref(0);
 const currentPage = ref(1);
 const pageSize = ref(10);
 const selectedIds = ref<number[]>([]);
-const previewUrl = ref('');
+const preview = ref<{ url: string; caption: string } | null>(null);
+
+const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
+const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
+
+/** 相对路径走接口同源，完整地址直接使用 */
+const mediaUrl = (url?: string) => {
+  const value = (url || '').trim();
+  if (!value) return '';
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:')) return value;
+  const base = String(baseURL || '').replace(/\/$/, '');
+  return `${base}${value.startsWith('/') ? '' : '/'}${value}`;
+};
+
+const alarmImages = (item: CameraAlarmItem) => {
+  const images = [
+    { caption: '告警图', url: mediaUrl(item.image_url) },
+    { caption: '末帧', url: mediaUrl(item.last_image_url) }
+  ];
+  return images.filter(image => image.url);
+};
+
+const openPreview = (url: string, caption: string) => {
+  preview.value = { url, caption };
+};
 
 const filters = reactive({
   company_id: 0 as number,
@@ -279,13 +304,25 @@ onMounted(async () => {
                 <div class="mt-1 text-[10px] text-slate-400">通道 {{ item.channel_no }}</div>
               </td>
               <td class="px-5 py-4">
-                <button
-                  v-if="item.image_url"
-                  class="h-12 w-16 overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800"
-                  @click="previewUrl = item.image_url"
-                >
-                  <img :src="item.image_url" alt="" class="h-full w-full object-cover" />
-                </button>
+                <div v-if="alarmImages(item).length" class="flex gap-2">
+                  <button
+                    v-for="image in alarmImages(item)"
+                    :key="image.caption"
+                    type="button"
+                    class="group w-24 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 text-left dark:border-slate-800 dark:bg-slate-900"
+                    @click="openPreview(image.url, image.caption)"
+                  >
+                    <img
+                      :src="image.url"
+                      :alt="image.caption"
+                      class="h-16 w-full object-cover"
+                      @error="($event.target as HTMLImageElement).style.display = 'none'"
+                    />
+                    <span class="block px-1.5 py-1 text-[10px] text-slate-400 font-bold group-hover:text-sky-500">
+                      {{ image.caption }}
+                    </span>
+                  </button>
+                </div>
                 <span v-else class="text-[10px] text-slate-400">无图</span>
               </td>
               <td class="px-5 py-4">
@@ -307,9 +344,10 @@ onMounted(async () => {
                   <CheckCheck :size="14" />
                 </button>
                 <button
-                  v-if="item.image_url"
+                  v-if="alarmImages(item).length"
                   class="rounded-lg p-2 text-slate-400 hover:bg-sky-500 hover:text-white"
-                  @click="previewUrl = item.image_url"
+                  title="查看图片"
+                  @click="openPreview(alarmImages(item)[0].url, alarmImages(item)[0].caption)"
                 >
                   <Eye :size="14" />
                 </button>
@@ -336,11 +374,18 @@ onMounted(async () => {
     </div>
 
     <div
-      v-if="previewUrl"
-      class="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-6"
-      @click.self="previewUrl = ''"
+      v-if="preview"
+      class="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-3 bg-black/70 p-6"
+      @click.self="preview = null"
     >
-      <img :src="previewUrl" alt="alarm" class="max-h-[80vh] max-w-full rounded-2xl object-contain" />
+      <img :src="preview.url" :alt="preview.caption" class="max-h-[80vh] max-w-full rounded-2xl object-contain" />
+      <button
+        type="button"
+        class="rounded-full bg-white/90 px-4 py-1.5 text-xs text-slate-700 font-bold"
+        @click="preview = null"
+      >
+        关闭{{ preview.caption }}
+      </button>
     </div>
   </div>
 </template>

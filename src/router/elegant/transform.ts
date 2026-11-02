@@ -194,6 +194,8 @@ const routeMap: RouteMap = {
   "management": "/management",
   "management_camera": "/management/camera",
   "management_cameraalarm": "/management/cameraalarm",
+  "management_camerascene": "/management/camerascene",
+  "management_camerawall": "/management/camerawall",
   "management_community": "/management/community",
   "management_component": "/management/component",
   "management_equipment": "/management/equipment",

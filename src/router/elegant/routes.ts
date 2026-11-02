@@ -383,6 +383,26 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'management_camerascene',
+        path: '/management/camerascene',
+        component: 'view.management_camerascene',
+        meta: {
+          title: 'management_camerascene',
+          i18nKey: 'route.management_camerascene',
+          icon: 'mdi:tune-variant',
+          keepAlive: true
+        }
+      },
+      {
+        name: 'management_camerawall',
+        path: '/management/camerawall',
+        component: 'view.management_camerawall',
+        meta: {
+          title: 'management_camerawall',
+          i18nKey: 'route.management_camerawall'
+        }
+      },
+      {
         name: 'management_community',
         path: '/management/community',
         component: 'view.management_community',
