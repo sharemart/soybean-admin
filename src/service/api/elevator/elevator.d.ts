@@ -36,3 +36,32 @@ export interface ElevatorSimpleItem {
  * 获取电梯简易列表响应
  */
 export type GetElevatorSimpleListResponse = ApiResponse<ElevatorSimpleItem[]>;
+
+// ========== 单梯运行记录 ==========
+export interface GetElevatorRunRecordParams {
+  elevator_id: number;
+}
+
+export interface ElevatorRunRecord {
+  id: number;
+  r_times: number;
+  o_times: number;
+  delta_r_times: number;
+  source: string;
+  snapshot_time: number;
+}
+
+export type GetElevatorRunRecordResponse = ApiResponse<ElevatorRunRecord | null>;
+
+// ========== 导出电梯数据 ==========
+export interface ExportElevatorParams {
+  /** 电梯ID列表，逗号分隔（不传则导出当前用户权限下的所有电梯） */
+  elevator_ids?: string;
+}
+
+export interface ExportElevatorData {
+  /** 导出文件URL */
+  file_url: string;
+}
+
+export type ExportElevatorResponse = ApiResponse<ExportElevatorData>;

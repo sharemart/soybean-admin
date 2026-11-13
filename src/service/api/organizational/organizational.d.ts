@@ -7,6 +7,10 @@ import type { ApiResponse } from '@/service/api/types/common';
 export interface GetCompanyListParams {
   /** 单位属性 0全部 1制造 2使用 3维保 4安装 5其他 */
   company_type?: number;
+  /** 单位类别 0全部 1政府 2物业 3地产 4业委会 5事业单位 6企业 7个人 */
+  use_comtype?: number;
+  /** 是否开通后台账号 空全部 1已开通 0未开通 */
+  is_user?: number;
   /** 搜索：单位名称、信用代码、联系人 */
   search?: string;
   /** 页码 */

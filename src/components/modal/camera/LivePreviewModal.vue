@@ -262,6 +262,11 @@ const initPlayer = async (accessToken: string, url: string, deviceSerial: string
       }
     });
 
+    // 关闭 EZUIKit 的 info/log 日志刷屏，仅保留 error
+    if (typeof player?.setLoggerOptions === 'function') {
+      player.setLoggerOptions({ level: 'error' });
+    }
+
     if (enableTalk) bindTalkEvents();
 
     clearReadyTimer();
@@ -359,7 +364,7 @@ const channelOptions = () => {
     @click.self="handleClose"
   >
     <div
-      class="w-full max-w-3xl overflow-hidden border border-slate-200 rounded-[2rem] bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      class="max-w-3xl w-full overflow-hidden border border-slate-200 rounded-[2rem] bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
     >
       <header class="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
         <div class="flex items-center gap-3">
@@ -368,9 +373,9 @@ const channelOptions = () => {
           </div>
           <div>
             <h3 class="text-sm text-slate-800 font-black dark:text-slate-100">直播预览</h3>
-            <p class="text-[10px] text-slate-400 font-bold">
+            <p class="text-slate-400 font-bold text-[10px]">
               {{ camera?.name }}
-              <span v-if="channelName"> · {{ channelName }}</span>
+              <span v-if="channelName">· {{ channelName }}</span>
             </p>
           </div>
         </div>
@@ -382,18 +387,13 @@ const channelOptions = () => {
       <div class="px-6 py-4 space-y-4">
         <div class="flex flex-wrap items-center gap-3">
           <div class="w-44">
-            <NSelect
-              v-model:value="channel"
-              :options="channelOptions()"
-              size="small"
-              @update:value="loadLive"
-            />
+            <NSelect v-model:value="channel" :options="channelOptions()" size="small" @update:value="loadLive" />
           </div>
           <div class="w-28">
             <NSelect v-model:value="quality" :options="qualityOptions" size="small" @update:value="loadLive" />
           </div>
           <button
-            class="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-[10px] text-slate-600 font-black uppercase dark:bg-slate-800"
+            class="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-slate-600 font-black uppercase text-[10px] dark:bg-slate-800"
             :disabled="loading"
             @click="loadLive"
           >
@@ -403,7 +403,7 @@ const channelOptions = () => {
 
           <button
             v-if="supportTalk === 1"
-            class="ml-auto flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-black tracking-widest uppercase transition disabled:opacity-50"
+            class="ml-auto flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-black tracking-widest uppercase transition text-[10px] disabled:opacity-50"
             :class="
               talking
                 ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse'
@@ -418,7 +418,7 @@ const channelOptions = () => {
           </button>
           <span
             v-else
-            class="ml-auto flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1 text-[10px] text-slate-400 font-black uppercase dark:bg-slate-800"
+            class="ml-auto flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1 text-slate-400 font-black uppercase text-[10px] dark:bg-slate-800"
           >
             <MicOff :size="12" />
             不支持对讲
@@ -427,10 +427,10 @@ const channelOptions = () => {
 
         <div
           v-if="talking"
-          class="flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/5 px-4 py-2"
+          class="flex items-center gap-3 border border-rose-500/20 rounded-2xl bg-rose-500/5 px-4 py-2"
         >
           <span class="h-2 w-2 animate-pulse rounded-full bg-rose-500"></span>
-          <span class="text-[11px] text-rose-500 font-bold">对讲中</span>
+          <span class="text-rose-500 font-bold text-[11px]">对讲中</span>
           <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-rose-500/10">
             <div
               class="h-full rounded-full bg-rose-500 transition-all duration-100"
@@ -439,10 +439,10 @@ const channelOptions = () => {
           </div>
         </div>
 
-        <p v-if="lastError" class="rounded-xl bg-rose-500/10 px-3 py-2 text-[11px] text-rose-500 font-medium">
+        <p v-if="lastError" class="rounded-xl bg-rose-500/10 px-3 py-2 text-rose-500 font-medium text-[11px]">
           {{ lastError }}
         </p>
-        <p v-else-if="playUrlText" class="truncate text-[10px] text-slate-400 font-mono">{{ playUrlText }}</p>
+        <p v-else-if="playUrlText" class="truncate text-slate-400 font-mono text-[10px]">{{ playUrlText }}</p>
 
         <div ref="playerWrapRef" class="relative overflow-hidden rounded-2xl bg-black">
           <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-black/60">

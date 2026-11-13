@@ -12,16 +12,20 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
-  Trash2,
-  Upload
+  Timer,
+  Trash2
 } from 'lucide-vue-next';
 import {
   batchDeleteElevators,
   deleteElevator,
+  exportElevator,
   exportElevatorMaintainRecordsZip,
-  fetchElevatorList
+  fetchElevatorList,
+  fetchMaintainDueList,
+  maintainRenew
 } from '@/service/api/component/component';
 import { getNoticeQrcode } from '@/service/api/dashboard/dashboard';
+import type { MaintainDueItem } from '@/service/api/component/component.d';
 import { useMaintainCompanySelector } from '@/hooks/selectOption/useMaintainCompanySelector';
 import { useVillageSelector } from '@/hooks/selectOption/useCommunitySelector';
 import ElevatorEditModal from '@/components/modal/component/ElevatorEditModal.vue';
@@ -133,6 +137,21 @@ const exportDialogOpen = ref(false);
 const exportLoading = ref(false);
 const exportYear = ref(new Date().getFullYear());
 const exportAsset = ref<ElevatorAsset | null>(null);
+
+// 维保到期弹窗状态
+const maintainDueDialogOpen = ref(false);
+const maintainDueList = ref<MaintainDueItem[]>([]);
+const maintainDueLoading = ref(false);
+const maintainDueTotal = ref(0);
+const maintainDuePage = ref(1);
+const maintainDuePageSize = ref(10);
+const maintainDueDays = ref(90);
+const maintainDueStatus = ref('');
+const maintainDueKeyword = ref('');
+const maintainDueCompanyId = ref<string | number>('');
+const maintainDueSelectedIds = ref<number[]>([]);
+const renewLoading = ref(false);
+const renewYears = ref<number | undefined>(undefined);
 
 // 弹窗状态
 const editModalOpen = ref(false);
@@ -403,6 +422,144 @@ const confirmExportMaintainRecords = async () => {
   }
 };
 
+const handleExportElevatorData = async () => {
+  try {
+    exportLoading.value = true;
+    const elevatorIds = selectedIds.value.length > 0 ? selectedIds.value.join(',') : undefined;
+    const res = await exportElevator({ elevator_ids: elevatorIds });
+
+    if (res?.data?.code === 2000) {
+      const fileUrl = res.data.data?.file_url;
+      if (!fileUrl) {
+        showMessage('导出成功，但未返回下载地址', 'error');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = getDownloadUrl(fileUrl);
+      link.download = `电梯数据_${new Date().toLocaleDateString()}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showMessage('电梯数据导出成功');
+    } else {
+      showMessage(res?.data?.msg || res?.data?.message || '电梯数据导出失败', 'error');
+    }
+  } catch (error) {
+    console.error('电梯数据导出异常:', error);
+    showMessage('导出异常，请稍后重试', 'error');
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
+// 打开维保到期弹窗
+const openMaintainDueDialog = () => {
+  maintainDuePage.value = 1;
+  maintainDueCompanyId.value = '';
+  maintainDueSelectedIds.value = [];
+  renewYears.value = undefined;
+  maintainDueDialogOpen.value = true;
+  loadMaintainDueList();
+};
+
+// 加载维保到期电梯列表
+const loadMaintainDueList = async () => {
+  try {
+    maintainDueLoading.value = true;
+    const res = await fetchMaintainDueList({
+      days: maintainDueDays.value,
+      status: maintainDueStatus.value || undefined,
+      keyword: maintainDueKeyword.value || undefined,
+      company_id: maintainDueCompanyId.value ? Number(maintainDueCompanyId.value) : undefined,
+      page: maintainDuePage.value,
+      limit: maintainDuePageSize.value
+    });
+
+    if (res?.data?.code === 2000) {
+      maintainDueList.value = res.data.data?.list || [];
+      maintainDueTotal.value = res.data.data?.total || 0;
+    } else {
+      showMessage(res?.data?.message || '获取维保到期列表失败', 'error');
+    }
+  } catch (error) {
+    console.error('获取维保到期列表异常:', error);
+    showMessage('网络异常，无法获取维保到期列表', 'error');
+  } finally {
+    maintainDueLoading.value = false;
+  }
+};
+
+// 维保到期列表搜索
+const handleMaintainDueSearch = () => {
+  maintainDuePage.value = 1;
+  loadMaintainDueList();
+};
+
+// 维保到期列表分页
+const handleMaintainDuePageChange = (page: number) => {
+  maintainDuePage.value = page;
+  loadMaintainDueList();
+};
+
+// 维保到期列表全选/取消
+const handleMaintainDueSelectAll = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (target.checked) {
+    maintainDueSelectedIds.value = maintainDueList.value.map(item => item.elevator_id);
+  } else {
+    maintainDueSelectedIds.value = [];
+  }
+};
+
+// 维保到期列表单选
+const handleMaintainDueSelectOne = (id: number) => {
+  const index = maintainDueSelectedIds.value.indexOf(id);
+  if (index > -1) {
+    maintainDueSelectedIds.value.splice(index, 1);
+  } else {
+    maintainDueSelectedIds.value.push(id);
+  }
+};
+
+// 执行维保续期
+const handleMaintainRenew = async () => {
+  if (!maintainDueSelectedIds.value.length) {
+    showMessage('请先选择需要续期的电梯', 'error');
+    return;
+  }
+
+  try {
+    renewLoading.value = true;
+    const res = await maintainRenew({
+      elevator_ids: maintainDueSelectedIds.value,
+      years: renewYears.value
+    });
+
+    if (res?.data?.code === 2000) {
+      const { success_count = 0, fail_count = 0, list = [] } = res.data.data || {};
+      if (fail_count > 0) {
+        list
+          .filter(item => item.success === 0)
+          .forEach(item => {
+            message.error(`电梯ID ${item.elevator_id} 续期失败：${item.message || '未知原因'}`);
+          });
+      }
+      maintainDueSelectedIds.value = [];
+      renewYears.value = undefined;
+      loadMaintainDueList();
+    } else {
+      showMessage(res?.data?.message || '续期失败', 'error');
+    }
+  } catch (error) {
+    console.error('维保续期异常:', error);
+    showMessage('续期异常，请稍后重试', 'error');
+  } finally {
+    renewLoading.value = false;
+  }
+};
+
 const downloadQrcodeLoading = ref(false);
 
 const handleDownloadQrcode = async (asset: ElevatorAsset) => {
@@ -514,7 +671,7 @@ defineExpose({ OnlineStatus });
         <!-- 操作按钮 -->
         <div class="flex gap-2">
           <button
-            class="flex items-center gap-2 rounded-xl bg-slate-500 px-5 py-2.5 text-[10px] text-white font-black uppercase shadow-lg shadow-slate-500/20 hover:bg-slate-600"
+            class="flex items-center gap-2 rounded-xl bg-slate-500 px-5 py-2.5 text-white font-black uppercase shadow-lg shadow-slate-500/20 text-[10px] hover:bg-slate-600"
             @click="resetAll"
           >
             <RefreshCw :size="14" />
@@ -522,11 +679,21 @@ defineExpose({ OnlineStatus });
           </button>
 
           <button
-            class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600"
+            class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all text-[10px] hover:bg-sky-600"
             @click="handleAdd"
           >
             <Plus :size="14" />
             新增档案
+          </button>
+
+          <button
+            v-if="selectedIds.length > 0"
+            class="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-emerald-500/20 shadow-lg transition-all text-[10px] hover:bg-emerald-600 disabled:opacity-50"
+            :disabled="exportLoading"
+            @click="handleExportElevatorData"
+          >
+            <Download :size="14" />
+            {{ exportLoading ? '导出中...' : '导出电梯数据' }}
           </button>
 
           <!--
@@ -541,7 +708,7 @@ defineExpose({ OnlineStatus });
 
           <button
             v-if="selectedIds.length > 0"
-            class="animate-in slide-in-from-left-4 flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-indigo-500/20 shadow-lg transition-all hover:bg-indigo-600"
+            class="animate-in slide-in-from-left-4 flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-indigo-500/20 shadow-lg transition-all text-[10px] hover:bg-indigo-600"
             @click="handleBatchEdit"
           >
             <ListChecks :size="14" />
@@ -550,7 +717,7 @@ defineExpose({ OnlineStatus });
 
           <button
             v-if="selectedIds.length > 0"
-            class="animate-in slide-in-from-left-4 flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-600"
+            class="animate-in slide-in-from-left-4 flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-lg shadow-rose-500/20 transition-all text-[10px] hover:bg-rose-600"
             @click="handleBatchDelete"
           >
             <Trash2 :size="14" />
@@ -563,6 +730,13 @@ defineExpose({ OnlineStatus });
       <div
         class="flex items-center gap-2 border-t border-slate-200 pt-4 xl:border-l xl:border-t-0 dark:border-slate-700 xl:pl-4 xl:pt-0"
       >
+        <button
+          class="flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-white font-black tracking-widest uppercase shadow-amber-500/20 shadow-lg transition-all text-[10px] hover:bg-amber-600"
+          @click="openMaintainDueDialog"
+        >
+          <Timer :size="14" />
+          维保到期
+        </button>
         <button
           class="rounded-xl bg-slate-50 p-2.5 text-slate-400 transition-all dark:bg-slate-800"
           :class="isSyncing || isLoading ? 'animate-spin text-sky-500' : ''"
@@ -589,7 +763,7 @@ defineExpose({ OnlineStatus });
         <table class="min-w-[1200px] w-full border-collapse text-left">
           <thead>
             <tr
-              class="border-b border-slate-200 bg-slate-50/80 text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase dark:border-slate-700 dark:bg-slate-800/80"
+              class="border-b border-slate-200 bg-slate-50/80 text-slate-400 font-black tracking-[0.2em] uppercase text-[10px] dark:border-slate-700 dark:bg-slate-800/80"
             >
               <th class="w-12 px-6 py-5">
                 <input
@@ -653,20 +827,20 @@ defineExpose({ OnlineStatus });
 
               <td class="px-6 py-4">
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded bg-slate-100 px-2 py-0.5 text-[9px] text-slate-500 font-black dark:bg-slate-800">
+                  <span class="rounded bg-slate-100 px-2 py-0.5 text-slate-500 font-black text-[9px] dark:bg-slate-800">
                     {{ asset.load }}KG
                   </span>
-                  <span class="rounded bg-slate-100 px-2 py-0.5 text-[9px] text-slate-500 font-black dark:bg-slate-800">
+                  <span class="rounded bg-slate-100 px-2 py-0.5 text-slate-500 font-black text-[9px] dark:bg-slate-800">
                     {{ asset.speed }}M/S
                   </span>
-                  <span class="rounded bg-slate-100 px-2 py-0.5 text-[9px] text-slate-500 font-black dark:bg-slate-800">
+                  <span class="rounded bg-slate-100 px-2 py-0.5 text-slate-500 font-black text-[9px] dark:bg-slate-800">
                     {{ asset.station }}层
                   </span>
                 </div>
               </td>
 
               <td class="px-6 py-4">
-                <div class="flex items-center gap-1.5 text-[10px] font-bold">
+                <div class="flex items-center gap-1.5 font-bold text-[10px]">
                   <ShieldCheck :size="12" class="text-sky-500" />
                   <span class="text-slate-500">{{ asset.company_name || '未知单位' }}</span>
                 </div>
@@ -674,7 +848,7 @@ defineExpose({ OnlineStatus });
 
               <td class="px-6 py-4 text-center">
                 <span
-                  class="rounded-full px-2 py-0.5 text-[9px] font-black uppercase"
+                  class="rounded-full px-2 py-0.5 font-black uppercase text-[9px]"
                   :class="[
                     asset.online_status === OnlineStatus.ONLINE
                       ? 'bg-emerald-500/10 text-emerald-500'
@@ -734,12 +908,12 @@ defineExpose({ OnlineStatus });
         class="fixed bottom-0 left-[220px] right-0 z-50 h-16 flex items-center justify-between border-t border-slate-200 bg-white/90 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90"
       >
         <div class="flex items-center gap-6">
-          <span class="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+          <span class="flex items-center gap-2 text-slate-500 font-bold text-[10px]">
             <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></div>
             电梯资产系统 · 全域在线
           </span>
-          <span class="text-[10px] text-emerald-500 font-bold">已接入：{{ totalItems }} 台</span>
-          <span v-if="selectedIds.length > 0" class="text-[10px] text-indigo-500 font-bold">
+          <span class="text-emerald-500 font-bold text-[10px]">已接入：{{ totalItems }} 台</span>
+          <span v-if="selectedIds.length > 0" class="text-indigo-500 font-bold text-[10px]">
             已选中：{{ selectedIds.length }} 台
           </span>
         </div>
@@ -800,6 +974,197 @@ defineExpose({ OnlineStatus });
           {{ exportLoading ? '导出中...' : '确认导出' }}
         </button>
       </template>
+    </NModal>
+
+    <!-- 维保到期弹窗 -->
+    <NModal
+      v-model:show="maintainDueDialogOpen"
+      preset="dialog"
+      title="维保到期电梯管理"
+      :style="{ width: '1100px', maxWidth: '95vw' }"
+      :show-icon="false"
+    >
+      <div class="flex flex-col gap-4 py-4">
+        <!-- 筛选栏 -->
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+            提前天数
+            <input
+              v-model.number="maintainDueDays"
+              type="number"
+              min="1"
+              max="365"
+              class="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+              @change="handleMaintainDueSearch"
+            />
+          </label>
+          <select
+            v-model="maintainDueStatus"
+            class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-bold"
+            @change="handleMaintainDueSearch"
+          >
+            <option value="">全部状态</option>
+            <option value="upcoming">未到期</option>
+            <option value="overdue">已逾期</option>
+          </select>
+          <CustomSelect
+            v-model="maintainDueCompanyId"
+            :options="maintainCompanyOptions"
+            :loading="companyLoading.maintainLoading"
+            placeholder="🔍维保公司"
+            :width="200"
+            :has-more="hasMore"
+            @search="handleCompanySearch"
+            @change="handleMaintainDueSearch"
+          />
+          <div class="relative min-w-[180px]">
+            <Search class="absolute left-3 top-1/2 text-slate-400 -translate-y-1/2" :size="14" />
+            <input
+              v-model="maintainDueKeyword"
+              type="text"
+              placeholder="搜索电梯名称/编号/注册代码"
+              class="w-full border border-slate-200 rounded-lg bg-slate-50 py-1.5 pl-9 pr-3 text-xs font-medium"
+              @keydown.enter="handleMaintainDueSearch"
+            />
+          </div>
+          <button
+            class="rounded-lg bg-sky-500 px-4 py-1.5 text-xs text-white font-bold hover:bg-sky-600"
+            @click="handleMaintainDueSearch"
+          >
+            搜索
+          </button>
+        </div>
+
+        <!-- 续期操作栏 -->
+        <div class="flex flex-wrap items-center gap-3 rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+          <span class="text-xs text-slate-500 font-bold">
+            已选
+            <span class="text-amber-600">{{ maintainDueSelectedIds.length }}</span>
+            台
+          </span>
+          <label class="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+            续期年限
+            <input
+              v-model.number="renewYears"
+              type="number"
+              min="1"
+              max="20"
+              placeholder="不填则按原年限"
+              class="w-36 border border-amber-300 rounded-lg bg-white px-2 py-1.5 text-xs"
+            />
+          </label>
+          <button
+            class="rounded-lg bg-amber-500 px-5 py-1.5 text-xs text-white font-bold hover:bg-amber-600 disabled:opacity-50"
+            :disabled="!maintainDueSelectedIds.length || renewLoading"
+            @click="handleMaintainRenew"
+          >
+            {{ renewLoading ? '续期中...' : '确认续期' }}
+          </button>
+        </div>
+
+        <!-- 列表 -->
+        <div class="custom-scrollbar max-h-[400px] overflow-y-auto">
+          <div v-if="maintainDueLoading" class="flex justify-center py-8">
+            <div class="h-6 w-6 animate-spin border-b-2 border-sky-500 rounded-full"></div>
+            <span class="ml-2 text-xs text-slate-500">加载中...</span>
+          </div>
+          <table v-else class="w-full border-collapse text-left">
+            <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+              <tr class="border-b border-slate-200 text-slate-400 font-black uppercase text-[10px]">
+                <th class="w-10 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    class="h-3.5 w-3.5 rounded"
+                    :checked="maintainDueSelectedIds.length === maintainDueList.length && maintainDueList.length > 0"
+                    @change="handleMaintainDueSelectAll"
+                  />
+                </th>
+                <th class="px-3 py-3">电梯编号 / 名称</th>
+                <th class="px-3 py-3">注册代码</th>
+                <th class="px-3 py-3">小区 / 维保公司</th>
+                <th class="px-3 py-3 text-center">到期日</th>
+                <th class="px-3 py-3 text-center">剩余/逾期天数</th>
+                <th class="px-3 py-3 text-center">状态</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr v-if="maintainDueList.length === 0">
+                <td colspan="7" class="py-8 text-center text-xs text-slate-400">暂无维保到期电梯数据</td>
+              </tr>
+              <tr
+                v-for="item in maintainDueList"
+                :key="item.elevator_id"
+                class="group transition-colors hover:bg-slate-50/50"
+                :class="{ 'bg-amber-500/5': maintainDueSelectedIds.includes(item.elevator_id) }"
+              >
+                <td class="px-3 py-3">
+                  <input
+                    type="checkbox"
+                    class="h-3.5 w-3.5 rounded"
+                    :checked="maintainDueSelectedIds.includes(item.elevator_id)"
+                    @change="() => handleMaintainDueSelectOne(item.elevator_id)"
+                  />
+                </td>
+                <td class="px-3 py-3">
+                  <div class="flex flex-col">
+                    <span class="text-sky-500 font-bold font-mono text-[11px]">{{ item.elevator_number }}</span>
+                    <span class="text-xs text-slate-700 font-bold">{{ item.elevator_name }}</span>
+                  </div>
+                </td>
+                <td class="px-3 py-3">
+                  <span class="text-slate-500 font-mono text-[11px]">{{ item.register_code || '-' }}</span>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="flex flex-col text-[11px]">
+                    <span class="text-slate-700 font-medium">{{ item.village_name || '-' }}</span>
+                    <span class="text-slate-400">{{ item.company_name || '-' }}</span>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <span class="text-slate-600 font-bold text-[11px]">{{ item.due_date || '-' }}</span>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <span
+                    class="rounded-full px-2 py-0.5 font-bold text-[10px]"
+                    :class="
+                      (item.remain_days ?? 0) <= 0
+                        ? 'bg-rose-500/10 text-rose-500'
+                        : 'bg-emerald-500/10 text-emerald-500'
+                    "
+                  >
+                    {{
+                      (item.remain_days ?? 0) <= 0
+                        ? `逾期${Math.abs(item.remain_days ?? 0)}天`
+                        : `剩余${item.remain_days}天`
+                    }}
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <span
+                    class="rounded-full px-2 py-0.5 font-bold uppercase text-[10px]"
+                    :class="item.status === 'overdue' ? 'bg-rose-500/10 text-rose-500' : 'bg-sky-500/10 text-sky-500'"
+                  >
+                    {{ item.status === 'overdue' ? '已逾期' : '未到期' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分页 -->
+        <div v-if="maintainDueTotal > 0" class="flex items-center justify-between">
+          <span class="text-slate-400 font-bold text-[10px]">共 {{ maintainDueTotal }} 台</span>
+          <div class="origin-right scale-75">
+            <PagePagination
+              v-model:current="maintainDuePage"
+              :total="maintainDueTotal"
+              :page-size="maintainDuePageSize"
+              @change="handleMaintainDuePageChange"
+            />
+          </div>
+        </div>
+      </div>
     </NModal>
   </div>
 </template>

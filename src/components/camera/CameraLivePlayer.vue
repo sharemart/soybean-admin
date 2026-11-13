@@ -5,7 +5,6 @@ import { fetchCameraLive } from '@/service/api/camera/cameraApi';
 import { EZUIKIT_STATIC_PATH, loadEZUIKitPlayer, resolveEzopenUrl } from '@/utils/ezuikit';
 
 interface Props {
-  /** 全局唯一 DOM id */
   playerId: string;
   cameraId: number;
   channel?: number;
@@ -15,6 +14,7 @@ interface Props {
   /** false 时销毁播放器 */
   active?: boolean;
   height?: number;
+  width?: number;
   /** 是否在格子内展示错误/重试（大屏用） */
   showErrorUi?: boolean;
 }
@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
   quality: 2,
   deviceSerial: '',
   active: true,
-  height: 240,
+  height: 300,
   showErrorUi: true
 });
 
@@ -104,8 +104,7 @@ const scheduleTokenRefresh = (expireTime: string) => {
 const playHlsFallback = (src: string) => {
   const el = document.getElementById(props.playerId);
   if (!el) return;
-  const h = Math.max(120, props.height);
-  el.innerHTML = `<video controls autoplay playsinline muted style="width:100%;height:${h}px;background:#000;object-fit:contain" src="${src}"></video>`;
+  el.innerHTML = `<video controls autoplay playsinline muted style="width:100%;height:100%;background:#000;object-fit:cover" src="${src}"></video>`;
   playerReady.value = true;
   lastError.value = '';
   emit('ready');
@@ -148,11 +147,12 @@ const initPlayer = async (accessToken: string, url: string, deviceSerial: string
 
   try {
     const PlayerClass = await loadEZUIKitPlayer();
-    const width = Math.max(
-      160,
-      Math.floor(playerWrapRef.value?.clientWidth || container.clientWidth || 320)
+    const rawWidth = Math.floor(playerWrapRef.value?.clientWidth || container.clientWidth || 640);
+    const width = Math.max(160, props.width || rawWidth);
+    const rawHeight = Math.floor(
+      playerWrapRef.value?.clientHeight || container.clientHeight || props.height || Math.round((rawWidth * 9) / 16)
     );
-    const height = Math.max(120, props.height);
+    const height = Math.max(120, rawHeight);
 
     player = new PlayerClass({
       id: props.playerId,
@@ -162,6 +162,7 @@ const initPlayer = async (accessToken: string, url: string, deviceSerial: string
       plugin: [],
       width,
       height,
+      scaleMode: 1,
       staticPath: EZUIKIT_STATIC_PATH,
       handleSuccess: () => {
         playerReady.value = true;
@@ -182,6 +183,11 @@ const initPlayer = async (accessToken: string, url: string, deviceSerial: string
         if (hlsUrl.value) playHlsFallback(hlsUrl.value);
       }
     });
+
+    // 关闭 EZUIKit 的 info/log 日志刷屏，仅保留 error，避免干扰 MQTT 等业务日志
+    if (typeof player?.setLoggerOptions === 'function') {
+      player.setLoggerOptions({ level: 'error' });
+    }
 
     clearReadyTimer();
     readyTimer = window.setTimeout(() => {
@@ -264,10 +270,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="playerWrapRef" class="relative h-full w-full overflow-hidden bg-black">
-    <div
-      v-if="loading"
-      class="absolute inset-0 z-10 flex items-center justify-center bg-black/60"
-    >
+    <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
       <RefreshCw class="animate-spin text-white" :size="22" />
     </div>
 
@@ -278,7 +281,7 @@ onBeforeUnmount(() => {
       <p class="text-xs text-rose-300 font-medium leading-relaxed">{{ lastError }}</p>
       <button
         type="button"
-        class="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[11px] text-white font-bold hover:bg-white/20"
+        class="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-white font-bold text-[11px] hover:bg-white/20"
         @click="retry"
       >
         <RefreshCw :size="12" />
@@ -286,6 +289,16 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div :id="playerId" class="h-full w-full" :style="{ minHeight: `${height}px` }"></div>
+    <div :id="playerId" class="ezuikit-camera-live h-full w-full"></div>
   </div>
 </template>
+
+<style scoped>
+:deep(.ezuikit-camera-live),
+:deep(.ezuikit-camera-live canvas),
+:deep(.ezuikit-camera-live video) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+</style>

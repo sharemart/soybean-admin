@@ -59,6 +59,7 @@ declare module "@elegant-router/types" {
     "monitoring": "/monitoring";
     "monitoring_demo": "/monitoring/demo";
     "monitoring_detail": "/monitoring/detail";
+    "propertyscreen": "/propertyscreen";
     "report": "/report";
     "report_companyusage": "/report/companyusage";
     "report_propertyusage": "/report/propertyusage";
@@ -133,6 +134,7 @@ declare module "@elegant-router/types" {
     | "login"
     | "management"
     | "monitoring"
+    | "propertyscreen"
     | "report"
     | "safetysystem"
     | "scheduling"
@@ -156,6 +158,7 @@ declare module "@elegant-router/types" {
   export type LastLevelRouteKey = Extract<
     RouteKey,
     | "dashboard"
+    | "propertyscreen"
     | "workbench"
     | "403"
     | "404"

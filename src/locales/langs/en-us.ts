@@ -262,6 +262,7 @@ const local: App.I18n.Schema = {
     system_operations: 'Maintenance Operation Standard',
     workbench: 'Workbench',
     dashboard: 'Visual Dashboard',
+    propertyscreen: 'Property Data Screen',
     historical: 'Historical Data',
     annual: 'Annual Inspection Scheduling',
     emergency: 'Emergency Repair Dispatch Center',

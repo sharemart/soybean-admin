@@ -26,8 +26,12 @@ import type {
   GetElevatorRepairRecordsResponse,
   GetElevatorSimpleListParams,
   GetElevatorSimpleListResponse,
+  GetMaintainDueListParams,
+  GetMaintainDueListResponse,
   ImportElevatorParams,
   ImportElevatorResponse,
+  MaintainRenewParams,
+  MaintainRenewResponse,
   UpdateElevatorParams,
   UpdateElevatorResponse
 } from './component.d';
@@ -124,11 +128,7 @@ export function exportElevator(params?: ExportElevatorParams) {
   return request<ExportElevatorResponse>({
     url: '/dashboard/elevator/exportElevator',
     method: 'get',
-    params, // GET请求使用params传递Query参数
-    headers: {
-      /** 登录令牌 | 格式：Bearer_token值或直接token值 */
-      authorization: '' // 实际使用时替换为真实token（如localStorage.getItem('token')）
-    }
+    params
   });
 }
 /**
@@ -288,5 +288,33 @@ export function fetchElevatorRepairRecords(params: GetElevatorRepairRecordsParam
       /** 登录令牌 | 格式：Bearer_token值或直接token值 */
       authorization: '' // 实际使用时替换为真实token（如localStorage.getItem('token')）
     }
+  });
+}
+
+/**
+ * 获取维保到期电梯列表
+ *
+ * @param params - 维保到期电梯列表查询参数
+ * @returns 维保到期电梯列表信息
+ */
+export function fetchMaintainDueList(params: GetMaintainDueListParams = {}) {
+  return request<GetMaintainDueListResponse>({
+    url: '/dashboard/elevator/maintainDueList',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 维保按年限续期
+ *
+ * @param params - 维保续期请求参数
+ * @returns 续期结果
+ */
+export function maintainRenew(params: MaintainRenewParams) {
+  return request<MaintainRenewResponse>({
+    url: '/dashboard/elevator/maintainRenew',
+    method: 'post',
+    data: params
   });
 }

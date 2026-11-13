@@ -662,3 +662,113 @@ export interface ElevatorRepairRecordsData {
  * 获取电梯急修记录响应结果
  */
 export type GetElevatorRepairRecordsResponse = ApiResponse<ElevatorRepairRecordsData>;
+
+// ====================== 维保到期电梯列表 ======================
+/**
+ * 维保到期电梯列表请求参数
+ */
+export interface GetMaintainDueListParams {
+  /** 提前天数，默认90。列出到期日不晚于今天加该天数的电梯，含已逾期 */
+  days?: number;
+  /** upcoming未到期 overdue已逾期，空为全部 */
+  status?: string;
+  /** 电梯名称、注册代码或电梯编号 */
+  keyword?: string;
+  /** 公司ID，在可访问公司内二次筛选 */
+  company_id?: number;
+  /** 维保小组ID */
+  group_id?: number;
+  /** 小区ID */
+  village_id?: number;
+  /** 页码，默认1 */
+  page?: number;
+  /** 每页条数，默认10，最大100 */
+  limit?: number;
+}
+
+/**
+ * 维保到期电梯列表项
+ */
+export interface MaintainDueItem {
+  /** 电梯ID */
+  elevator_id: number;
+  /** 电梯名称 */
+  elevator_name: string;
+  /** 电梯编号 */
+  elevator_number: string;
+  /** 注册代码 */
+  register_code: string;
+  /** 小区名称 */
+  village_name: string;
+  /** 维保公司名称 */
+  company_name: string;
+  /** 维保到期日 */
+  due_date: string;
+  /** 剩余天数（负数表示已逾期） */
+  remain_days: number;
+  /** 状态：upcoming未到期 overdue已逾期 */
+  status: string;
+}
+
+/**
+ * 维保到期电梯列表数据
+ */
+export interface MaintainDueListData {
+  total: number;
+  page: number;
+  limit: number;
+  list: MaintainDueItem[];
+}
+
+/**
+ * 维保到期电梯列表响应
+ */
+export type GetMaintainDueListResponse = ApiResponse<MaintainDueListData>;
+
+// ====================== 维保按年限续期 ======================
+/**
+ * 维保按年限续期请求参数
+ */
+export interface MaintainRenewParams {
+  /** 电梯ID，支持多台 */
+  elevator_ids: number[];
+  /** 续期年数，1到20。不传则按该梯当前维保年限续，至少1年 */
+  years?: number;
+}
+
+/**
+ * 维保续期单台结果
+ */
+export interface MaintainRenewItem {
+  /** 电梯ID */
+  elevator_id: number;
+  /** 1成功 0失败 */
+  success: number;
+  /** 原到期日 */
+  old_due_date: string;
+  /** 续期后的维保年限 */
+  maintain_year: number;
+  /** 新到期日 */
+  due_date: string;
+  /** 本次顺延年数 */
+  years: number;
+  /** 结果说明 */
+  message: string;
+}
+
+/**
+ * 维保按年限续期响应数据
+ */
+export interface MaintainRenewResponseData {
+  /** 成功台数 */
+  success_count: number;
+  /** 失败台数 */
+  fail_count: number;
+  /** 每台结果 */
+  list: MaintainRenewItem[];
+}
+
+/**
+ * 维保按年限续期响应
+ */
+export type MaintainRenewResponse = ApiResponse<MaintainRenewResponseData>;

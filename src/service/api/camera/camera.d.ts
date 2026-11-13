@@ -208,25 +208,62 @@ export interface CameraSceneCatalogItem {
   default_config: CameraSceneUserConfig;
 }
 
+export interface GetCameraScenesParams {
+  algorithm_enabled?: number;
+}
+
 export type GetCameraScenesResponse = ApiResponse<CameraSceneCatalogItem[]>;
 
 // ========== 平台场景算法（超管） ==========
 export interface CameraSceneAlgoItem {
   scene_code: string;
-  name?: string;
-  status?: CameraSceneStatus | string;
+  name: string;
+  /** 场景等级：hazard隐患 urgent紧急 */
+  level: string;
+  /** 场景等级名称：隐患 / 紧急 */
+  level_name: string;
+  /** ready / reserved，仅 GET */
+  status: CameraSceneStatus | string;
+  /** GET 列表项恒为 true，只包含已入库配置 */
+  configured: boolean;
+  /** 平台算法编码，未配置时为空 */
   task_type: string;
+  /** 1 平台已开启 0 未开启 */
+  enabled: number;
+  /** 已填写 taskType，与平台开关无关 */
   task_type_ready: boolean;
+  /** 平台已开启且 taskType 可用 */
+  algorithm_enabled: boolean;
 }
 
 export interface SaveCameraSceneAlgoParams {
+  /** 场景编码；不在内置目录中时按新场景入库 */
   scene_code: string;
-  /** 萤石算法 taskType，清空传空串 */
+  /** 萤石算法 taskType；明火新增或开启时必填；清空传空串 */
   task_type: string;
+  /** 场景名称，最长 64 字；不传则新增用默认名称，更新保留原名称 */
+  name?: string;
+  /** 场景等级：hazard 隐患；urgent 紧急。不传则新增默认隐患，更新保留原等级 */
+  level?: string;
+  /** 1 开启 0 关闭；未开放场景不能开启 */
+  enabled?: number;
 }
 
 export type GetCameraSceneAlgoResponse = ApiResponse<CameraSceneAlgoItem[]>;
 export type SaveCameraSceneAlgoResponse = ApiResponse<CameraSceneAlgoItem>;
+
+// ========== 平台场景算法删除（超管） ==========
+export interface DeleteCameraSceneAlgoParams {
+  scene_code: string;
+}
+
+export interface DeleteCameraSceneAlgoResult {
+  scene_code: string;
+  /** 删除后为 false */
+  configured: boolean;
+}
+
+export type DeleteCameraSceneAlgoResponse = ApiResponse<DeleteCameraSceneAlgoResult>;
 
 // ========== 开关场景 ==========
 export interface SceneSwitchParams {
@@ -298,7 +335,10 @@ export interface GetCameraAlarmListParams {
   company_id?: number;
   device_id?: number;
   scene_code?: string;
+  level?: string;
   is_read?: number;
+  start_time?: string;
+  end_time?: string;
   page?: number;
   limit?: number;
 }
@@ -309,6 +349,8 @@ export interface CameraAlarmItem {
   device_id: number;
   channel_no: number;
   scene_code: string;
+  level: string;
+  level_name: string;
   algo_log_id: number;
   title: string;
   /** 告警图片，本地持久化地址 */
@@ -337,3 +379,42 @@ export interface ReadCameraAlarmResult {
 }
 
 export type ReadCameraAlarmResponse = ApiResponse<ReadCameraAlarmResult>;
+
+// ========== 告警统计 ==========
+export interface GetCameraAlarmStatParams {
+  company_id?: number;
+  device_id?: number;
+  scene_code?: string;
+  level?: string;
+  is_read?: number;
+  start_time?: string;
+  end_time?: string;
+}
+
+export interface CameraAlarmStatScene {
+  scene_code: string;
+  name: string;
+  level: string;
+  level_name: string;
+  total: number;
+  unread: number;
+  read: number;
+}
+
+export interface CameraAlarmStatLevel {
+  level: string;
+  level_name: string;
+  total: number;
+  unread: number;
+  read: number;
+  scenes: CameraAlarmStatScene[];
+}
+
+export interface CameraAlarmStatResult {
+  total: number;
+  unread: number;
+  read: number;
+  levels: CameraAlarmStatLevel[];
+}
+
+export type GetCameraAlarmStatResponse = ApiResponse<CameraAlarmStatResult>;

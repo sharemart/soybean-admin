@@ -508,6 +508,19 @@ export const generatedRoutes = [
     ]
   },
   {
+    name: 'propertyscreen',
+    path: '/propertyscreen',
+    component: 'layout.blank$view.propertyscreen',
+    meta: {
+      title: 'propertyscreen',
+      i18nKey: 'route.propertyscreen',
+      constant: true,
+      hideInMenu: true,
+      fullScreen: true,
+      keepAlive: false
+    }
+  },
+  {
     name: 'report',
     path: '/report',
     component: 'layout.base',

@@ -143,13 +143,26 @@ export interface SafetyDailyDashboardParams {
   check_date?: string;
 }
 
-/** 看板汇总统计信息，后端可自由扩展字段 */
+/** 看板汇总统计信息 */
 export interface SafetyDailyDashboardSummary {
-  [key: string]: any;
+  /** 在管电梯总数 */
+  elevator_total: number;
+  /** 已提交日检的电梯数 */
+  submitted_count: number;
+  /** 已提交且综合评价为零风险的日检条数 */
+  zero_risk_count: number;
+  /** 未提交日检的电梯数 */
+  pending_count: number;
+  /** 草稿日检条数 */
+  draft_count: number;
+  /** 完成率百分比 */
+  completion_rate: number;
 }
 
 /** 看板接口内层data结构 */
 export interface SafetyDailyDashboardData {
+  /** 统计日期 Y-m-d */
+  check_date: string;
   /** 汇总统计数据 */
   summary: SafetyDailyDashboardSummary;
 }

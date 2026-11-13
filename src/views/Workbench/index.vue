@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Activity,
@@ -34,12 +34,21 @@ import {
 } from 'lucide-vue-next';
 import { getMyWorkbench } from '@/service/api/menu/menu';
 import { getSoybeanMenus } from '@/service/api/menu/menuApi';
+import { useAuthStore } from '@/store/modules/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
+// 物业公司（use_comtype === 2）显示物业数据大屏，其余显示可视化大屏
+const isPropertyCompany = computed(() => Number(authStore.userInfo.use_comtype) === 2);
 
 const goToVisualDashboard = async () => {
   await document.documentElement.requestFullscreen?.();
   router.push('/dashboard');
+};
+
+const goToPropertyScreen = async () => {
+  await document.documentElement.requestFullscreen?.();
+  router.push('/propertyscreen');
 };
 
 // 时钟
@@ -252,6 +261,16 @@ const goToPage = (path: string) => path && router.push(path);
               <p class="text-2xl text-gray-800 font-bold font-mono md:text-3xl dark:text-white">{{ currentTime }}</p>
             </div>
             <button
+              v-if="isPropertyCompany"
+              type="button"
+              class="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm text-white font-semibold shadow-lg transition-all hover:bg-emerald-700 hover:shadow-emerald-500/30"
+              @click="goToPropertyScreen"
+            >
+              <Building2 :size="18" />
+              物业数据大屏
+            </button>
+            <button
+              v-else
               type="button"
               class="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm text-white font-semibold shadow-lg transition-all dark:bg-sky-500 hover:bg-sky-600 dark:text-slate-950 hover:shadow-sky-500/30 dark:hover:bg-sky-400"
               @click="goToVisualDashboard"

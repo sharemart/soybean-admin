@@ -158,6 +158,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
           roles: [],
           buttons: [],
           company_type: loginResponse.data.company_type || '',
+          use_comtype: loginResponse.data.use_comtype || '',
           company_id: loginResponse.data.company_id || '',
           company_name: loginResponse.data.company_name || ''
         };

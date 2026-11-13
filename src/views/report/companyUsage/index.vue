@@ -110,6 +110,7 @@ const paginatedUsageList = computed(() => {
 
 const paginatedMaintainList = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
+  console.log('paginatedMaintainList', filteredMaintainList.value.slice(start, start + pageSize.value));
   return filteredMaintainList.value.slice(start, start + pageSize.value);
 });
 
@@ -303,7 +304,7 @@ defineExpose({ handleSearch, handleReset });
       class="flex flex-col gap-4 border border-slate-200 rounded-[2rem] bg-white p-5 shadow-sm backdrop-blur-md md:flex-row md:items-end dark:border-slate-800 dark:bg-slate-900/40"
     >
       <div class="flex flex-col gap-1.5">
-        <label class="text-[10px] text-slate-400 font-black tracking-[0.15em] uppercase">开始日期</label>
+        <label class="text-slate-400 font-black tracking-[0.15em] uppercase text-[10px]">开始日期</label>
         <div class="relative">
           <Calendar class="absolute left-3 top-1/2 text-slate-400 -translate-y-1/2" :size="16" />
           <input
@@ -314,7 +315,7 @@ defineExpose({ handleSearch, handleReset });
         </div>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-[10px] text-slate-400 font-black tracking-[0.15em] uppercase">结束日期</label>
+        <label class="text-slate-400 font-black tracking-[0.15em] uppercase text-[10px]">结束日期</label>
         <div class="relative">
           <Calendar class="absolute left-3 top-1/2 text-slate-400 -translate-y-1/2" :size="16" />
           <input
@@ -325,7 +326,7 @@ defineExpose({ handleSearch, handleReset });
         </div>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-[10px] text-slate-400 font-black tracking-[0.15em] uppercase">维保公司</label>
+        <label class="text-slate-400 font-black tracking-[0.15em] uppercase text-[10px]">维保公司</label>
         <CustomSelect
           v-model="companyFilter"
           :options="companyOptions"
@@ -336,7 +337,7 @@ defineExpose({ handleSearch, handleReset });
         />
       </div>
       <div class="flex flex-col flex-1 gap-1.5">
-        <label class="text-[10px] text-slate-400 font-black tracking-[0.15em] uppercase">搜索</label>
+        <label class="text-slate-400 font-black tracking-[0.15em] uppercase text-[10px]">搜索</label>
         <div class="relative">
           <Search class="absolute left-3 top-1/2 text-slate-400 -translate-y-1/2" :size="16" />
           <input
@@ -490,7 +491,7 @@ defineExpose({ handleSearch, handleReset });
           <Building2 :size="15" />
           电梯档案统计
           <span
-            class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500 font-bold dark:bg-slate-800 dark:text-slate-400"
+            class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-slate-500 font-bold text-[10px] dark:bg-slate-800 dark:text-slate-400"
           >
             {{ usageTotal }}
           </span>
@@ -506,7 +507,7 @@ defineExpose({ handleSearch, handleReset });
           <Wrench :size="15" />
           维保次数统计
           <span
-            class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500 font-bold dark:bg-slate-800 dark:text-slate-400"
+            class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-slate-500 font-bold text-[10px] dark:bg-slate-800 dark:text-slate-400"
           >
             {{ maintainTotal }}
           </span>
@@ -518,10 +519,10 @@ defineExpose({ handleSearch, handleReset });
         <table class="w-full border-collapse text-left">
           <thead>
             <tr
-              class="border-b border-slate-100 bg-slate-50/80 text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase dark:border-slate-800 dark:bg-slate-900/80"
+              class="border-b border-slate-100 bg-slate-50/80 text-slate-400 font-black tracking-[0.2em] uppercase text-[10px] dark:border-slate-800 dark:bg-slate-900/80"
             >
               <th class="px-5 py-4">公司名称</th>
-              <th class="px-5 py-4 text-center">在保电梯</th>
+              <th class="px-5 py-4 text-center">总电梯数</th>
               <th class="px-5 py-4 text-center">有预警</th>
               <th class="px-5 py-4 text-center">有急修</th>
               <th class="px-5 py-4 text-center">预警+急修</th>
@@ -529,7 +530,7 @@ defineExpose({ handleSearch, handleReset });
               <th class="px-5 py-4 text-center">急修已处理</th>
               <th class="px-5 py-4 text-center">隐患反馈</th>
               <th class="px-5 py-4 text-center">已处理+隐患</th>
-              <th class="px-5 py-4 text-center">维保中</th>
+              <th class="px-5 py-4 text-center">维保计划次数</th>
               <th class="px-5 py-4 text-center">已维保</th>
               <th class="px-5 py-4 text-center">待维保</th>
               <th class="px-5 py-4 text-center">进行中</th>
@@ -712,17 +713,19 @@ defineExpose({ handleSearch, handleReset });
         <table class="w-full border-collapse text-left">
           <thead>
             <tr
-              class="border-b border-slate-100 bg-slate-50/80 text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase dark:border-slate-800 dark:bg-slate-900/80"
+              class="border-b border-slate-100 bg-slate-50/80 text-slate-400 font-black tracking-[0.2em] uppercase text-[10px] dark:border-slate-800 dark:bg-slate-900/80"
             >
               <th class="px-5 py-4">公司名称</th>
-              <th class="px-5 py-4 text-center">在保电梯</th>
-              <th class="px-5 py-4 text-center">维保次数</th>
+
+              <th class="px-5 py-4 text-center">总电梯数</th>
+              <th class="px-5 py-4 text-center">维保电梯数</th>
+              <th class="px-5 py-4 text-center">维保计划次数</th>
               <th class="px-5 py-4 text-center">已完成</th>
               <th class="px-5 py-4 text-center">待维保</th>
               <th class="px-5 py-4 text-center">进行中</th>
               <th class="px-5 py-4 text-center">逾期签到</th>
               <th class="px-5 py-4 text-center">其他</th>
-              <th class="px-5 py-4 text-center">涉及电梯</th>
+
               <th class="px-5 py-4 text-center">完成率</th>
             </tr>
           </thead>
@@ -741,6 +744,9 @@ defineExpose({ handleSearch, handleReset });
               </td>
               <td class="px-5 py-4 text-center">
                 <span class="text-sm text-slate-600 font-bold dark:text-slate-300">{{ item.elevator_total }}</span>
+              </td>
+              <td class="px-5 py-4 text-center">
+                <span class="text-sm text-slate-600 font-bold dark:text-slate-300">{{ item.elevator_cnt }}</span>
               </td>
               <td class="px-5 py-4 text-center">
                 <span class="text-sm text-slate-600 font-bold dark:text-slate-300">{{ item.bill_cnt }}</span>
@@ -796,9 +802,7 @@ defineExpose({ handleSearch, handleReset });
               <td class="px-5 py-4 text-center">
                 <span class="text-sm text-slate-400">{{ item.other_cnt }}</span>
               </td>
-              <td class="px-5 py-4 text-center">
-                <span class="text-sm text-slate-600 font-bold dark:text-slate-300">{{ item.elevator_cnt }}</span>
-              </td>
+
               <td class="px-5 py-4 text-center">
                 <div class="flex items-center justify-center gap-2">
                   <div class="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -831,7 +835,7 @@ defineExpose({ handleSearch, handleReset });
 
       <!-- 底部分页栏 -->
       <footer class="flex items-center justify-between border-t border-slate-100 px-5 py-3 dark:border-slate-800">
-        <span class="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+        <span class="flex items-center gap-2 text-slate-400 font-bold text-[10px]">
           <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500" />
           共
           <span class="text-sky-500">{{ activeTab === 'usage' ? usageTotal : maintainTotal }}</span>

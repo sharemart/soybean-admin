@@ -16,6 +16,7 @@ export const layouts: Record<RouteLayout, RouteComponent | (() => Promise<RouteC
 
 export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<RouteComponent>)> = {
   dashboard: () => import("@/views/Dashboard/index.vue"),
+  propertyscreen: () => import("@/views/PropertyScreen/index.vue"),
   workbench: () => import("@/views/Workbench/index.vue"),
   403: () => import("@/views/_builtin/403/index.vue"),
   404: () => import("@/views/_builtin/404/index.vue"),

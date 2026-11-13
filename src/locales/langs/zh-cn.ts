@@ -286,6 +286,7 @@ const local: App.I18n.Schema = {
     monitoring_detail: '实时监控详情',
     workbench: '工作台首页',
     dashboard: '可视化大屏',
+    propertyscreen: '物业数据大屏',
     historical: '历史通知中心',
     safetysystem: '安全责任体系',
     safetysystem_checklist: '风险管控清单',

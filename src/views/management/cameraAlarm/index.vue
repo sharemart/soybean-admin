@@ -2,11 +2,12 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
-import { Bell, CheckCheck, Eye, RefreshCw } from 'lucide-vue-next';
 import dayjs from 'dayjs';
+import { Bell, CheckCheck, Eye, RefreshCw } from 'lucide-vue-next';
 import { fetchCameraAlarmList, fetchCameraList, readCameraAlarm } from '@/service/api/camera/cameraApi';
 import type { CameraAlarmItem } from '@/service/api/camera/camera.d';
 import { getServiceBaseURL } from '@/utils/service';
+import { useCameraAlarmMqtt } from '@/utils/useCameraAlarmMqtt';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import { useMaintainCompanySelector } from '@/components/selectOption/useMaintainCompanySelector';
 import PagePagination from '@/components/common/PagePagination.vue';
@@ -72,10 +73,7 @@ const readOptions = [
   { label: '已读', value: 1 }
 ];
 
-const companySelectOptions = computed(() => [
-  { label: '全部公司', value: 0 },
-  ...maintainCompanyOptions.value
-]);
+const companySelectOptions = computed(() => [{ label: '全部公司', value: 0 }, ...maintainCompanyOptions.value]);
 
 const sceneLabel = (code: string) => {
   const map: Record<string, string> = {
@@ -144,6 +142,17 @@ const handleSearch = () => {
   fetchList();
 };
 
+// ===================== 告警实时推送（MQTT + “滴滴”提示音） =====================
+const handleAlarm = (alarm: any) => {
+  const scene = alarm?.scene_code ? sceneLabel(String(alarm.scene_code)) : '';
+  message.warning(scene ? `收到摄像头告警推送：${scene}` : '收到摄像头告警推送');
+  fetchList();
+};
+
+const { connect: connectAlarm } = useCameraAlarmMqtt({
+  onAlarm: handleAlarm
+});
+
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   fetchList();
@@ -196,6 +205,7 @@ onMounted(async () => {
   await fetchMaintainCompanyList();
   await loadDevices();
   await fetchList();
+  connectAlarm();
 });
 </script>
 
@@ -211,7 +221,7 @@ onMounted(async () => {
         </div>
         <div class="ml-auto flex flex-wrap items-center gap-2">
           <button
-            class="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-[10px] text-white font-black tracking-widest uppercase disabled:opacity-50"
+            class="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-white font-black tracking-widest uppercase text-[10px] disabled:opacity-50"
             :disabled="!selectedIds.length"
             @click="markRead(selectedIds)"
           >
@@ -235,24 +245,9 @@ onMounted(async () => {
           :loading="companyLoading.maintainLoading"
           placeholder="公司"
         />
-        <CustomSelect
-          v-model="filters.device_id"
-          :options="deviceOptions"
-          placeholder="设备"
-          @change="handleSearch"
-        />
-        <CustomSelect
-          v-model="filters.scene_code"
-          :options="sceneOptions"
-          placeholder="场景"
-          @change="handleSearch"
-        />
-        <CustomSelect
-          v-model="filters.is_read"
-          :options="readOptions"
-          placeholder="已读状态"
-          @change="handleSearch"
-        />
+        <CustomSelect v-model="filters.device_id" :options="deviceOptions" placeholder="设备" @change="handleSearch" />
+        <CustomSelect v-model="filters.scene_code" :options="sceneOptions" placeholder="场景" @change="handleSearch" />
+        <CustomSelect v-model="filters.is_read" :options="readOptions" placeholder="已读状态" @change="handleSearch" />
       </div>
     </div>
 
@@ -267,7 +262,7 @@ onMounted(async () => {
         <table class="w-full text-left">
           <thead>
             <tr
-              class="border-b border-slate-100 bg-slate-50 text-[10px] text-slate-400 font-black tracking-widest uppercase dark:border-slate-800 dark:bg-slate-900/80"
+              class="border-b border-slate-100 bg-slate-50 text-slate-400 font-black tracking-widest uppercase text-[10px] dark:border-slate-800 dark:bg-slate-900/80"
             >
               <th class="px-5 py-4">
                 <input
@@ -287,21 +282,17 @@ onMounted(async () => {
           <tbody class="divide-y divide-slate-50 dark:divide-slate-800/40">
             <tr v-for="item in list" :key="item.id" class="hover:bg-sky-500/5">
               <td class="px-5 py-4">
-                <input
-                  type="checkbox"
-                  :checked="selectedIds.includes(item.id)"
-                  @change="toggleSelect(item.id)"
-                />
+                <input type="checkbox" :checked="selectedIds.includes(item.id)" @change="toggleSelect(item.id)" />
               </td>
               <td class="px-5 py-4">
                 <div class="text-sm text-slate-800 font-bold dark:text-slate-100">{{ item.title }}</div>
-                <div class="text-[10px] text-slate-400 font-mono">设备 #{{ item.device_id }}</div>
+                <div class="text-slate-400 font-mono text-[10px]">设备 #{{ item.device_id }}</div>
               </td>
               <td class="px-5 py-4">
-                <span class="rounded-lg bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-600 font-black">
+                <span class="rounded-lg bg-amber-500/10 px-2 py-0.5 text-amber-600 font-black text-[10px]">
                   {{ sceneLabel(item.scene_code) }}
                 </span>
-                <div class="mt-1 text-[10px] text-slate-400">通道 {{ item.channel_no }}</div>
+                <div class="mt-1 text-slate-400 text-[10px]">通道 {{ item.channel_no }}</div>
               </td>
               <td class="px-5 py-4">
                 <div v-if="alarmImages(item).length" class="flex gap-2">
@@ -309,7 +300,7 @@ onMounted(async () => {
                     v-for="image in alarmImages(item)"
                     :key="image.caption"
                     type="button"
-                    class="group w-24 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 text-left dark:border-slate-800 dark:bg-slate-900"
+                    class="group w-24 overflow-hidden border border-slate-100 rounded-xl bg-slate-50 text-left dark:border-slate-800 dark:bg-slate-900"
                     @click="openPreview(image.url, image.caption)"
                   >
                     <img
@@ -318,22 +309,22 @@ onMounted(async () => {
                       class="h-16 w-full object-cover"
                       @error="($event.target as HTMLImageElement).style.display = 'none'"
                     />
-                    <span class="block px-1.5 py-1 text-[10px] text-slate-400 font-bold group-hover:text-sky-500">
+                    <span class="block px-1.5 py-1 text-slate-400 font-bold text-[10px] group-hover:text-sky-500">
                       {{ image.caption }}
                     </span>
                   </button>
                 </div>
-                <span v-else class="text-[10px] text-slate-400">无图</span>
+                <span v-else class="text-slate-400 text-[10px]">无图</span>
               </td>
               <td class="px-5 py-4">
                 <span
-                  class="rounded-lg px-2 py-0.5 text-[10px] font-black"
+                  class="rounded-lg px-2 py-0.5 font-black text-[10px]"
                   :class="item.is_read === 1 ? 'bg-slate-100 text-slate-400' : 'bg-rose-500/10 text-rose-500'"
                 >
                   {{ item.is_read === 1 ? '已读' : '未读' }}
                 </span>
               </td>
-              <td class="px-5 py-4 text-[11px] text-slate-500 font-mono">{{ formatTime(item.create_time) }}</td>
+              <td class="px-5 py-4 text-slate-500 font-mono text-[11px]">{{ formatTime(item.create_time) }}</td>
               <td class="px-5 py-4 text-right">
                 <button
                   v-if="item.is_read !== 1"
@@ -360,7 +351,7 @@ onMounted(async () => {
       <footer
         class="fixed bottom-0 left-[220px] right-0 z-50 h-16 flex items-center justify-between border-t border-slate-200 bg-white/90 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90"
       >
-        <span class="text-[10px] text-amber-500 font-bold">告警总数：{{ total }}</span>
+        <span class="text-amber-500 font-bold text-[10px]">告警总数：{{ total }}</span>
         <div class="scale-90">
           <PagePagination
             :total="total"

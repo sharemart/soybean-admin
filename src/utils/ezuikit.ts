@@ -22,7 +22,67 @@ declare global {
   }
 }
 
+/**
+ * EZUIKit SDK 内部有三套 logger（ezuikit / ezuikit #id / ezopen），且大量使用
+ * console.log 直接打印，播放器实例的 setLoggerOptions 无法全部关闭。
+ * 这里在源头拦截 console.log/info/debug，只屏蔽带 EZUIKit 特征的日志，
+ * 不影响 MQTT（[CameraAlarmMQTT] / [MQTT]）等业务日志与 console.warn/error。
+ */
+const EZUIKIT_LOG_PATTERNS = [
+  '[ezuikit',
+  '[ezopen',
+  '>>>JSPlayerInterface',
+  'wasmplayer.min.js',
+  'Decoder.js',
+  'DecodeWorker.js',
+  'JSPlayerSDK',
+  'there will play by',
+  'your browser protocol is'
+];
+
+let consoleFilterInstalled = false;
+
+function installEzuikitConsoleFilter() {
+  if (consoleFilterInstalled || typeof window === 'undefined') return;
+  consoleFilterInstalled = true;
+
+  const isEzuikitLog = (args: unknown[]): boolean => {
+    const text = args
+      .map(arg => {
+        if (typeof arg === 'string') return arg;
+        try {
+          return JSON.stringify(arg);
+        } catch {
+          return String(arg);
+        }
+      })
+      .join(' ');
+    return EZUIKIT_LOG_PATTERNS.some(pattern => text.includes(pattern));
+  };
+
+  const originalLog = console.log.bind(console);
+  const originalInfo = console.info.bind(console);
+  const originalDebug = console.debug.bind(console);
+
+  console.log = ((...args: unknown[]) => {
+    if (isEzuikitLog(args)) return;
+    originalLog(...args);
+  }) as typeof console.log;
+
+  console.info = ((...args: unknown[]) => {
+    if (isEzuikitLog(args)) return;
+    originalInfo(...args);
+  }) as typeof console.info;
+
+  console.debug = ((...args: unknown[]) => {
+    if (isEzuikitLog(args)) return;
+    originalDebug(...args);
+  }) as typeof console.debug;
+}
+
 export function loadEZUIKitPlayer(): Promise<any> {
+  installEzuikitConsoleFilter();
+
   if (window.EZUIKit?.EZUIKitPlayer) {
     return Promise.resolve(window.EZUIKit.EZUIKitPlayer);
   }

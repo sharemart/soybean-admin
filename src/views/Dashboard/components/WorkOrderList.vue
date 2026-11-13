@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef, triggerRef } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, triggerRef, watch } from 'vue';
 import { ClipboardList } from 'lucide-vue-next';
 import { fetchProblemList } from '@/service/api/screen/screen';
 
@@ -19,11 +19,12 @@ interface ProblemItem {
 }
 
 const PAGE_SIZE = 10; // 每页请求条数
-const WINDOW_ROWS = 30; // 内存保留最大条数，也用于计算滚动时长
-const ROW_SECONDS = 1.2; // 等效每条停留秒数，越小滚动越快
-const MIN_DURATION = 16; // 最短滚动周期（秒），防止数据太少时转圈过快
-const FILL_ROWS = 10; // 超过此条数才开启滚动，否则静止显示
+const WINDOW_ROWS = 15; // 内存保留最大条数，避免 DOM 过多
+const FILL_ROWS = 5; // 超过此条数才开启滚动
 const MAX_PAGES = 30; // 最多请求页数，防止无限加载
+
+// 🎯 在这里调整速度：每秒滚动的像素。例如 15 表示每秒慢慢滚 15 像素。
+const PIXELS_PER_SECOND = 15;
 
 const list = shallowRef<ProblemItem[]>([]);
 const total = shallowRef(0);
@@ -70,8 +71,67 @@ const filteredList = computed(() => {
 /** 是否滚动：超过 FILL_ROWS 才滚 */
 const shouldScroll = computed(() => filteredList.value.length > FILL_ROWS);
 
-/** 动画时长：条数越多越慢，至少 MIN_DURATION 秒 */
-const scrollDuration = computed(() => `${Math.max(WINDOW_ROWS * ROW_SECONDS, MIN_DURATION)}s`);
+// ================== 绝对匀速滚动核心逻辑 ==================
+const scrollWrapRef = ref<HTMLElement | null>(null);
+const scrollInnerRef = ref<HTMLElement | null>(null);
+
+let animationFrameId: number | null = null;
+let currentScrollTop = 0;
+let isHovering = false;
+let lastTime = 0; // 记录上一帧的时间戳
+
+const startScroll = () => {
+  if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  lastTime = performance.now();
+
+  const animate = (time: number) => {
+    const wrap = scrollWrapRef.value;
+    const inner = scrollInnerRef.value;
+
+    // 如果不需要滚动，或者鼠标悬停，或者内容还没渲染出来，就暂停
+    if (!wrap || !inner || !shouldScroll.value || isHovering) {
+      lastTime = time; // 重置时间，防止悬停恢复时瞬移
+      animationFrameId = requestAnimationFrame(animate);
+      return;
+    }
+
+    // 计算距离上一帧经过了多少秒
+    const deltaTime = (time - lastTime) / 1000;
+    lastTime = time;
+
+    // 按时间累加滚动距离 (速度 * 时间)，保证 60Hz 和 144Hz 速度完全一致
+    currentScrollTop += PIXELS_PER_SECOND * deltaTime;
+
+    // 由于渲染了两份数据，一半的高度就是真实列表的高度
+    const maxScroll = inner.clientHeight / 2;
+
+    // 滚动到底部，瞬间归零（因为有两份数据，视觉上是无缝的）
+    if (currentScrollTop >= maxScroll) {
+      currentScrollTop = 0;
+    }
+
+    inner.style.transform = `translateY(-${currentScrollTop}px)`;
+    animationFrameId = requestAnimationFrame(animate);
+  };
+
+  animationFrameId = requestAnimationFrame(animate);
+};
+
+const handleMouseEnter = () => (isHovering = true);
+const handleMouseLeave = () => (isHovering = false);
+
+// 当数据变化时，重置滚动位置并重启动画
+watch(
+  () => [filteredList.value.length, shouldScroll.value],
+  () => {
+    currentScrollTop = 0;
+    if (scrollInnerRef.value) {
+      scrollInnerRef.value.style.transform = `translateY(0px)`;
+    }
+    nextTick(() => startScroll());
+  }
+);
+// ==================================================
 
 /** 追加数据并裁剪到窗口大小 */
 const appendList = (newList: ProblemItem[]) => {
@@ -116,18 +176,10 @@ const ensureFill = async () => {
   }
 };
 
-/** 滚动一轮，请求下一页 */
-const onAnimationIteration = () => {
-  if (destroyed) return;
-  if (loading.value) return;
-  if (!hasMore.value) return;
-  page.value += 1;
-  fetchPage(page.value);
-};
-
 onMounted(async () => {
   await fetchPage(1);
   await ensureFill();
+  nextTick(() => startScroll());
 });
 
 const refresh = async () => {
@@ -139,6 +191,7 @@ const refresh = async () => {
 
 onUnmounted(() => {
   destroyed = true;
+  if (animationFrameId) cancelAnimationFrame(animationFrameId);
 });
 
 defineExpose({ refresh });
@@ -169,7 +222,6 @@ defineExpose({ refresh });
 
     <div class="order-table">
       <div class="table-head">
-        <span>单号</span>
         <span>电梯名称</span>
         <span>问题类型</span>
         <span>状态</span>
@@ -177,21 +229,15 @@ defineExpose({ refresh });
       </div>
 
       <!-- 滚动区域 -->
-      <div class="scroll-wrap">
-        <div
-          class="scroll-inner"
-          :class="{ 'is-scrolling': shouldScroll }"
-          :style="{ '--scroll-duration': scrollDuration }"
-          @animationiteration="onAnimationIteration"
-        >
+      <div ref="scrollWrapRef" class="scroll-wrap" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+        <div ref="scrollInnerRef" class="scroll-inner">
           <!-- 第一份 -->
           <div
             v-for="item in filteredList"
-            :key="'a-' + item.biz_id"
-            v-memo="[item.biz_id, item.status_text, item.is_tiring]"
+            :key="'a-' + item.problem_type + '-' + item.biz_id"
+            v-memo="[item.problem_type, item.biz_id, item.status_text, item.is_tiring]"
             class="table-row"
           >
-            <span class="order-no">#{{ item.biz_id }}</span>
             <span :title="item.elevator_name">{{ item.elevator_name }}</span>
             <span :title="item.title">
               {{ item.problem_type === 'urgent_repair' ? '急修' : '逾期维保' }}
@@ -209,11 +255,10 @@ defineExpose({ refresh });
           <template v-if="shouldScroll">
             <div
               v-for="item in filteredList"
-              :key="'b-' + item.biz_id"
-              v-memo="[item.biz_id, item.status_text, item.is_tiring]"
+              :key="'b-' + item.problem_type + '-' + item.biz_id"
+              v-memo="[item.problem_type, item.biz_id, item.status_text, item.is_tiring]"
               class="table-row"
             >
-              <span class="order-no">#{{ item.biz_id }}</span>
               <span :title="item.elevator_name">{{ item.elevator_name }}</span>
               <span :title="item.title">
                 {{ item.problem_type === 'urgent_repair' ? '急修' : '逾期维保' }}
@@ -350,35 +395,42 @@ defineExpose({ refresh });
   font-size: 12px;
   display: flex;
   flex-direction: column;
+  flex: 1; /* 让它占满剩余高度 */
   min-height: 0;
 }
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr 0.9fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1.8fr 1.1fr 0.9fr 0.8fr;
+  gap: 10px;
   min-width: 0;
 }
 .table-head {
-  padding: 0 4px 7px;
-  color: #9eb2ca;
+  padding: 0 6px 8px;
+  color: #b0c4da;
   font-weight: 700;
   font-size: 12px;
+  letter-spacing: 0.3px;
   flex-shrink: 0;
 }
 .table-row {
-  min-height: 34px;
-  border-top: 1px solid rgba(99, 133, 167, 0.22);
+  min-height: 36px;
+  padding: 4px 6px;
+  align-items: center;
+  border-radius: 7px;
+  border-top: none;
+  transition: background 0.2s;
+}
+.table-row:nth-child(odd) {
+  background: rgba(18, 39, 69, 0.28);
+}
+.table-row:hover {
+  background: rgba(22, 217, 255, 0.07);
 }
 .table-row > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.order-no {
-  color: #2785ff;
-  font-family: monospace;
-  font-size: 11px;
 }
 .time {
   color: #8299b2;
@@ -426,25 +478,14 @@ defineExpose({ refresh });
 /* 滚动容器 */
 .scroll-wrap {
   position: relative;
-  height: 310px;
+  flex: 1; /* 撑满表格剩余部分 */
+  min-height: 0; /* 防止被内容撑开 */
   overflow: hidden;
-  mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
 }
-.scroll-inner.is-scrolling {
+.scroll-inner {
   will-change: transform;
-  animation: scrollUp var(--scroll-duration, 20s) linear infinite;
-}
-.scroll-inner.is-scrolling:hover {
-  animation-play-state: paused;
-}
-@keyframes scrollUp {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(-50%);
-  }
+  /* 增加一点底部内边距，防止滚动时切边 */
+  padding-bottom: 10px;
 }
 
 .empty {
@@ -457,7 +498,7 @@ defineExpose({ refresh });
 @media (max-width: 520px) {
   .table-head,
   .table-row {
-    grid-template-columns: 1.1fr 1.2fr 1fr 0.9fr;
+    grid-template-columns: 1.6fr 1fr 0.8fr 0.8fr;
   }
   .table-head span:last-child,
   .table-row span:last-child {

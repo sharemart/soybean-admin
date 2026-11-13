@@ -4,8 +4,8 @@ import { NInput, NSelect, useMessage } from 'naive-ui';
 import { Plus, RefreshCw, Video, X } from 'lucide-vue-next';
 import { addCamera } from '@/service/api/camera/cameraApi';
 import type { CameraAccessParam } from '@/service/api/camera/camera.d';
+import { getCompanyList } from '@/service/api/organizational/organizational';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
-import { useMaintainCompanySelector } from '@/components/selectOption/useMaintainCompanySelector';
 
 interface Props {
   isOpen: boolean;
@@ -20,7 +20,27 @@ const emit = defineEmits<{
 
 const message = useMessage();
 const submitting = ref(false);
-const { maintainCompanyOptions, loading: companyLoading, fetchMaintainCompanyList } = useMaintainCompanySelector();
+
+const companyOptions = ref<Array<{ label: string; value: number }>>([]);
+const companyLoading = ref(false);
+
+const fetchCompanyList = async () => {
+  try {
+    companyLoading.value = true;
+    const res = await getCompanyList({ is_user: 1, page: 1, limit: 200 });
+    const data = res.data?.data;
+    if (data?.list) {
+      companyOptions.value = data.list.map(item => ({
+        label: item.name,
+        value: Number(item.id)
+      }));
+    }
+  } catch (error) {
+    message.error(`获取单位列表失败${error}`);
+  } finally {
+    companyLoading.value = false;
+  }
+};
 
 const form = reactive({
   company_id: 0 as number,
@@ -44,7 +64,7 @@ watch(
       form.name = '';
       form.device_serial = '';
       form.validate_code = '';
-      fetchMaintainCompanyList();
+      fetchCompanyList();
     }
   }
 );
@@ -104,7 +124,7 @@ const handleSubmit = async () => {
     @click.self="emit('close')"
   >
     <div
-      class="w-full max-w-md overflow-hidden border border-slate-200 rounded-[2rem] bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      class="max-w-md w-full overflow-hidden border border-slate-200 rounded-[2rem] bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
     >
       <header class="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
         <div class="flex items-center gap-3">
@@ -113,7 +133,7 @@ const handleSubmit = async () => {
           </div>
           <div>
             <h3 class="text-sm text-slate-800 font-black dark:text-slate-100">接入摄像头</h3>
-            <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Add Device</p>
+            <p class="text-slate-400 font-bold tracking-widest uppercase text-[10px]">Add Device</p>
           </div>
         </div>
         <button class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" @click="emit('close')">
@@ -123,50 +143,50 @@ const handleSubmit = async () => {
 
       <div class="px-6 py-5 space-y-4">
         <div class="space-y-1.5">
-          <label class="text-[10px] text-slate-400 font-black tracking-widest uppercase">所属公司（可选）</label>
+          <label class="text-slate-400 font-black tracking-widest uppercase text-[10px]">所属公司（可选）</label>
           <CustomSelect
             v-model="form.company_id"
-            :options="[{ label: '默认登录公司', value: 0 }, ...maintainCompanyOptions]"
-            :loading="companyLoading.maintainLoading"
+            :options="[{ label: '默认登录公司', value: 0 }, ...companyOptions]"
+            :loading="companyLoading"
             placeholder="默认登录公司"
           />
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-[10px] text-slate-400 font-black tracking-widest uppercase">协议</label>
+          <label class="text-slate-400 font-black tracking-widest uppercase text-[10px]">协议</label>
           <NSelect v-model:value="form.protocol" :options="protocolOptions" />
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-[10px] text-slate-400 font-black tracking-widest uppercase">设备名称</label>
+          <label class="text-slate-400 font-black tracking-widest uppercase text-[10px]">设备名称</label>
           <NInput v-model:value="form.name" placeholder="请输入名称" />
         </div>
 
         <template v-if="form.protocol === 'ys7'">
           <div class="space-y-1.5">
-            <label class="text-[10px] text-slate-400 font-black tracking-widest uppercase">萤石序列号</label>
+            <label class="text-slate-400 font-black tracking-widest uppercase text-[10px]">萤石序列号</label>
             <NInput v-model:value="form.device_serial" placeholder="设备机身序列号" />
           </div>
           <div class="space-y-1.5">
-            <label class="text-[10px] text-slate-400 font-black tracking-widest uppercase">机身验证码</label>
+            <label class="text-slate-400 font-black tracking-widest uppercase text-[10px]">机身验证码</label>
             <NInput v-model:value="form.validate_code" placeholder="设备机身验证码" />
           </div>
         </template>
 
-        <p v-else class="rounded-2xl bg-amber-500/10 px-4 py-3 text-[11px] text-amber-600 font-medium leading-relaxed">
+        <p v-else class="rounded-2xl bg-amber-500/10 px-4 py-3 text-amber-600 font-medium leading-relaxed text-[11px]">
           国标设备接入后将返回 SIP 参数，请在现场设备端完成注册配置。
         </p>
       </div>
 
       <footer class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
         <button
-          class="rounded-2xl bg-slate-100 px-5 py-2.5 text-[10px] text-slate-600 font-black tracking-widest uppercase dark:bg-slate-800"
+          class="rounded-2xl bg-slate-100 px-5 py-2.5 text-slate-600 font-black tracking-widest uppercase text-[10px] dark:bg-slate-800"
           @click="emit('close')"
         >
           取消
         </button>
         <button
-          class="flex items-center gap-2 rounded-2xl bg-sky-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 disabled:opacity-60"
+          class="flex items-center gap-2 rounded-2xl bg-sky-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 text-[10px] disabled:opacity-60"
           :disabled="submitting"
           @click="handleSubmit"
         >

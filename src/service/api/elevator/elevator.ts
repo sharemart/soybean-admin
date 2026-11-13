@@ -1,15 +1,42 @@
 import { request } from '../../request';
-import type { GetElevatorSimpleListParams, GetElevatorSimpleListResponse } from './elevator.d';
+import type {
+  ExportElevatorParams,
+  ExportElevatorResponse,
+  GetElevatorRunRecordParams,
+  GetElevatorRunRecordResponse,
+  GetElevatorSimpleListParams,
+  GetElevatorSimpleListResponse
+} from './elevator.d';
+
 /**
  * 获取电梯列表（简易版）
- *
- * @param params - 筛选参数（GET 请求，自动转为 Query 参数）
- * @returns 电梯简易列表数据
  */
 export function getElevatorSimpleList(params: GetElevatorSimpleListParams = {}) {
   return request<GetElevatorSimpleListResponse>({
     url: '/dashboard/elevator/getSimpleList',
     method: 'GET',
+    params
+  });
+}
+
+/**
+ * 获取单梯运行记录
+ */
+export function fetchElevatorRunRecord(params: GetElevatorRunRecordParams) {
+  return request<GetElevatorRunRecordResponse>({
+    url: '/dashboard/elevatorRun/getByElevator',
+    method: 'get',
+    params
+  });
+}
+
+/**
+ * 导出电梯数据
+ */
+export function exportElevator(params: ExportElevatorParams = {}) {
+  return request<ExportElevatorResponse>({
+    url: '/dashboard/elevator/exportElevator',
+    method: 'get',
     params
   });
 }

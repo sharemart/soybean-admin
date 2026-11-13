@@ -3,8 +3,20 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import dayjs from 'dayjs';
 import * as echarts from 'echarts';
-import { BadgeCheck, Briefcase, Edit, Info, Mail, Phone, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next';
-import { deleteUser, fetchUserDetail, fetchUserList } from '@/service/api/person/personApi';
+import {
+  BadgeCheck,
+  Briefcase,
+  Building2,
+  Edit,
+  Info,
+  Mail,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2
+} from 'lucide-vue-next';
+import { deleteUser, fetchCompanyList, fetchUserDetail, fetchUserList } from '@/service/api/person/personApi';
 import AddPersonModal from '@/components/modal/person/addPerson.vue';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import PagePagination from '@/components/common/PagePagination.vue';
@@ -145,6 +157,9 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const searchTerm = ref('');
 const jobFilter = ref('0');
+const companyFilter = ref('');
+const companyOptions = ref<Array<{ label: string; value: string | number }>>([]);
+const companyLoading = ref(false);
 // 加载状态
 const isSyncing = ref(false);
 const editLoading = ref(false);
@@ -193,6 +208,25 @@ const chartData = computed(() => {
 });
 
 // ==================== 业务方法 ====================
+
+/** 获取维保公司下拉列表 */
+const getCompanyOptions = async () => {
+  companyLoading.value = true;
+  try {
+    const res = await fetchCompanyList({ page: 1, limit: 500 });
+    const data = (res.data?.data as any)?.list ?? (res.data?.data as any) ?? [];
+    const list = Array.isArray(data) ? data : [];
+    companyOptions.value = list.map((item: any) => ({
+      label: item.name,
+      value: String(item.id)
+    }));
+  } catch (e) {
+    console.error('获取维保公司列表失败', e);
+  } finally {
+    companyLoading.value = false;
+  }
+};
+
 const getUserList = async () => {
   loading.value = true;
   isSyncing.value = true;
@@ -203,6 +237,7 @@ const getUserList = async () => {
       user_name: searchTerm.value,
       realname: searchTerm.value,
       jobs: jobFilter.value === '0' ? undefined : Number(jobFilter.value),
+      company_id: companyFilter.value ? Number(companyFilter.value) : undefined,
       is_use: 1
     };
     const rawRes = await fetchUserList(params);
@@ -367,6 +402,7 @@ const handleAddPersonConfirm = () => {
 onMounted(() => {
   initECharts();
   window.addEventListener('resize', resizeChart);
+  getCompanyOptions();
   getUserList();
 });
 
@@ -385,6 +421,10 @@ watch(searchTerm, () => {
   getUserList();
 });
 watch(jobFilter, () => {
+  currentPage.value = 1;
+  getUserList();
+});
+watch(companyFilter, () => {
   currentPage.value = 1;
   getUserList();
 });
@@ -409,6 +449,15 @@ defineExpose({ UserSex });
           />
         </div>
         <div class="flex items-center gap-3">
+          <CustomSelect
+            v-model="companyFilter"
+            :options="[{ label: '全部公司', value: '' }, ...companyOptions]"
+            :loading="companyLoading"
+            :icon="Building2"
+            icon-class="text-sky-500"
+            placeholder="全部维保公司"
+            width="180px"
+          />
           <CustomSelect
             v-model="jobFilter"
             :options="[
@@ -454,7 +503,7 @@ defineExpose({ UserSex });
           <table class="w-full border-collapse text-left">
             <thead>
               <tr
-                class="border-b border-slate-100 bg-slate-50/80 text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase dark:border-slate-800 dark:bg-slate-900/80"
+                class="border-b border-slate-100 bg-slate-50/80 text-slate-400 font-black tracking-[0.2em] uppercase text-[10px] dark:border-slate-800 dark:bg-slate-900/80"
               >
                 <th class="px-6 py-5">人员档案 / 账号</th>
                 <th class="px-6 py-5">职位类别</th>
@@ -484,10 +533,10 @@ defineExpose({ UserSex });
                     </div>
                     <div class="flex flex-col">
                       <span class="text-sm text-slate-700 font-bold dark:text-slate-200">{{ u.realname }}</span>
-                      <span class="text-[10px] text-slate-400 font-black tracking-tighter font-mono uppercase">
+                      <span class="text-slate-400 font-black tracking-tighter font-mono uppercase text-[10px]">
                         @{{ u.user_name }}
                       </span>
-                      <span class="text-[8px] text-slate-300 font-mono">ID: {{ u.user_id }}</span>
+                      <span class="text-slate-300 font-mono text-[8px]">ID: {{ u.user_id }}</span>
                     </div>
                   </div>
                 </td>
@@ -500,17 +549,17 @@ defineExpose({ UserSex });
                 </td>
                 <td class="px-6 py-5">
                   <div class="flex flex-col gap-1">
-                    <span class="flex items-center gap-1.5 text-[11px] text-slate-600 font-bold dark:text-slate-300">
+                    <span class="flex items-center gap-1.5 text-slate-600 font-bold text-[11px] dark:text-slate-300">
                       <Briefcase :size="12" class="text-sky-500"></Briefcase>
                       {{ u.company_name }}
                     </span>
-                    <span class="pl-4.5 text-[10px] text-slate-400 font-black tracking-widest uppercase">
+                    <span class="pl-4.5 text-slate-400 font-black tracking-widest uppercase text-[10px]">
                       {{ u.role_name }}
                     </span>
                   </div>
                 </td>
                 <td class="px-6 py-5">
-                  <div class="flex flex-col gap-1 text-[11px] text-slate-500 font-medium">
+                  <div class="flex flex-col gap-1 text-slate-500 font-medium text-[11px]">
                     <span class="flex items-center gap-1.5">
                       <Phone :size="12" class="text-slate-400"></Phone>
                       {{ u.phone }}
@@ -525,7 +574,7 @@ defineExpose({ UserSex });
                   <template v-if="u.is_use === 1">
                     <div class="flex justify-center"><BadgeCheck :size="18" class="text-emerald-500"></BadgeCheck></div>
                   </template>
-                  <span v-else class="text-[10px] text-slate-300 font-black uppercase">禁用</span>
+                  <span v-else class="text-slate-300 font-black uppercase text-[10px]">禁用</span>
                 </td>
                 <td class="px-6 py-5 text-right">
                   <div class="flex justify-end gap-2">
@@ -568,7 +617,7 @@ defineExpose({ UserSex });
         </div>
         <div class="space-y-1">
           <h4 class="text-xs text-amber-600 font-black tracking-widest uppercase">人员管理规范提示</h4>
-          <ul class="list-disc pl-4 text-[10px] text-amber-600/80 font-medium leading-relaxed uppercase italic">
+          <ul class="list-disc pl-4 text-amber-600/80 font-medium leading-relaxed uppercase italic text-[10px]">
             <li>管理人员 (Manager) 权限：每个单位仅允许创建一名核心管理员账号，用于下发任务与管理本单位资产。</li>
             <li>维保人员 (Maintenance) 权限：创建后需在“维保小组”模块中进行编组，方可接收急修与保养任务。</li>
             <li>权限继承：您只能在所属机构及其下属子机构范围内创建人员，无法跨机构操作。</li>
@@ -582,11 +631,11 @@ defineExpose({ UserSex });
       class="fixed bottom-0 left-[220px] right-0 z-50 h-16 flex items-center justify-between border-t border-slate-200 bg-white/90 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90"
     >
       <div class="flex items-center gap-6">
-        <span class="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+        <span class="flex items-center gap-2 text-slate-500 font-bold text-[10px]">
           <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500"></div>
           人员管理系统
         </span>
-        <span class="text-[10px] text-sky-500 font-bold">总人数：{{ totalCount }} 人</span>
+        <span class="text-sky-500 font-bold text-[10px]">总人数：{{ totalCount }} 人</span>
       </div>
       <div class="scale-90">
         <PagePagination

@@ -6,14 +6,19 @@ import type {
   BindCameraResponse,
   DeleteCameraParams,
   DeleteCameraResponse,
+  DeleteCameraSceneAlgoParams,
+  DeleteCameraSceneAlgoResponse,
   GetCameraAlarmListParams,
   GetCameraAlarmListResponse,
+  GetCameraAlarmStatParams,
+  GetCameraAlarmStatResponse,
   GetCameraListParams,
   GetCameraListResponse,
   GetCameraLiveParams,
   GetCameraLiveResponse,
-  GetCameraScenesResponse,
   GetCameraSceneAlgoResponse,
+  GetCameraScenesParams,
+  GetCameraScenesResponse,
   ReadCameraAlarmParams,
   ReadCameraAlarmResponse,
   SaveCameraSceneAlgoParams,
@@ -83,14 +88,15 @@ export function deleteCamera(data: DeleteCameraParams) {
 }
 
 /** 场景目录 */
-export function fetchCameraScenes() {
+export function fetchCameraScenes(params?: GetCameraScenesParams) {
   return request<GetCameraScenesResponse>({
     url: '/dashboard/camera/scenes',
-    method: 'get'
+    method: 'get',
+    params
   });
 }
 
-/** 平台场景算法（超管）：获取 */
+/** 平台场景算法（超管）：获取已入库配置，普通用户无权限 */
 export function fetchCameraSceneAlgo() {
   return request<GetCameraSceneAlgoResponse>({
     url: '/dashboard/camera/sceneAlgo',
@@ -98,10 +104,19 @@ export function fetchCameraSceneAlgo() {
   });
 }
 
-/** 平台场景算法（超管）：保存 taskType，空串表示清空 */
+/** 平台场景算法（超管）：新增或更新。无记录则新增，已有记录则更新 taskType、名称和开关。与具体设备无关 */
 export function saveCameraSceneAlgo(data: SaveCameraSceneAlgoParams) {
   return request<SaveCameraSceneAlgoResponse>({
     url: '/dashboard/camera/sceneAlgo',
+    method: 'post',
+    data
+  });
+}
+
+/** 平台场景算法（超管）：删除该场景的平台算法配置，并关闭所有设备上该场景的开关 */
+export function deleteCameraSceneAlgo(data: DeleteCameraSceneAlgoParams) {
+  return request<DeleteCameraSceneAlgoResponse>({
+    url: '/dashboard/camera/sceneAlgoDelete',
     method: 'post',
     data
   });
@@ -158,5 +173,14 @@ export function readCameraAlarm(data: ReadCameraAlarmParams) {
     url: '/dashboard/camera/alarmRead',
     method: 'post',
     data
+  });
+}
+
+/** 告警统计：按当前筛选汇总告警数量，按场景等级、场景拆分未读和已读 */
+export function fetchCameraAlarmStat(params: GetCameraAlarmStatParams) {
+  return request<GetCameraAlarmStatResponse>({
+    url: '/dashboard/camera/alarmStat',
+    method: 'get',
+    params
   });
 }

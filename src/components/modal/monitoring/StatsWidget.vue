@@ -4,15 +4,15 @@
   <div class="space-y-8">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div class="border border-indigo-500/10 rounded-3xl bg-indigo-500/5 p-5 text-center">
-        <p class="mb-1 text-[10px] text-indigo-400 font-black tracking-widest uppercase">活跃系数</p>
+        <p class="mb-1 text-indigo-400 font-black tracking-widest uppercase text-[10px]">活跃系数</p>
         <p class="text-2xl text-indigo-600 font-black dark:text-indigo-400">0.82</p>
       </div>
       <div class="border border-sky-500/10 rounded-3xl bg-sky-500/5 p-5 text-center">
-        <p class="mb-1 text-[10px] text-sky-400 font-black tracking-widest uppercase">高峰时段</p>
+        <p class="mb-1 text-sky-400 font-black tracking-widest uppercase text-[10px]">高峰时段</p>
         <p class="text-2xl text-sky-600 font-black dark:text-sky-400">17:42</p>
       </div>
       <div class="border border-emerald-500/10 rounded-3xl bg-emerald-500/5 p-5 text-center">
-        <p class="mb-1 text-[10px] text-emerald-400 font-black tracking-widest uppercase">能耗效率</p>
+        <p class="mb-1 text-emerald-400 font-black tracking-widest uppercase text-[10px]">能耗效率</p>
         <p class="text-2xl text-emerald-600 font-black dark:text-emerald-400">A+</p>
       </div>
     </div>

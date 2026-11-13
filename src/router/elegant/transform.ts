@@ -205,6 +205,7 @@ const routeMap: RouteMap = {
   "monitoring": "/monitoring",
   "monitoring_demo": "/monitoring/demo",
   "monitoring_detail": "/monitoring/detail",
+  "propertyscreen": "/propertyscreen",
   "report": "/report",
   "report_companyusage": "/report/companyusage",
   "report_propertyusage": "/report/propertyusage",

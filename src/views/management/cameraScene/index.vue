@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useMessage } from 'naive-ui';
-import { Cpu, RefreshCw, Search, Settings2 } from 'lucide-vue-next';
-import { useAuthStore } from '@/store/modules/auth';
+import { useDialog, useMessage } from 'naive-ui';
+import { Cpu, Pencil, RefreshCw, Search, Settings2, Trash2 } from 'lucide-vue-next';
 import {
+  deleteCameraSceneAlgo,
   fetchCameraList,
   fetchCameraSceneAlgo,
   fetchCameraSceneConfig,
@@ -21,6 +21,7 @@ import type {
   CameraSceneSchemaField,
   CameraSceneUserConfig
 } from '@/service/api/camera/camera.d';
+import { useAuthStore } from '@/store/modules/auth';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 import { useMaintainCompanySelector } from '@/components/selectOption/useMaintainCompanySelector';
 import {
@@ -64,6 +65,7 @@ const KNOWN_FIELDS: Record<string, Partial<FormField>> = {
 
 const route = useRoute();
 const message = useMessage();
+const dialog = useDialog();
 const authStore = useAuthStore();
 
 const isSuperAdmin = computed(() => Number(authStore.userInfo.roleId) === 1);
@@ -88,15 +90,13 @@ const algoError = ref('');
 
 const filters = reactive({
   company_id: 0,
-  name: ''
+  name: '',
+  algorithm_enabled: undefined as number | undefined
 });
 
 const { maintainCompanyOptions, loading: companyLoading, fetchMaintainCompanyList } = useMaintainCompanySelector();
 
-const companySelectOptions = computed(() => [
-  { label: '全部公司', value: 0 },
-  ...maintainCompanyOptions.value
-]);
+const companySelectOptions = computed(() => [{ label: '全部公司', value: 0 }, ...maintainCompanyOptions.value]);
 
 const selected = computed(() => list.value.find(item => item.id === selectedId.value) || null);
 
@@ -302,7 +302,10 @@ const loadForms = async () => {
           return;
         }
         const data = res.data.data;
-        const schema = normalizeSchema(data?.config_schema || scene.config_schema, data?.config || scene.default_config);
+        const schema = normalizeSchema(
+          data?.config_schema || scene.config_schema,
+          data?.config || scene.default_config
+        );
         form.schema = schema;
         form.draft = toDraft(data?.config || scene.default_config, schema);
         form.taskType = data?.task_type || scene.task_type || '';
@@ -375,7 +378,11 @@ const fetchList = async () => {
 const loadCatalog = async () => {
   try {
     catalogLoading.value = true;
-    const res = await fetchCameraScenes();
+    const params: Record<string, number> = {};
+    if (filters.algorithm_enabled !== undefined) {
+      params.algorithm_enabled = filters.algorithm_enabled;
+    }
+    const res = await fetchCameraScenes(params);
     if (res?.data?.code === 2000) {
       catalog.value = Array.isArray(res.data.data) ? res.data.data : [];
     } else {
@@ -408,6 +415,114 @@ const loadAlgo = async () => {
   } finally {
     algoLoading.value = false;
   }
+};
+
+const showAlgoDrawer = ref(false);
+const editingSceneCode = ref<string | null>(null);
+const newAlgoSaving = ref(false);
+const newAlgoForm = reactive({
+  scene_code: '',
+  name: '',
+  task_type: '',
+  level: 'hazard',
+  enabled: 0
+});
+
+const openAddAlgoDrawer = () => {
+  editingSceneCode.value = null;
+  newAlgoForm.scene_code = '';
+  newAlgoForm.name = '';
+  newAlgoForm.task_type = '';
+  newAlgoForm.level = 'hazard';
+  newAlgoForm.enabled = 0;
+  showAlgoDrawer.value = true;
+};
+
+const openEditAlgoDrawer = (row: CameraSceneAlgoItem) => {
+  editingSceneCode.value = row.scene_code;
+  newAlgoForm.scene_code = row.scene_code;
+  newAlgoForm.name = row.name || '';
+  newAlgoForm.task_type = row.task_type || '';
+  newAlgoForm.level = row.level || 'hazard';
+  newAlgoForm.enabled = row.enabled ?? 0;
+  showAlgoDrawer.value = true;
+};
+
+const closeAlgoDrawer = () => {
+  showAlgoDrawer.value = false;
+};
+
+const submitNewAlgo = async () => {
+  const code = newAlgoForm.scene_code.trim();
+  if (!code) {
+    message.warning('请输入场景编码');
+    return;
+  }
+  if (!/^[a-z][a-z0-9_]*$/.test(code)) {
+    message.warning('场景编码须以小写字母开头，可含数字和下划线');
+    return;
+  }
+  const taskType = newAlgoForm.task_type.trim();
+  const name = newAlgoForm.name.trim();
+  const isEdit = Boolean(editingSceneCode.value);
+  try {
+    newAlgoSaving.value = true;
+    const res = await saveCameraSceneAlgo({
+      scene_code: code,
+      task_type: taskType,
+      name: name || undefined,
+      level: newAlgoForm.level,
+      enabled: newAlgoForm.enabled
+    });
+    if (res?.data?.code === 2000) {
+      if (isEdit) {
+        const updated = res.data.data;
+        const idx = algoList.value.findIndex(item => item.scene_code === code);
+        if (idx >= 0) {
+          algoList.value[idx] = { ...algoList.value[idx], ...updated };
+        }
+      }
+      message.success(isEdit ? '编辑成功' : '新增成功');
+      closeAlgoDrawer();
+      await loadAlgo();
+      await loadCatalog();
+    } else {
+      message.error(res?.data?.msg || res?.data?.message || '保存失败');
+    }
+  } catch (error) {
+    message.error(`保存失败：${error}`);
+  } finally {
+    newAlgoSaving.value = false;
+  }
+};
+
+const algoDeleting = reactive<Record<string, boolean>>({});
+
+const deleteAlgo = (row: CameraSceneAlgoItem) => {
+  const name = row.name || row.scene_code;
+  dialog.warning({
+    title: '删除平台场景算法',
+    content: `确认删除「${name}」？此操作会关闭所有设备上该场景的开关。`,
+    positiveText: '确认删除',
+    negativeText: '取消',
+    async onPositiveClick() {
+      try {
+        algoDeleting[row.scene_code] = true;
+        const res = await deleteCameraSceneAlgo({ scene_code: row.scene_code });
+        if (res?.data?.code === 2000) {
+          message.success('已删除');
+          algoList.value = algoList.value.filter(item => item.scene_code !== row.scene_code);
+          await loadCatalog();
+        } else {
+          message.error(res?.data?.msg || res?.data?.message || '删除失败');
+        }
+      } catch (error) {
+        message.error(`删除失败：${error}`);
+      } finally {
+        algoDeleting[row.scene_code] = false;
+      }
+    }
+  });
 };
 
 const saveAlgo = async (row: CameraSceneAlgoItem) => {
@@ -559,6 +674,17 @@ onMounted(async () => {
             @change="fetchList"
           />
         </div>
+        <div class="w-full lg:w-44">
+          <select
+            v-model="filters.algorithm_enabled"
+            class="w-full border border-slate-200 rounded-xl bg-white px-3 py-2.5 text-sm text-slate-700 font-medium dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            @change="loadCatalog"
+          >
+            <option :value="undefined">全部算法状态</option>
+            <option :value="1">算法已开启</option>
+            <option :value="0">算法未开启</option>
+          </select>
+        </div>
         <button
           class="border border-slate-200 rounded-xl bg-slate-50 p-2.5 text-slate-400 dark:border-slate-800 dark:bg-slate-900"
           :class="loading || catalogLoading ? 'animate-spin text-violet-500' : ''"
@@ -567,7 +693,7 @@ onMounted(async () => {
           <RefreshCw :size="18" />
         </button>
       </div>
-      <p class="text-[11px] text-slate-400 leading-5">
+      <p class="text-slate-400 leading-5 text-[11px]">
         按通道开关场景，并填写逗留时长、抽帧间隔等业务参数。算法编码由系统管理员统一配置，此处只读。
       </p>
     </div>
@@ -579,7 +705,17 @@ onMounted(async () => {
       <div class="mb-4 flex items-center gap-2">
         <Cpu class="text-sky-500" :size="16" />
         <h2 class="text-sm text-slate-800 font-black dark:text-slate-100">平台场景算法</h2>
-        <span class="text-[10px] text-slate-400">与具体设备无关，留空保存即清空 taskType</span>
+        <span class="text-slate-400 text-[10px]">与具体设备无关，留空保存即清空 taskType</span>
+        <div class="ml-auto">
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded-xl bg-violet-500 px-3 py-1.5 text-white font-bold transition text-[11px] hover:bg-violet-600"
+            @click="openAddAlgoDrawer"
+          >
+            <span class="text-base leading-none">+</span>
+            新增
+          </button>
+        </div>
       </div>
       <p v-if="algoLoading" class="text-xs text-slate-400">加载中...</p>
       <p v-else-if="algoError" class="text-xs text-rose-500">{{ algoError }}</p>
@@ -587,20 +723,32 @@ onMounted(async () => {
         <div
           v-for="row in algoList"
           :key="row.scene_code"
-          class="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40"
+          class="border border-slate-100 rounded-2xl bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40"
         >
           <div class="mb-2 flex items-center justify-between gap-2">
             <span class="text-xs text-slate-700 font-bold dark:text-slate-200">
               {{ row.name || cameraSceneLabel(row.scene_code) }}
             </span>
-            <span
-              class="rounded-lg px-2 py-0.5 text-[10px] font-black"
-              :class="
-                row.status === 'reserved' ? 'bg-slate-200 text-slate-500' : 'bg-emerald-500/10 text-emerald-600'
-              "
-            >
-              {{ row.status === 'reserved' ? '未开放' : '可开启' }}
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span
+                class="rounded-lg px-2 py-0.5 font-black text-[10px]"
+                :class="row.level === 'urgent' ? 'bg-rose-500/10 text-rose-600' : 'bg-amber-500/10 text-amber-600'"
+              >
+                {{ row.level_name || (row.level === 'urgent' ? '紧急' : '隐患') }}
+              </span>
+              <span
+                class="rounded-lg px-2 py-0.5 font-black text-[10px]"
+                :class="
+                  row.status === 'reserved'
+                    ? 'bg-slate-200 text-slate-500'
+                    : row.algorithm_enabled
+                      ? 'bg-emerald-500/10 text-emerald-600'
+                      : 'bg-slate-200 text-slate-500'
+                "
+              >
+                {{ row.status === 'reserved' ? '未开放' : row.algorithm_enabled ? '已开启' : '已关闭' }}
+              </span>
+            </div>
           </div>
           <div class="flex gap-2">
             <input
@@ -610,7 +758,7 @@ onMounted(async () => {
               class="min-w-0 flex-1 border border-slate-200 rounded-xl bg-white px-3 py-2 text-xs font-mono dark:border-slate-700 dark:bg-slate-900"
             />
             <button
-              class="rounded-xl bg-sky-500 px-3 py-2 text-[10px] text-white font-black disabled:opacity-50"
+              class="rounded-xl bg-sky-500 px-3 py-2 text-white font-black text-[10px] disabled:opacity-50"
               :disabled="algoSaving[row.scene_code]"
               @click="saveAlgo(row)"
             >
@@ -620,6 +768,23 @@ onMounted(async () => {
           <p class="mt-2 text-[10px]" :class="row.task_type_ready ? 'text-emerald-500' : 'text-amber-500'">
             {{ row.task_type_ready ? '算法已配置' : '尚未配置算法' }}
           </p>
+          <div class="mt-2 flex justify-end gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+            <button
+              class="flex items-center gap-1 rounded-lg px-2 py-1 text-sky-500 font-bold transition text-[10px] hover:bg-sky-50 disabled:opacity-40 dark:hover:bg-sky-500/10"
+              @click="openEditAlgoDrawer(row)"
+            >
+              <Pencil :size="11" />
+              编辑
+            </button>
+            <button
+              class="flex items-center gap-1 rounded-lg px-2 py-1 text-rose-500 font-bold transition text-[10px] hover:bg-rose-50 disabled:opacity-40 dark:hover:bg-rose-500/10"
+              :disabled="algoDeleting[row.scene_code]"
+              @click="deleteAlgo(row)"
+            >
+              <Trash2 :size="11" />
+              {{ algoDeleting[row.scene_code] ? '删除中' : '删除' }}
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -629,17 +794,17 @@ onMounted(async () => {
         class="border border-slate-200 rounded-[2rem] bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/40"
       >
         <div class="mb-2 flex items-center justify-between px-2">
-          <span class="text-[10px] text-slate-400 font-black tracking-widest uppercase">设备</span>
-          <span class="text-[10px] text-violet-500 font-bold">{{ total }}</span>
+          <span class="text-slate-400 font-black tracking-widest uppercase text-[10px]">设备</span>
+          <span class="text-violet-500 font-bold text-[10px]">{{ total }}</span>
         </div>
         <div v-if="loading" class="py-10 text-center text-xs text-slate-400">加载中...</div>
         <div v-else-if="!list.length" class="py-10 text-center text-xs text-slate-400">暂无摄像头</div>
-        <div v-else class="custom-scrollbar max-h-[720px] space-y-2 overflow-y-auto">
+        <div v-else class="custom-scrollbar max-h-[720px] overflow-y-auto space-y-2">
           <button
             v-for="item in list"
             :key="item.id"
             type="button"
-            class="w-full rounded-2xl border p-3 text-left transition"
+            class="w-full border rounded-2xl p-3 text-left transition"
             :class="
               item.id === selectedId
                 ? 'border-violet-400 bg-violet-500/5'
@@ -650,21 +815,21 @@ onMounted(async () => {
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
                 <p class="truncate text-xs text-slate-800 font-bold dark:text-slate-100">{{ item.name }}</p>
-                <p class="truncate text-[10px] text-slate-400 font-mono">{{ item.device_serial || '-' }}</p>
+                <p class="truncate text-slate-400 font-mono text-[10px]">{{ item.device_serial || '-' }}</p>
               </div>
               <span
-                class="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-black"
+                class="shrink-0 rounded-lg px-1.5 py-0.5 font-black text-[10px]"
                 :class="cameraPresenceClass(item.online_status)"
               >
                 {{ cameraPresenceLabel(item.online_status) }}
               </span>
             </div>
-            <p class="mt-2 text-[10px] text-slate-400">
+            <p class="mt-2 text-slate-400 text-[10px]">
               {{ item.protocol === 'gb28181' ? 'GB28181' : 'YS7' }} · 已开启 {{ openedCount(item) }} 个场景
             </p>
           </button>
         </div>
-        <p v-if="total > list.length" class="px-2 pt-2 text-[10px] text-slate-400">
+        <p v-if="total > list.length" class="px-2 pt-2 text-slate-400 text-[10px]">
           仅显示前 {{ list.length }} 台，请用名称继续搜索
         </p>
       </aside>
@@ -678,14 +843,14 @@ onMounted(async () => {
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="text-base text-slate-800 font-black dark:text-slate-100">{{ selected.name }}</h2>
               <span
-                class="rounded-lg px-2 py-0.5 text-[10px] font-black"
+                class="rounded-lg px-2 py-0.5 font-black text-[10px]"
                 :class="cameraPresenceClass(selected.online_status)"
               >
                 {{ cameraPresenceLabel(selected.online_status) }}
               </span>
-              <span class="text-[10px] text-slate-400 font-mono">{{ selected.device_serial || '-' }}</span>
+              <span class="text-slate-400 font-mono text-[10px]">{{ selected.device_serial || '-' }}</span>
             </div>
-            <p class="text-[11px] text-slate-400">
+            <p class="text-slate-400 text-[11px]">
               取图模式：{{ cameraCaptureLabel(selected.capture_mode) }}。依赖抽帧的场景会使用该模式产出的图片。
             </p>
             <div class="flex flex-wrap gap-2">
@@ -693,7 +858,7 @@ onMounted(async () => {
                 v-for="ch in channels"
                 :key="ch.channel_no"
                 type="button"
-                class="rounded-xl px-3 py-1.5 text-[11px] font-bold transition"
+                class="rounded-xl px-3 py-1.5 font-bold transition text-[11px]"
                 :class="
                   channelNo === ch.channel_no
                     ? 'bg-violet-500 text-white'
@@ -715,18 +880,18 @@ onMounted(async () => {
             <article
               v-for="scene in catalog"
               :key="scene.code"
-              class="flex flex-col rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30"
+              class="flex flex-col border border-slate-100 rounded-[1.5rem] bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30"
             >
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <h3 class="text-sm text-slate-800 font-black dark:text-slate-100">
                     {{ scene.name || cameraSceneLabel(scene.code) }}
                   </h3>
-                  <p class="mt-0.5 text-[10px] text-slate-400 font-mono">{{ scene.code }}</p>
+                  <p class="mt-0.5 text-slate-400 font-mono text-[10px]">{{ scene.code }}</p>
                 </div>
                 <button
                   type="button"
-                  class="rounded-xl px-3 py-1.5 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
+                  class="rounded-xl px-3 py-1.5 font-black text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
                   :class="sceneEnabled(scene.code) ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'"
                   :disabled="scene.status === 'reserved' || !algoReady(scene) || switching[scene.code]"
                   @click="toggleScene(scene)"
@@ -737,31 +902,31 @@ onMounted(async () => {
 
               <div class="mt-3 flex flex-wrap gap-1.5">
                 <span
-                  class="rounded-lg px-2 py-0.5 text-[10px] font-black"
+                  class="rounded-lg px-2 py-0.5 font-black text-[10px]"
                   :class="
-                    scene.status === 'reserved'
-                      ? 'bg-slate-200 text-slate-500'
-                      : 'bg-emerald-500/10 text-emerald-600'
+                    scene.status === 'reserved' ? 'bg-slate-200 text-slate-500' : 'bg-emerald-500/10 text-emerald-600'
                   "
                 >
                   {{ scene.status === 'reserved' ? '未开放' : '可开启' }}
                 </span>
                 <span
                   v-if="scene.needs_image"
-                  class="rounded-lg bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-600 font-black"
+                  class="rounded-lg bg-amber-500/10 px-2 py-0.5 text-amber-600 font-black text-[10px]"
                 >
                   依赖抽帧
                 </span>
                 <span
-                  class="rounded-lg px-2 py-0.5 text-[10px] font-black"
+                  class="rounded-lg px-2 py-0.5 font-black text-[10px]"
                   :class="algoReady(scene) ? 'bg-sky-500/10 text-sky-600' : 'bg-rose-500/10 text-rose-500'"
                 >
                   {{ algoReady(scene) ? '算法已就绪' : '算法未配置' }}
                 </span>
               </div>
 
-              <p class="mt-2 text-[10px] text-slate-400 font-mono">taskType：{{ taskTypeText(scene) }}</p>
-              <p v-if="scene.status === 'reserved'" class="mt-3 text-xs text-slate-400">该场景尚未开放，不能开关或改参。</p>
+              <p class="mt-2 text-slate-400 font-mono text-[10px]">taskType：{{ taskTypeText(scene) }}</p>
+              <p v-if="scene.status === 'reserved'" class="mt-3 text-xs text-slate-400">
+                该场景尚未开放，不能开关或改参。
+              </p>
               <p v-else-if="!algoReady(scene)" class="mt-3 text-xs text-amber-600">
                 平台尚未配置该场景算法，开启会失败。请系统管理员先填写 taskType。
               </p>
@@ -774,9 +939,11 @@ onMounted(async () => {
                   参数加载中...
                 </p>
                 <div v-else-if="forms[scene.code]" class="mt-3 space-y-3">
-                  <p v-if="!forms[scene.code].schema.length" class="text-xs text-slate-400">该场景没有可配置的业务参数。</p>
+                  <p v-if="!forms[scene.code].schema.length" class="text-xs text-slate-400">
+                    该场景没有可配置的业务参数。
+                  </p>
                   <label v-for="field in forms[scene.code].schema" :key="field.key" class="block">
-                    <span class="mb-1 block text-[10px] text-slate-500 font-bold">
+                    <span class="mb-1 block text-slate-500 font-bold text-[10px]">
                       {{ field.label }}
                       <span v-if="field.unit" class="text-slate-400">（{{ field.unit }}）</span>
                     </span>
@@ -798,16 +965,16 @@ onMounted(async () => {
                       :placeholder="field.placeholder || field.label"
                       class="w-full border border-slate-200 rounded-xl bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900"
                     />
-                    <span v-if="field.description" class="mt-1 block text-[10px] text-slate-400">
+                    <span v-if="field.description" class="mt-1 block text-slate-400 text-[10px]">
                       {{ field.description }}
                     </span>
                   </label>
-                  <p v-if="forms[scene.code].frameText" class="text-[10px] text-slate-500">
+                  <p v-if="forms[scene.code].frameText" class="text-slate-500 text-[10px]">
                     取图：{{ forms[scene.code].frameText }}
                   </p>
                   <button
                     type="button"
-                    class="rounded-xl bg-violet-500 px-4 py-2 text-[10px] text-white font-black disabled:opacity-50"
+                    class="rounded-xl bg-violet-500 px-4 py-2 text-white font-black text-[10px] disabled:opacity-50"
                     :disabled="saving[scene.code] || !forms[scene.code].schema.length"
                     @click="saveConfig(scene)"
                   >
@@ -820,6 +987,95 @@ onMounted(async () => {
         </template>
       </section>
     </div>
+
+    <NDrawer v-model:show="showAlgoDrawer" :width="420" placement="right">
+      <NDrawerContent
+        :title="editingSceneCode ? '编辑平台场景算法' : '新增平台场景算法'"
+        closable
+        @close="closeAlgoDrawer"
+      >
+        <div class="space-y-5">
+          <div>
+            <label class="mb-1.5 block text-xs text-slate-600 font-bold dark:text-slate-300">
+              场景编码
+              <span v-if="!editingSceneCode" class="text-rose-500">*</span>
+            </label>
+            <input
+              v-model="newAlgoForm.scene_code"
+              type="text"
+              :placeholder="editingSceneCode ? '' : '小写字母开头，可含数字和下划线，如 fire'"
+              :disabled="Boolean(editingSceneCode)"
+              class="w-full border border-slate-200 rounded-xl bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+              :class="{ 'text-slate-400 bg-slate-100 dark:bg-slate-800': editingSceneCode }"
+            />
+            <p v-if="!editingSceneCode" class="mt-1 text-slate-400 text-[10px]">不在内置目录中时按新场景入库</p>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-xs text-slate-600 font-bold dark:text-slate-300">场景名称</label>
+            <input
+              v-model="newAlgoForm.name"
+              type="text"
+              placeholder="最长 64 字，不填则新增用默认名称"
+              maxlength="64"
+              class="w-full border border-slate-200 rounded-xl bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            />
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-xs text-slate-600 font-bold dark:text-slate-300">场景等级</label>
+            <select
+              v-model="newAlgoForm.level"
+              class="w-full border border-slate-200 rounded-xl bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            >
+              <option value="hazard">隐患</option>
+              <option value="urgent">紧急</option>
+            </select>
+            <p class="mt-1 text-slate-400 text-[10px]">不选则新增默认隐患，更新时保留原等级</p>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-xs text-slate-600 font-bold dark:text-slate-300">萤石 taskType</label>
+            <input
+              v-model="newAlgoForm.task_type"
+              type="text"
+              placeholder="明火新增或开启时必填"
+              class="w-full border border-slate-200 rounded-xl bg-white px-3 py-2.5 text-sm font-mono dark:border-slate-700 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            />
+          </div>
+
+          <div
+            class="flex items-center justify-between border border-slate-200 rounded-xl bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div>
+              <p class="text-xs text-slate-700 font-bold dark:text-slate-200">开启状态</p>
+              <p class="text-slate-400 text-[10px]">未开放场景不能开启</p>
+            </div>
+            <NSwitch v-model:value="newAlgoForm.enabled" :checked-value="1" :unchecked-value="0" />
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              class="border border-slate-200 rounded-xl bg-white px-5 py-2 text-sm text-slate-600 font-medium dark:border-slate-700 dark:bg-slate-900 hover:bg-slate-50 dark:text-slate-300"
+              @click="closeAlgoDrawer"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              class="rounded-xl bg-violet-500 px-5 py-2 text-sm text-white font-bold transition hover:bg-violet-600 disabled:opacity-50"
+              :disabled="newAlgoSaving"
+              @click="submitNewAlgo"
+            >
+              {{ newAlgoSaving ? '保存中...' : editingSceneCode ? '确认更新' : '确认新增' }}
+            </button>
+          </div>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
 

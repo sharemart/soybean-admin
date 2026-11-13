@@ -28,6 +28,7 @@ import {
 } from 'lucide-vue-next';
 import { exportElevatorMaintainRecordsZip, fetchElevatorDetail } from '@/service/api/component/component';
 import { getNoticeQrcode } from '@/service/api/dashboard/dashboard';
+import { fetchElevatorRunRecord } from '@/service/api/elevator/elevator';
 import { useLiftMqttSync } from '@/utils/useLiftMqttSync';
 import FaultWidget from '@/components/modal/monitoring/FaultWidget.vue';
 import MaintenanceWidget from '@/components/modal/monitoring/MaintenanceWidget.vue';
@@ -45,6 +46,13 @@ const navigateTo = (path: string) => router.push(path);
 
 const elevatorInfo = ref<any>({});
 const totalFloor = ref(10);
+const runRecord = ref<{
+  r_times: number;
+  o_times: number;
+  delta_r_times: number;
+  source: string;
+  snapshot_time: number;
+} | null>(null);
 
 const runInfo = ref<Record<string, any>>({});
 const liftInfo = ref({
@@ -346,12 +354,15 @@ onMounted(async () => {
       elevatorInfo.value = res.data.data || {};
       totalFloor.value =
         elevatorInfo.value.total_floor && elevatorInfo.value.total_floor > 0 ? elevatorInfo.value.total_floor : 10;
-      // liftInfo.value.system = 4;
       liftInfo.value.system = elevatorInfo.value.system ?? 3;
       liftInfo.value.elevatorNumber = elevatorInfo.value.elevator_number ?? '';
       liftInfo.value.registerCode = elevatorInfo.value.register_code ?? '';
       liftInfo.value.wit_device_key = elevatorInfo.value.wit_device_key ?? '';
       connect();
+    }
+    const recordRes = await fetchElevatorRunRecord({ elevator_id: Number(id.value) });
+    if (recordRes?.data?.code === 2000) {
+      runRecord.value = recordRes.data.data;
     }
   } catch (err) {
     console.error('获取电梯详情失败', err);
@@ -378,7 +389,7 @@ onUnmounted(() => {
         <div class="text-left">
           <div class="mb-1 flex items-center gap-3">
             <h2 class="text-xl font-black tracking-tight">{{ elevatorInfo.elevator_name }}</h2>
-            <NTag type="success" size="small" round class="text-[10px] font-black tracking-widest uppercase">
+            <NTag type="success" size="small" round class="font-black tracking-widest uppercase text-[10px]">
               实时在线
             </NTag>
           </div>
@@ -408,26 +419,26 @@ onUnmounted(() => {
       </div>
       <div class="w-full flex items-center gap-3 lg:w-auto">
         <button
-          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all lg:flex-none hover:bg-sky-600"
+          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-lg shadow-sky-500/20 transition-all text-[10px] lg:flex-none hover:bg-sky-600"
         >
           <Zap :size="14" />
           呼梯控制
         </button>
         <button
-          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-lg shadow-rose-500/20 transition-all lg:flex-none hover:bg-rose-600"
+          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-lg shadow-rose-500/20 transition-all text-[10px] lg:flex-none hover:bg-rose-600"
         >
           <Video :size="14" />
           5G 视频救援
         </button>
         <button
-          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-emerald-500/20 shadow-lg transition-all lg:flex-none hover:bg-emerald-600"
+          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-emerald-500/20 shadow-lg transition-all text-[10px] lg:flex-none hover:bg-emerald-600"
           @click="openExportMaintainRecordsDialog"
         >
           <Download :size="14" />
           导出维保记录
         </button>
         <button
-          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-2.5 text-[10px] text-white font-black tracking-widest uppercase shadow-amber-500/20 shadow-lg transition-all lg:flex-none hover:bg-amber-600"
+          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-2.5 text-white font-black tracking-widest uppercase shadow-amber-500/20 shadow-lg transition-all text-[10px] lg:flex-none hover:bg-amber-600"
           @click="handleShareQrcode"
         >
           <QrCode :size="14" />
@@ -454,7 +465,7 @@ onUnmounted(() => {
                   </div>
                   <div>
                     <h3 class="text-lg font-black tracking-tight">公示二维码</h3>
-                    <p class="mt-0.5 text-[10px] text-slate-400 font-bold tracking-widest uppercase">
+                    <p class="mt-0.5 text-slate-400 font-bold tracking-widest uppercase text-[10px]">
                       Elevator Notice QR
                     </p>
                   </div>
@@ -521,7 +532,7 @@ onUnmounted(() => {
           >
             <component :is="doorStatus === 'open' ? DoorOpen : DoorClosed" :size="20" />
             <div class="text-center">
-              <p class="mb-0.5 text-[9px] uppercase opacity-60">门状态</p>
+              <p class="mb-0.5 uppercase opacity-60 text-[9px]">门状态</p>
               <p class="text-xs font-bold">{{ doorStatus === 'open' ? '已开启' : '已关闭' }}</p>
             </div>
           </div>
@@ -532,7 +543,7 @@ onUnmounted(() => {
           >
             <Users :size="20" />
             <div class="text-center">
-              <p class="mb-0.5 text-[9px] uppercase opacity-60">轿厢内</p>
+              <p class="mb-0.5 uppercase opacity-60 text-[9px]">轿厢内</p>
               <p class="text-xs font-bold">{{ hasPeople ? '有人' : '无人' }}</p>
             </div>
           </div>
@@ -548,7 +559,7 @@ onUnmounted(() => {
           >
             <ShieldCheck :size="20" />
             <div class="text-center">
-              <p class="mb-0.5 text-[9px] uppercase opacity-60">安全回路</p>
+              <p class="mb-0.5 uppercase opacity-60 text-[9px]">安全回路</p>
               <p class="text-xs font-bold">{{ safetyCircuit ? '闭合' : '断开' }}</p>
             </div>
           </div>
@@ -564,7 +575,7 @@ onUnmounted(() => {
           >
             <MapPin :size="20" />
             <div class="text-center">
-              <p class="mb-0.5 text-[9px] uppercase opacity-60">平层位置</p>
+              <p class="mb-0.5 uppercase opacity-60 text-[9px]">平层位置</p>
               <p class="text-xs font-bold">{{ isLeveling ? '精确平层' : '非平层' }}</p>
             </div>
           </div>
@@ -580,7 +591,7 @@ onUnmounted(() => {
           >
             <Power :size="20" />
             <div class="text-center">
-              <p class="mb-0.5 text-[9px] uppercase opacity-60">主电源</p>
+              <p class="mb-0.5 uppercase opacity-60 text-[9px]">主电源</p>
               <p class="text-xs font-bold">{{ powerStatus ? '正常供电' : '供电中断' }}</p>
             </div>
           </div>
@@ -596,7 +607,7 @@ onUnmounted(() => {
           >
             <AlertCircle :size="20" />
             <div class="text-center">
-              <p class="mb-0.5 text-[9px] uppercase opacity-60">报警按钮</p>
+              <p class="mb-0.5 uppercase opacity-60 text-[9px]">报警按钮</p>
               <p class="text-xs font-bold">{{ alarmButton ? '已触发' : '无触发' }}</p>
             </div>
           </div>
@@ -613,27 +624,31 @@ onUnmounted(() => {
             </div>
             <div class="space-y-1">
               <div class="flex justify-between border-b py-2">
-                <span class="text-[10px] text-slate-400 uppercase">累计运行次数</span>
-                <span class="text-xs font-mono">{{ liveData.totalRunCount }} 次</span>
+                <span class="text-slate-400 uppercase text-[10px]">累计运行次数</span>
+                <span class="text-xs font-mono">{{ (runRecord?.r_times ?? 0).toLocaleString('zh-CN') }} 次</span>
               </div>
-              <div class="flex justify-between border-b py-2">
-                <span class="text-[10px] text-slate-400 uppercase">累计运行时间</span>
+              <div v-if="liveData.totalRunTime" class="flex justify-between border-b py-2">
+                <span class="text-slate-400 uppercase text-[10px]">累计运行时间</span>
                 <span class="text-xs font-mono">{{ formatSeconds(liveData.totalRunTime) }}</span>
               </div>
-              <div class="flex justify-between border-b py-2">
-                <span class="text-[10px] text-slate-400 uppercase">总运行里程</span>
+              <div v-if="liveData.totalMileage" class="flex justify-between border-b py-2">
+                <span class="text-slate-400 uppercase text-[10px]">总运行里程</span>
                 <span class="text-xs font-mono">{{ liveData.totalMileage.toFixed(2) }} km</span>
               </div>
               <div class="flex justify-between border-b py-2">
-                <span class="text-[10px] text-slate-400 uppercase">今日运行次数</span>
-                <span class="text-xs font-mono">{{ liveData.todayRunCount }} 次</span>
+                <span class="text-slate-400 uppercase text-[10px]">累计开门次数</span>
+                <span class="text-xs font-mono">{{ (runRecord?.o_times ?? 0).toLocaleString('zh-CN') }} 次</span>
               </div>
               <div class="flex justify-between border-b py-2">
-                <span class="text-[10px] text-slate-400 uppercase">累计开关门</span>
-                <span class="text-xs font-mono">{{ liveData.totalDoorCount }} 次</span>
+                <span class="text-slate-400 uppercase text-[10px]">运行增量</span>
+                <span class="text-xs font-mono">{{ (runRecord?.delta_r_times ?? 0).toLocaleString('zh-CN') }} 次</span>
+              </div>
+              <div class="flex justify-between border-b py-2">
+                <span class="text-slate-400 uppercase text-[10px]">今日运行次数</span>
+                <span class="text-xs font-mono">{{ liveData.todayRunCount }} 次</span>
               </div>
               <div class="flex justify-between py-2">
-                <span class="text-[10px] text-slate-400 uppercase">平均响应耗时</span>
+                <span class="text-slate-400 uppercase text-[10px]">平均响应耗时</span>
                 <span class="text-xs font-mono">{{ liveData.avgResponseTime }} s</span>
               </div>
             </div>
@@ -659,7 +674,7 @@ onUnmounted(() => {
                   class="h-2 w-2 rounded-full"
                   :class="item.active ? 'bg-white animate-pulse' : 'bg-slate-300'"
                 ></div>
-                <span class="text-[10px] font-black tracking-widest uppercase">{{ item.text }}</span>
+                <span class="font-black tracking-widest uppercase text-[10px]">{{ item.text }}</span>
               </div>
             </div>
           </div>
@@ -678,7 +693,7 @@ onUnmounted(() => {
               class="mb-3 text-slate-400 transition-colors group-hover:[&_*]:text-sky-500"
             />
             <span
-              class="text-[11px] text-slate-600 font-black tracking-[0.1em] uppercase dark:text-slate-400 group-hover:text-slate-900"
+              class="text-slate-600 font-black tracking-[0.1em] uppercase text-[11px] dark:text-slate-400 group-hover:text-slate-900"
             >
               {{ item.label }}
             </span>
@@ -712,7 +727,7 @@ onUnmounted(() => {
                 <h3 class="text-xl font-black tracking-tight">
                   {{ widgetTitles[currentWidgetId!] }}
                 </h3>
-                <p class="mt-1 text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase">
+                <p class="mt-1 text-slate-500 font-bold tracking-[0.2em] uppercase text-[10px]">
                   Elevator Monitoring Widget
                 </p>
               </div>
@@ -751,16 +766,16 @@ onUnmounted(() => {
           <div
             class="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-950/30"
           >
-            <span class="text-[9px] text-slate-400 font-black tracking-[0.3em] uppercase">Elevator Pulse Widget</span>
+            <span class="text-slate-400 font-black tracking-[0.3em] uppercase text-[9px]">Elevator Pulse Widget</span>
             <div class="flex gap-4">
               <button
-                class="rounded-2xl bg-slate-100 px-8 py-3 text-[11px] text-slate-500 font-black tracking-widest uppercase transition-all dark:bg-slate-800 hover:bg-slate-200"
+                class="rounded-2xl bg-slate-100 px-8 py-3 text-slate-500 font-black tracking-widest uppercase transition-all text-[11px] dark:bg-slate-800 hover:bg-slate-200"
                 @click="closeWidgetModal"
               >
                 取消退出
               </button>
               <button
-                class="rounded-2xl bg-sky-500 px-10 py-3 text-[11px] text-white font-black tracking-widest uppercase shadow-sky-500/20 shadow-xl transition-all active:scale-95 hover:bg-sky-600"
+                class="rounded-2xl bg-sky-500 px-10 py-3 text-white font-black tracking-widest uppercase shadow-sky-500/20 shadow-xl transition-all text-[11px] active:scale-95 hover:bg-sky-600"
                 @click="closeWidgetModal"
               >
                 确认关闭

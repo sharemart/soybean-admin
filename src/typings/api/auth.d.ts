@@ -13,6 +13,7 @@ declare namespace Api {
       data: {
         token: string;
         refreshToken: string;
+        use_comtype: number;
       };
     }
 
@@ -35,6 +36,7 @@ declare namespace Api {
         jobs: string;
         role_ids: string;
         company_type: number;
+        use_comtype: number;
         company_name: string;
       };
     }
