@@ -29,6 +29,9 @@ declare module "@elegant-router/types" {
     "contract_due": "/contract/due";
     "contract_list": "/contract/list";
     "dashboard": "/dashboard";
+    "decision": "/decision";
+    "decision_board": "/decision/board";
+    "decision_compare": "/decision/compare";
     "elevator": "/elevator";
     "elevator_document": "/elevator/document";
     "emergency": "/emergency";
@@ -123,6 +126,7 @@ declare module "@elegant-router/types" {
     | "business"
     | "contract"
     | "dashboard"
+    | "decision"
     | "elevator"
     | "emergency"
     | "finance"
@@ -171,6 +175,8 @@ declare module "@elegant-router/types" {
     | "business_report"
     | "contract_due"
     | "contract_list"
+    | "decision_board"
+    | "decision_compare"
     | "elevator_document"
     | "emergency"
     | "finance_expense"

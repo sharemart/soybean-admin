@@ -148,6 +148,46 @@ export const generatedRoutes = [
     }
   },
   {
+    name: 'decision',
+    path: '/decision',
+    component: 'layout.base',
+    meta: {
+      title: 'decision',
+      i18nKey: 'route.decision',
+      icon: 'mdi:chart-timeline-variant',
+      order: 18,
+      keepAlive: true
+    },
+    children: [
+      {
+        name: 'decision_board',
+        path: '/decision/board',
+        component: 'view.decision_board',
+        meta: {
+          title: 'decision_board',
+          i18nKey: 'route.decision_board',
+          icon: 'mdi:view-dashboard-outline',
+          order: 2,
+          keepAlive: true
+        }
+      },
+      {
+        name: 'decision_compare',
+        path: '/decision/compare',
+        component: 'view.decision_compare',
+        meta: {
+          title: 'decision_compare',
+          i18nKey: 'route.decision_compare',
+          icon: 'mdi:compare',
+          order: 1,
+          hideInMenu: true,
+          activeMenu: 'decision_board',
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
     name: 'elevator',
     path: '/elevator',
     component: 'layout.base',

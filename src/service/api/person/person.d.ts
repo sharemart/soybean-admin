@@ -5,10 +5,14 @@ import type { ApiResponse } from '@/service/api/types/common';
  * 获取人员列表 - 请求参数
  */
 export interface UserListParams {
-  /** 用户名（模糊搜索） */
+  /** 关键字（用户名、姓名、手机号任意一项模糊匹配） */
+  keyword?: string;
+  /** 用户名（同时模糊匹配用户名、姓名、手机号） */
   user_name?: string;
-  /** 姓名（模糊搜索） */
+  /** 姓名（同时模糊匹配用户名、姓名、手机号） */
   realname?: string;
+  /** 手机号（同时模糊匹配用户名、姓名、手机号） */
+  phone?: string;
   /** 职位类型 | 2:管理人员, 3:普通人员 */
   jobs?: number;
   /** 使用状态 | 0:已停用, 1:使用中 */

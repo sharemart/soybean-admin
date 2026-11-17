@@ -46,8 +46,10 @@ const AVATAR_BASE = 'https://ui-avatars.com/api/';
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 interface UserListParams {
+  keyword?: string;
   user_name?: string;
   realname?: string;
+  phone?: string;
   jobs?: number;
   is_use?: number;
   company_id?: number;
@@ -231,11 +233,11 @@ const getUserList = async () => {
   loading.value = true;
   isSyncing.value = true;
   try {
+    const keyword = searchTerm.value.trim();
     const params: UserListParams = {
       page: currentPage.value,
       limit: pageSize.value,
-      user_name: searchTerm.value,
-      realname: searchTerm.value,
+      keyword: keyword || undefined,
       jobs: jobFilter.value === '0' ? undefined : Number(jobFilter.value),
       company_id: companyFilter.value ? Number(companyFilter.value) : undefined,
       is_use: 1
@@ -416,9 +418,13 @@ onUnmounted(() => {
 
 // 监听
 watch(users, updateECharts, { deep: true });
-watch(searchTerm, () => {
+const triggerSearch = debounce(() => {
   currentPage.value = 1;
   getUserList();
+}, 300);
+
+watch(searchTerm, () => {
+  triggerSearch();
 });
 watch(jobFilter, () => {
   currentPage.value = 1;

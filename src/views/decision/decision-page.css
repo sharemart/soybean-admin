@@ -1,0 +1,89 @@
+.tab,
+.icon-btn,
+.action,
+.anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 0.8rem;
+  font-weight: 700;
+}
+
+.tab,
+.anchor {
+  padding: 0.55rem 0.9rem;
+  background: rgb(241 245 249);
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.tab-active {
+  background: rgb(15 23 42);
+  color: white;
+}
+
+.filter {
+  min-width: 140px;
+  border-radius: 0.8rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(248 250 252);
+  padding: 0.6rem 0.75rem;
+  font-size: 12px;
+  outline: none;
+}
+
+.icon-btn {
+  justify-content: center;
+  width: 40px;
+  background: rgb(241 245 249);
+  color: rgb(100 116 139);
+}
+
+.panel {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 1.6rem;
+  background: white;
+  padding: 1.15rem 1.25rem;
+}
+
+.th,
+.td {
+  padding: 0.75rem 0.7rem;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 12px;
+}
+
+.th {
+  color: rgb(148 163 184);
+  font-weight: 700;
+}
+
+.action {
+  padding: 0.3rem 0.45rem;
+  color: rgb(79 70 229);
+  font-size: 12px;
+}
+
+:global(.dark) .filter {
+  border-color: rgb(30 41 59);
+  background: rgb(2 6 23);
+  color: rgb(226 232 240);
+}
+
+:global(.dark) .tab,
+:global(.dark) .anchor,
+:global(.dark) .icon-btn {
+  background: rgb(30 41 59);
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .tab-active {
+  background: white;
+  color: rgb(15 23 42);
+}
+
+:global(.dark) .panel {
+  border-color: rgb(30 41 59);
+  background: rgb(15 23 42);
+}
