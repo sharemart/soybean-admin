@@ -49,6 +49,7 @@ const companyTitle = computed(() => `${authStore.userInfo.company_name || 'å°é©
   background: linear-gradient(90deg, #1cd9ff, transparent);
 }
 .title-content {
+  min-width: 0;
   text-align: center;
 }
 h1 {

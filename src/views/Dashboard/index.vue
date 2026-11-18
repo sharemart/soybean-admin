@@ -187,7 +187,7 @@ onUnmounted(() => {
         <UserRound :size="14" />
         当前值守：调度中心
       </span>
-    </footer> 
+    </footer>
 -->
   </div>
 </template>
@@ -969,8 +969,202 @@ onUnmounted(() => {
   }
 }
 
-/* 平板 / 窄屏 (≤1120px)：双列 + 允许滚动 */
-@media (max-width: 1120px) {
+/* 1024 宽：仍保持三列驾驶舱，只压缩顶栏、列宽和卡片，避免在这一档折行 */
+@media (max-width: 1200px) {
+  .dashboard-shell {
+    --topbar-h: 58px;
+    --content-gap: 6px;
+    --content-pad: 8px;
+  }
+  .dashboard-topbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
+    padding: 0 10px;
+  }
+  .brand-logo {
+    width: 92px;
+    height: 44px;
+  }
+  .top-actions {
+    gap: 6px;
+  }
+  .top-icon-button {
+    width: 30px;
+    height: 30px;
+  }
+  .dashboard-topbar :deep(.header-center) {
+    min-width: 0;
+    gap: 6px;
+  }
+  .dashboard-topbar :deep(.title-content) {
+    min-width: 0;
+  }
+  .dashboard-topbar :deep(.title-decoration) {
+    width: 16px;
+    flex-shrink: 0;
+  }
+  .dashboard-topbar :deep(.header-center h1) {
+    overflow: hidden;
+    font-size: 15px;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+  }
+  .dashboard-topbar :deep(.title-meta) {
+    gap: 8px;
+  }
+  .dashboard-topbar :deep(.meta-tag) {
+    display: none;
+  }
+  .dashboard-content {
+    grid-template-columns: minmax(196px, 0.92fr) minmax(280px, 1.7fr) minmax(196px, 0.96fr);
+  }
+  .dashboard-column :deep(.panel) {
+    padding: 10px;
+  }
+  .dashboard-column :deep(.title-left) {
+    min-width: 0;
+  }
+  .dashboard-column :deep(.title-left strong) {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .dashboard-column :deep(.title-icon) {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .dashboard-column :deep(.rate-label) {
+    display: none;
+  }
+  .dashboard-column :deep(.rate-value) {
+    font-size: 18px;
+  }
+  .dashboard-column :deep(.metric-grid) {
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .dashboard-column :deep(.metric-card) {
+    gap: 4px;
+    padding: 8px 2px;
+    border-radius: 8px;
+  }
+  .dashboard-column :deep(.metric-icon) {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+  .dashboard-column :deep(.metric-card small) {
+    font-size: 9px;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .dashboard-column :deep(.metric-card b) {
+    font-size: 15px;
+  }
+  .dashboard-column :deep(.metric-card em) {
+    font-size: 10px;
+  }
+  .dashboard-column :deep(.bar-chart) {
+    height: min(210px, 22vh);
+  }
+  .dashboard-column :deep(.summary-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .dashboard-column :deep(.summary-card) {
+    gap: 4px;
+    padding: 6px 4px;
+  }
+  .dashboard-column :deep(.summary-icon) {
+    width: 22px;
+    height: 22px;
+  }
+  .dashboard-column :deep(.summary-card b) {
+    font-size: 14px;
+  }
+  .dashboard-column :deep(.table-head),
+  .dashboard-column :deep(.table-row),
+  .dashboard-column :deep(.company-head),
+  .dashboard-column :deep(.company-row),
+  .dashboard-column :deep(.people-head),
+  .dashboard-column :deep(.people-row) {
+    gap: 4px;
+    font-size: 11px;
+  }
+  .dashboard-column :deep(.order-table .table-head),
+  .dashboard-column :deep(.order-table .table-row) {
+    grid-template-columns: minmax(0, 1fr) 74px 50px 62px;
+    gap: 2px;
+    padding-right: 0;
+    padding-left: 0;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .dashboard-column :deep(.order-table .status) {
+    padding: 0 3px;
+    font-size: 10px;
+  }
+  .dashboard-column :deep(.order-table .tiring) {
+    margin-left: 2px;
+    padding: 0 3px;
+    font-size: 10px;
+  }
+  .dashboard-column :deep(.order-table .time) {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .dashboard-column :deep(.company-head:not(.group-head)),
+  .dashboard-column :deep(.company-row:not(.group-row)) {
+    grid-template-columns: minmax(0, 1.2fr) 56px minmax(36px, 0.45fr) minmax(0, 0.75fr);
+    gap: 4px;
+    font-size: 10px;
+  }
+  .dashboard-column :deep(.type-tag) {
+    padding: 0 4px;
+    font-size: 10px;
+  }
+  .dashboard-column :deep(.table-head > span),
+  .dashboard-column :deep(.company-head > span) {
+    white-space: nowrap;
+  }
+  .dashboard-column :deep(.kpi-value) {
+    font-size: 16px;
+  }
+  .dashboard-column :deep(.filter-select) {
+    max-width: 92px;
+    padding: 3px 16px 3px 6px;
+    font-size: 11px;
+  }
+  .dashboard-column :deep(.count-tag) {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+}
+
+/* 1024×768 这一类较矮视口：避免左上图表被面板裁切 */
+@media (max-width: 1100px) and (max-height: 820px) {
+  .dashboard-column :deep(.bar-chart) {
+    height: 132px;
+  }
+  .dashboard-column :deep(.metric-card) {
+    gap: 2px;
+    padding: 6px 2px;
+  }
+  .dashboard-column :deep(.metric-icon) {
+    width: 22px;
+    height: 22px;
+  }
+  .dashboard-column :deep(.chart-row) {
+    height: 92px;
+  }
+  .dashboard-column :deep(.chart-area) {
+    width: 92px;
+    height: 92px;
+  }
+}
+
+/* 小于 1024（≤960px）：双列 + 允许滚动 */
+@media (max-width: 960px) {
   .dashboard-shell {
     height: auto;
     min-height: 100vh;
@@ -990,10 +1184,38 @@ onUnmounted(() => {
     grid-template-columns: 1fr 1.4fr;
     height: auto;
     min-height: 0;
+    overflow: visible;
+    align-items: start;
+  }
+  .dashboard-column,
+  .left-column,
+  .center-column,
+  .right-column {
+    grid-template-rows: auto;
+    overflow: visible;
   }
   .right-column {
     grid-column: 1 / -1;
     grid-template-columns: 1fr 1fr;
+  }
+  .dashboard-column :deep(.panel) {
+    height: auto;
+    min-height: 280px;
+  }
+  .dashboard-column :deep(.trend-chart),
+  .dashboard-column :deep(.bar-chart) {
+    height: 180px;
+    min-height: 180px;
+  }
+  .dashboard-column :deep(.map-area),
+  .dashboard-column :deep(.dispatch-map) {
+    height: 240px;
+    min-height: 240px;
+  }
+  .dashboard-column :deep(.cards-grid),
+  .dashboard-column :deep(.order-table) {
+    flex: 1 0 auto;
+    min-height: 140px;
   }
 }
 
