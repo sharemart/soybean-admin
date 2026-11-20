@@ -2,6 +2,7 @@
 import { nextTick, onUnmounted, reactive, ref, watch } from 'vue';
 import { NButton, NInput, NSelect, useMessage } from 'naive-ui';
 import { Map, RefreshCw, Search } from 'lucide-vue-next';
+import { getVillageDetail } from '@/service/api/community/community';
 import { useAreaSelector } from '@/utils/composables/useAreaSelector';
 
 declare global {
@@ -256,10 +257,101 @@ const reverseGeocode = async (lat: number, lng: number) => {
   } catch (e) {}
 };
 
+const normalizeId = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '' || value === 0) return null;
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
+};
+
+const matchOption = (options: { label: string; value: number | string }[], id: number | null) => {
+  if (!id) return undefined;
+  return options.find(item => Number(item.value) === id);
+};
+
+/** 按省市区 ID 逐级请求下拉，并回填选中项 */
+const fillAreaOptions = async (
+  area: {
+    province: number | null;
+    city: number | null;
+    district: number | null;
+    provinceName: string;
+    cityName: string;
+    districtName: string;
+    address: string;
+  },
+  current: () => boolean
+) => {
+  if (!current()) return false;
+  if (area.address && !localFormData.address) {
+    localFormData.address = area.address;
+  }
+  if (!area.province) return false;
+
+  const provinceItem = matchOption(provinceOptions.value, area.province);
+  localFormData.province = provinceItem?.value ?? area.province;
+  localFormData.provinceName = provinceItem?.label || area.provinceName;
+
+  await fetchCityList(area.province);
+  if (!current() || !area.city) return current();
+
+  const cityItem = matchOption(cityOptions.value, area.city);
+  localFormData.city = cityItem?.value ?? area.city;
+  localFormData.cityName = cityItem?.label || area.cityName;
+
+  await fetchDistrictList(area.city);
+  if (!current()) return false;
+  if (area.district) {
+    const districtItem = matchOption(districtOptions.value, area.district);
+    localFormData.district = districtItem?.value ?? area.district;
+    localFormData.districtName = districtItem?.label || area.districtName;
+  }
+  return true;
+};
+
+/** 小区详情里的省市区，作为电梯本身没有地区字段时的来源 */
+const fetchVillageArea = async (villageId: number) => {
+  try {
+    const res = await getVillageDetail({ village_id: villageId });
+    if (res?.data?.code !== 2000 || !res.data?.data) return null;
+    const village = res.data.data;
+    return {
+      province: normalizeId(village.province),
+      city: normalizeId(village.city),
+      district: normalizeId(village.district),
+      provinceName: village.province_name || '',
+      cityName: village.city_name || '',
+      districtName: village.district_name || '',
+      address: village.address || '',
+      latitude: village.latitude || '',
+      longitude: village.longitude || ''
+    };
+  } catch {
+    return null;
+  }
+};
+
+let initSeq = 0;
+
 const initFormFromProps = async (val: any) => {
   if (!val) return;
+  const seq = ++initSeq;
+  const current = () => seq === initSeq;
   isSyncingParent.value = true;
   lockAutoJump.value = true;
+
+  const source = {
+    province: val.province,
+    city: val.city,
+    district: val.district,
+    provinceName: val.province_name || val.provinceName || '',
+    cityName: val.city_name || val.cityName || '',
+    districtName: val.district_name || val.districtName || '',
+    address: val.address || '',
+    latitude: val.latitude || '',
+    longitude: val.longitude || '',
+    address_ss: val.address_ss || '',
+    village_id: val.village_id
+  };
 
   Object.assign(localFormData, {
     province: null,
@@ -268,26 +360,58 @@ const initFormFromProps = async (val: any) => {
     provinceName: '',
     cityName: '',
     districtName: '',
-    address: val.address || '',
-    latitude: val.latitude || '',
-    longitude: val.longitude || '',
-    address_ss: val.address_ss || ''
+    address: source.address,
+    latitude: source.latitude,
+    longitude: source.longitude,
+    address_ss: source.address_ss
   });
 
   try {
+    await fetchProvinceList();
+    if (!current()) return;
+
+    const fromForm = {
+      province: normalizeId(source.province),
+      city: normalizeId(source.city),
+      district: normalizeId(source.district),
+      provinceName: source.provinceName,
+      cityName: source.cityName,
+      districtName: source.districtName,
+      address: source.address
+    };
+
+    const area = fromForm.province
+      ? fromForm
+      : source.village_id
+        ? await fetchVillageArea(Number(source.village_id))
+        : null;
+    if (!current()) return;
+
+    const filled = area ? await fillAreaOptions(area, current) : false;
+    if (!current()) return;
+
     await loadTMapScript();
+    if (!current()) return;
     await initMap();
+    if (!current()) return;
 
-    if (val.latitude && val.longitude) {
-      await reverseGeocode(Number(val.latitude), Number(val.longitude));
-      updateMapPosition(Number(val.latitude), Number(val.longitude));
+    if (!filled && localFormData.latitude && localFormData.longitude) {
+      await reverseGeocode(Number(localFormData.latitude), Number(localFormData.longitude));
     }
-  } catch (err) {}
-
-  setTimeout(() => {
-    lockAutoJump.value = false;
-    isSyncingParent.value = false;
-  }, 500);
+    if (!current()) return;
+    if (localFormData.latitude && localFormData.longitude) {
+      updateMapPosition(Number(localFormData.latitude), Number(localFormData.longitude));
+    }
+  } catch (err) {
+  } finally {
+    if (current()) {
+      setTimeout(() => {
+        if (!current()) return;
+        lockAutoJump.value = false;
+        isSyncingParent.value = false;
+      }, 500);
+    }
+  }
 };
 
 // 省市区切换
@@ -312,11 +436,11 @@ const handleDistrictChange = async () => {
 };
 
 watch(
-  () => props.formData,
-  async val => {
-    if (val) await initFormFromProps(val);
+  () => [props.formData?.elevator_id ?? '', props.formData?.village_id ?? ''].join('|'),
+  async () => {
+    await initFormFromProps(props.formData);
   },
-  { immediate: true, deep: true }
+  { immediate: true }
 );
 
 watch(
@@ -331,22 +455,34 @@ watch(
 watch(
   () => localFormData.province,
   id => {
-    const item = provinceOptions.value?.find(i => i.value === id);
-    localFormData.provinceName = item?.label || '';
+    if (!normalizeId(id)) {
+      localFormData.provinceName = '';
+      return;
+    }
+    const item = matchOption(provinceOptions.value, normalizeId(id));
+    if (item) localFormData.provinceName = item.label;
   }
 );
 watch(
   () => localFormData.city,
   id => {
-    const item = cityOptions.value?.find(i => i.value === id);
-    localFormData.cityName = item?.label || '';
+    if (!normalizeId(id)) {
+      localFormData.cityName = '';
+      return;
+    }
+    const item = matchOption(cityOptions.value, normalizeId(id));
+    if (item) localFormData.cityName = item.label;
   }
 );
 watch(
   () => localFormData.district,
   id => {
-    const item = districtOptions.value?.find(i => i.value === id);
-    localFormData.districtName = item?.label || '';
+    if (!normalizeId(id)) {
+      localFormData.districtName = '';
+      return;
+    }
+    const item = matchOption(districtOptions.value, normalizeId(id));
+    if (item) localFormData.districtName = item.label;
   }
 );
 
@@ -375,7 +511,7 @@ onUnmounted(() => {
           v-model:value="localFormData.province"
           placeholder="省"
           :options="provinceOptions"
-          :loading="loading.provinceLoading"
+          :loading="areaLoading.provinceLoading"
           class="w-44"
           clearable
           @update:value="handleProvinceChange"
@@ -384,7 +520,7 @@ onUnmounted(() => {
           v-model:value="localFormData.city"
           placeholder="市"
           :options="cityOptions"
-          :loading="loading.cityLoading"
+          :loading="areaLoading.cityLoading"
           :disabled="!localFormData.province"
           class="w-44"
           clearable
@@ -394,7 +530,7 @@ onUnmounted(() => {
           v-model:value="localFormData.district"
           placeholder="区/县"
           :options="districtOptions"
-          :loading="loading.districtLoading"
+          :loading="areaLoading.districtLoading"
           :disabled="!localFormData.city"
           class="w-44"
           clearable
