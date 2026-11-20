@@ -375,9 +375,23 @@ export interface ExportCompanyUsageParams {
   company_id?: number;
 }
 
+export type ExportCompanyUsageStatus = 'ready' | 'processing' | 'failed';
+
 export interface ExportCompanyUsageData {
-  /** Excel 下载路径 */
+  /** ready 可下载压缩包；processing 统计表已生成，维保单 PDF 仍在后台生成 */
+  status: ExportCompanyUsageStatus;
+  /** 后台任务ID。processing 时用导出进度接口查询 */
+  task_id: string;
+  /** ZIP 下载路径。processing 时为空，ready 后含统计表和维保单 PDF */
   file_url: string;
+  /** 使用统计 Excel，接口返回时即可下载 */
+  excel_url: string;
+  /** 已生成的维保单 PDF 数量 */
+  pdf_count: number;
+  /** 需要生成的维保单 PDF 数量 */
+  pdf_total: number;
+  /** 失败原因，未失败为空 */
+  error: string;
   /** 维保次数统计开始日 */
   start_date: string;
   /** 维保次数统计结束日 */
@@ -385,6 +399,28 @@ export interface ExportCompanyUsageData {
 }
 
 export type ExportCompanyUsageResponse = ApiResponse<ExportCompanyUsageData>;
+
+export interface ExportCompanyUsageStatusParams {
+  /** 导出接口返回的任务ID */
+  task_id: string;
+}
+
+export interface ExportCompanyUsageStatusData {
+  /** processing 生成中，ready 可下载，failed 失败 */
+  status: ExportCompanyUsageStatus;
+  /** ZIP 下载路径，ready 时有效 */
+  file_url: string;
+  /** 使用统计 Excel */
+  excel_url: string;
+  /** 已生成的维保单 PDF 数量 */
+  pdf_count: number;
+  /** 需要生成的维保单 PDF 数量 */
+  pdf_total: number;
+  /** 失败原因 */
+  error: string;
+}
+
+export type ExportCompanyUsageStatusResponse = ApiResponse<ExportCompanyUsageStatusData>;
 
 // ====================== 获取电梯公示二维码 ======================
 export interface GetNoticeQrcodeParams {

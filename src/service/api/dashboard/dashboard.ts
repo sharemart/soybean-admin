@@ -3,6 +3,8 @@ import type {
   DownloadOnboardingTemplateResponse,
   ExportCompanyUsageParams,
   ExportCompanyUsageResponse,
+  ExportCompanyUsageStatusParams,
+  ExportCompanyUsageStatusResponse,
   GetCompanyUsageParams,
   GetCompanyUsageResponse,
   GetComponentFailurePredictionResponse,
@@ -132,15 +134,33 @@ export function getCompanyUsage(params: GetCompanyUsageParams) {
   });
 }
 
+/** 导出文件生成与下载允许的最长时间 */
+const EXPORT_TIMEOUT = 5 * 60 * 1000;
+
 /**
  * 导出维保公司使用统计
  *
  * @param params - 请求参数
- * @returns 导出Excel文件路径
+ * @returns ready 时返回压缩包；processing 时返回任务 ID，维保单 PDF 在后台继续生成
  */
 export function exportCompanyUsage(params: ExportCompanyUsageParams) {
   return request<ExportCompanyUsageResponse>({
     url: '/dashboard/report/exportCompanyUsage',
+    method: 'get',
+    params,
+    timeout: EXPORT_TIMEOUT
+  });
+}
+
+/**
+ * 查询维保公司使用统计导出进度
+ *
+ * @param params - 导出接口返回的任务 ID
+ * @returns processing 生成中，ready 可下载压缩包，failed 失败
+ */
+export function exportCompanyUsageStatus(params: ExportCompanyUsageStatusParams) {
+  return request<ExportCompanyUsageStatusResponse>({
+    url: '/dashboard/report/exportCompanyUsageStatus',
     method: 'get',
     params
   });

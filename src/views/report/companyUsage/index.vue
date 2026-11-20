@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   AlertTriangle,
   BarChart3,
@@ -15,8 +15,12 @@ import {
   Wrench
 } from 'lucide-vue-next';
 import { request } from '@/service/request';
-import { exportCompanyUsage, getCompanyUsage } from '@/service/api/dashboard/dashboard';
-import type { CompanyMaintainListItem, CompanyUsageItem } from '@/service/api/dashboard/dashboard.d';
+import { exportCompanyUsage, exportCompanyUsageStatus, getCompanyUsage } from '@/service/api/dashboard/dashboard';
+import type {
+  CompanyMaintainListItem,
+  CompanyUsageItem,
+  ExportCompanyUsageStatus
+} from '@/service/api/dashboard/dashboard.d';
 import CustomSelect from '@/components/selectOption/CustomSelect.vue';
 
 // ====================== 筛选状态 ======================
@@ -174,33 +178,213 @@ const handlePageChange = (page: number) => {
   currentPage.value = page;
 };
 
+const EXPORT_DOWNLOAD_TIMEOUT = 5 * 60 * 1000;
+const EXPORT_POLL_INTERVAL = 3000;
+
+interface ExportTaskState {
+  status: ExportCompanyUsageStatus;
+  pdfCount: number;
+  pdfTotal: number;
+  error: string;
+  excelSaved: boolean;
+}
+
+const exporting = ref(false);
+const exportTask = ref<ExportTaskState | null>(null);
+let exportPollTimer: ReturnType<typeof setTimeout> | null = null;
+let activeExportTaskId = '';
+let exportSession = 0;
+
+const exportBusy = computed(() => exporting.value || exportTask.value?.status === 'processing');
+
+const stopExportPoll = () => {
+  exportSession += 1;
+  if (exportPollTimer) {
+    clearTimeout(exportPollTimer);
+    exportPollTimer = null;
+  }
+  activeExportTaskId = '';
+};
+
+const downloadExportFile = async (fileUrl: string, fallbackName: string) => {
+  const blobRes = await request({
+    url: fileUrl,
+    method: 'get',
+    responseType: 'blob',
+    timeout: EXPORT_DOWNLOAD_TIMEOUT
+  });
+  if (blobRes.error || !blobRes.data) {
+    throw new Error(blobRes.error?.message || '文件下载失败');
+  }
+  const blob = blobRes.data as Blob;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileUrl.split('/').pop()?.split('?')[0] || fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const responseMessage = (res: {
+  data?: { msg?: string; message?: string } | null;
+  error?: { message?: string } | null;
+}) => res.data?.msg || res.data?.message || res.error?.message || '';
+
+const pollExportStatus = async (taskId: string) => {
+  if (activeExportTaskId !== taskId) return;
+  const res = await exportCompanyUsageStatus({ task_id: taskId });
+  if (activeExportTaskId !== taskId) return;
+
+  if (res.error || res.data?.code !== 2000 || !res.data.data) {
+    exportTask.value = {
+      status: 'failed',
+      pdfCount: exportTask.value?.pdfCount ?? 0,
+      pdfTotal: exportTask.value?.pdfTotal ?? 0,
+      error: responseMessage(res) || '查询导出进度失败',
+      excelSaved: exportTask.value?.excelSaved ?? false
+    };
+    stopExportPoll();
+    return;
+  }
+
+  const data = res.data.data;
+  exportTask.value = {
+    status: data.status,
+    pdfCount: data.pdf_count ?? 0,
+    pdfTotal: data.pdf_total ?? 0,
+    error: data.error || '',
+    excelSaved: exportTask.value?.excelSaved ?? false
+  };
+
+  if (data.status === 'ready') {
+    stopExportPoll();
+    if (!data.file_url) {
+      exportTask.value = { ...exportTask.value, status: 'failed', error: '压缩包地址为空' };
+      return;
+    }
+    try {
+      await downloadExportFile(data.file_url, 'company-usage.zip');
+      exportTask.value = null;
+      window.$message?.success('维保单压缩包已开始下载');
+    } catch (e: any) {
+      exportTask.value = {
+        ...exportTask.value,
+        status: 'failed',
+        error: e?.message || '压缩包下载失败'
+      };
+    }
+    return;
+  }
+
+  if (data.status === 'failed') {
+    exportTask.value.error = data.error || '导出失败';
+    stopExportPoll();
+    return;
+  }
+
+  exportPollTimer = setTimeout(() => {
+    pollExportStatus(taskId);
+  }, EXPORT_POLL_INTERVAL);
+};
+
 const handleExport = async () => {
-  loading.value = true;
-  error.value = '';
+  if (exportBusy.value) return;
+  stopExportPoll();
+  const session = exportSession;
+  exporting.value = true;
+  exportTask.value = null;
   try {
     const params: { start_date?: string; end_date?: string; company_id?: number } = {};
     if (startDate.value) params.start_date = startDate.value;
     if (endDate.value) params.end_date = endDate.value;
     if (companyFilter.value) params.company_id = companyFilter.value;
     const res = await exportCompanyUsage(params);
-    if (res.data?.code === 2000 && res.data.data?.file_url) {
-      const blobRes = await request({ url: res.data.data.file_url, method: 'get', responseType: 'blob' });
-      const blob = blobRes.data as Blob;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = res.data.data.file_url.split('/').pop() || 'export.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } else {
-      error.value = res.data?.msg || '导出失败';
+    if (session !== exportSession) return;
+    if (res.error || res.data?.code !== 2000 || !res.data.data) {
+      exportTask.value = {
+        status: 'failed',
+        pdfCount: 0,
+        pdfTotal: 0,
+        error: responseMessage(res) || '导出失败',
+        excelSaved: false
+      };
+      return;
     }
+
+    const data = res.data.data;
+    if (data.status === 'failed' || data.error) {
+      exportTask.value = {
+        status: 'failed',
+        pdfCount: data.pdf_count ?? 0,
+        pdfTotal: data.pdf_total ?? 0,
+        error: data.error || responseMessage(res) || '导出失败',
+        excelSaved: false
+      };
+      return;
+    }
+
+    if (data.status === 'processing') {
+      if (!data.task_id) {
+        exportTask.value = {
+          status: 'failed',
+          pdfCount: data.pdf_count ?? 0,
+          pdfTotal: data.pdf_total ?? 0,
+          error: '未返回后台任务',
+          excelSaved: false
+        };
+        return;
+      }
+      let excelSaved = false;
+      if (data.excel_url) {
+        try {
+          await downloadExportFile(data.excel_url, 'company-usage.xlsx');
+          excelSaved = true;
+        } catch (e: any) {
+          window.$message?.warning(e?.message || '统计表下载失败，压缩包完成后仍会自动下载');
+        }
+      }
+      if (session !== exportSession) return;
+      exportTask.value = {
+        status: 'processing',
+        pdfCount: data.pdf_count ?? 0,
+        pdfTotal: data.pdf_total ?? 0,
+        error: '',
+        excelSaved
+      };
+      activeExportTaskId = data.task_id;
+      exportPollTimer = setTimeout(() => {
+        pollExportStatus(data.task_id);
+      }, EXPORT_POLL_INTERVAL);
+      return;
+    }
+
+    const fileUrl = data.file_url || data.excel_url;
+    if (!fileUrl) {
+      exportTask.value = {
+        status: 'failed',
+        pdfCount: data.pdf_count ?? 0,
+        pdfTotal: data.pdf_total ?? 0,
+        error: '未返回可下载文件',
+        excelSaved: false
+      };
+      return;
+    }
+    await downloadExportFile(fileUrl, data.file_url ? 'company-usage.zip' : 'company-usage.xlsx');
+    if (session !== exportSession) return;
+    window.$message?.success('导出文件已开始下载');
   } catch (e: any) {
-    error.value = e?.message || '导出请求失败';
+    if (session !== exportSession) return;
+    exportTask.value = {
+      status: 'failed',
+      pdfCount: 0,
+      pdfTotal: 0,
+      error: e?.message || '导出请求失败',
+      excelSaved: false
+    };
   } finally {
-    loading.value = false;
+    if (session === exportSession) exporting.value = false;
   }
 };
 
@@ -227,6 +411,10 @@ onMounted(() => {
   fetchData();
 });
 
+onUnmounted(() => {
+  stopExportPoll();
+});
+
 watch([startDate, endDate], () => {
   currentPage.value = 1;
   fetchData();
@@ -246,6 +434,42 @@ defineExpose({ handleSearch, handleReset });
         <Loader2 :size="32" class="animate-spin text-sky-500" />
         <span class="text-sm text-slate-500 font-bold">加载中...</span>
       </div>
+    </div>
+
+    <!-- ==================== 导出进度 ==================== -->
+    <div
+      v-if="exportTask"
+      class="flex items-center gap-3 border rounded-2xl px-5 py-3"
+      :class="
+        exportTask.status === 'failed'
+          ? 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30'
+          : 'border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30'
+      "
+    >
+      <Loader2 v-if="exportTask.status === 'processing'" :size="18" class="shrink-0 animate-spin text-sky-500" />
+      <AlertTriangle v-else :size="18" class="shrink-0 text-rose-500" />
+      <span
+        class="text-sm font-bold"
+        :class="exportTask.status === 'failed' ? 'text-rose-600 dark:text-rose-400' : 'text-sky-700 dark:text-sky-300'"
+      >
+        <template v-if="exportTask.status === 'processing'">
+          {{ exportTask.excelSaved ? '统计表已下载，' : '' }}维保单 PDF 后台生成中（{{ exportTask.pdfCount }}/{{
+            exportTask.pdfTotal
+          }}），完成后自动下载压缩包，请勿关闭此页面
+          <br />
+          <span class="text-xs text-slate-500 font-medium">
+            如果长时间未下载，请检查浏览器是否拦截下载，或者手动下载
+          </span>
+        </template>
+        <template v-else>{{ exportTask.error || '导出失败' }}</template>
+      </span>
+      <button
+        v-if="exportTask.status === 'failed'"
+        class="ml-auto shrink-0 rounded-lg bg-rose-500 px-3 py-1 text-xs text-white font-bold hover:bg-rose-600"
+        @click="exportTask = null"
+      >
+        关闭
+      </button>
     </div>
 
     <!-- ==================== 错误提示 ==================== -->
@@ -290,11 +514,18 @@ defineExpose({ handleSearch, handleReset });
         </button>
         <button
           class="flex items-center gap-1.5 rounded-xl from-sky-500 to-blue-600 bg-gradient-to-r px-5 py-2 text-xs text-white font-bold shadow-lg shadow-sky-500/20 transition-all hover:from-sky-600 hover:to-blue-700 disabled:opacity-50"
-          :disabled="loading"
+          :disabled="loading || exportBusy"
           @click="handleExport"
         >
-          <Download :size="14" />
-          导出报表
+          <Loader2 v-if="exportBusy" :size="14" class="animate-spin" />
+          <Download v-else :size="14" />
+          {{
+            exportTask?.status === 'processing'
+              ? `生成中 ${exportTask.pdfCount}/${exportTask.pdfTotal}`
+              : exporting
+                ? '导出中...'
+                : '导出报表'
+          }}
         </button>
       </div>
     </div>
